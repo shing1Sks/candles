@@ -1,5 +1,7 @@
 # 00 — Design (living document)
 
+> **2026-10-08: a proposed pivot to a school setting (brutal horror, a story to uncover) is in [`02_the_school.md`](02_the_school.md). Under discussion. The forest below is built and stays as it is.**
+
 Status: **concept stage**. Nothing below is built. Each section is marked **Decided**, **Proposed** (my suggestion, not yet agreed) or **Open**.
 
 ## 1. The idea in one paragraph

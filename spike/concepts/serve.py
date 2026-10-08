@@ -21,13 +21,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
-        m = re.fullmatch(r"/save/([a-z0-9_\-]+)\.png", self.path)
+        m = re.fullmatch(r"/save/((?:[a-z0-9_\-]+/)?[a-z0-9_\-]+)\.png", self.path)
         if not m:
             self.send_error(404)
             return
         data = self.rfile.read(int(self.headers["Content-Length"])).decode()
         ART.mkdir(parents=True, exist_ok=True)
-        (ART / f"{m[1]}.png").write_bytes(base64.b64decode(data.split(",", 1)[1]))
+        out = ART / f"{m[1]}.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_bytes(base64.b64decode(data.split(",", 1)[1]))
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"ok")

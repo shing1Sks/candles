@@ -18,17 +18,20 @@
 </head>
 <body>
 <header>
-  <h1>GameNet: concept sheet v1</h1>
+  <h1 id="title">GameNet: concept sheet</h1>
   <p>Procedurally painted from the doodles. Throwaway spike, for judging look and mood. <button id="saveAll">Save all cards to assets/art</button> <span id="status"></span></p>
 </header>
 <main id="sheet"></main>
 <script type="module">
 import { Painter } from './paint.js';
-import { DESIGNS } from './designs.js';
+const params = new URLSearchParams(location.search);
+const SET = params.get('set') || 'forest';
+const { DESIGNS } = await import(SET === 'school' ? './school.js' : './designs.js');
 
 const sheet = document.getElementById('sheet');
+if (SET === 'school') document.getElementById('title').textContent = 'GameNet: the school, concept sheet v1';
 const cards = [];
-const only = new URLSearchParams(location.search).get('only');
+const only = params.get('only');
 DESIGNS.forEach((d, i) => {
   if (only && d.name !== only) return;
   // transparent card (what the game will use)
@@ -49,6 +52,7 @@ DESIGNS.forEach((d, i) => {
   if (only) view.style.height = d.W > d.H ? 'auto' : '740px', view.style.width = d.W > d.H ? Math.min(1180, d.W * 1.6) + 'px' : 'auto';
   const cap = document.createElement('figcaption');
   cap.textContent = d.caption;
+  cap.dataset.name = d.name;
   fig.append(view, cap);
   sheet.append(fig);
 });
