@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home Time</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #dot { position: fixed; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%;
+         background: rgba(230,226,214,0.35); pointer-events: none; transition: all .12s; }
+  #dot.on { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: transparent; border: 1.5px solid rgba(236,232,220,0.8); }
+  #line { position: fixed; left: 0; right: 0; bottom: 9vh; text-align: center; color: #e8e4da; font: italic 21px Georgia, serif;
+          text-shadow: 0 0 8px #000, 0 0 3px #000; pointer-events: none; opacity: 0; transition: opacity .6s; padding: 0 12vw; }
+  #line.on { opacity: 1; }
+  #card { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+          background: radial-gradient(ellipse at center, #1b1a18 0%, #050505 75%); color: #d8d4ca; font-family: Georgia, serif; }
+  #card.hidden { display: none; }
+  #card h1 { font-weight: normal; letter-spacing: .25em; font-size: 46px; margin: 0 0 10px; }
+  #card p { color: #8f8a80; margin: 6px 0; }
+  #bar { width: 260px; height: 3px; background: #2a2826; margin: 26px 0 8px; }
+  #bar i { display: block; height: 100%; width: 0; background: #b8b2a4; }
+  #go { margin-top: 18px; background: none; color: #e6e1d6; border: 1px solid #6d675d; padding: 9px 22px; font: 16px Georgia; cursor: pointer; letter-spacing: .1em; }
+  #go:disabled { opacity: .3; cursor: default; }
+  .keys { font-size: 13px; margin-top: 22px !important; line-height: 1.7; text-align: center; }
+  #pages { display: flex; gap: 10px; margin-top: 18px; }
+  #pages img { width: 64px; height: 48px; object-fit: cover; border: 1px solid #555; transform: rotate(-2deg); }
+  #prompt { position: fixed; left: 0; right: 0; bottom: 4.5vh; text-align: center; color: #d6d1c6; font: 15px Georgia, serif; letter-spacing: .06em;
+            text-shadow: 0 0 6px #000; pointer-events: none; opacity: 0; transition: opacity .25s; }
+  #prompt.on { opacity: .85; }
+  #controls { position: fixed; left: 18px; bottom: 16px; color: #bdb7ab; font: 12px/1.65 Georgia, serif; pointer-events: none; opacity: .55;
+              text-shadow: 0 0 4px #000; transition: opacity 1.5s; }
+  #controls b { color: #e4dfd4; font-weight: normal; display: inline-block; min-width: 54px; }
+  #controls.dim { opacity: .22; }
+  #credits { position: fixed; right: 18px; bottom: 14px; max-width: 430px; text-align: right; color: #6f6a61; font: 11px/1.5 Georgia, serif; }
+  #credits a { color: #8f8a80; }
+  #card.hidden ~ #credits { display: none; }
+  #fx, #hands { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="hands"></canvas>
+<canvas id="fx"></canvas>
+<div id="dot"></div>
+<div id="line"></div>
+<div id="prompt"></div>
+<div id="controls"><b>W A S D</b> walk<br><b>shift</b> run<br><b>C</b> crouch<br><b>E / click</b> use · hold to write<br><b>Q</b> drop a star<br><b>hold F</b> show hall pass<br><b>[  ]</b> mouse speed<br><b>esc</b> pause</div>
+<div id="card">
+  <h1>HOME TIME</h1>
+  <p id="sub">It's still in session.</p>
+  <div id="bar"><i></i></div>
+  <p id="load">painting…</p>
+  <div id="pages"></div>
+  <button id="go" disabled>click to begin</button>
+  <p class="keys">WASD walk · shift run · C crouch · mouse look<br>E / click use · Q / right-click drop a star · hold F show your hall pass · esc pause</p>
+</div>
+<!-- the music licence (CC BY 4.0) requires this credit in the game: see assets/audio/licensed/CREDITS.md -->
+<div id="credits">Music by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0 License,
+  <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank">creativecommons.org/licenses/by/4.0</a>.
+  Tracks: "Ossuary 6 - Air", "Deep Noise", "Spider Eyes", "SCP-x4x (Mind Leech)", "Darkest Child", "Gone Beyond", "Children's Theme".
+  Excerpted, looped, downmixed/normalised and converted by the Home Time team.<br>
+  Additional sounds: Joseph SARDIN - BigSoundBank.com · CC0 recordings from OpenGameArt and Wikimedia Commons ·
+  the 1890 doll and 1917 hymn recordings courtesy of Thomas Edison National Historical Park and the UCSB Library · reader Nan Dodge, LibriVox.</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

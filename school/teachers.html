@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>teachers preview</title>
+<style>body{margin:0;background:#2a2826;display:flex;flex-wrap:wrap;gap:4px;padding:8px} canvas{height:300px;background:#b8b4ac}</style></head>
+<body><script type="module">
+// dev-only: every teacher, front and back
+import { Painter } from './src/art/paint.js';
+import { teacher, TEACHERS } from './src/art/school.js';
+import { teacherBack } from './src/art/rooms.js';
+TEACHERS.forEach((sp, i) => {
+  for (const fn of [teacher, teacherBack]) {
+    const c = document.createElement('canvas'); c.width = 660; c.height = 1000;
+    fn(new Painter(c.getContext('2d'), 41 + i), sp);
+    document.body.append(c);
+  }
+});
+document.body.dataset.ready = '1';
+</script></body></html>

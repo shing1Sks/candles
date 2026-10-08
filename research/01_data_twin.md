@@ -146,3 +146,50 @@ Run the prototype with `?record` (or with `?auto&record` hands-free) and press *
 3. **Player agents.** Right now there's `?auto` (walk and drift) only. Datasets need scripted and random agents: wander, chase petals, flee the entity, drop petals, stand still, turn around.
 4. **What the hub model sees.** Decide what's state (learned and carried) versus what's derived (recomputed): for example `dread` is derived from the entity, `viewAngle` from the player.
 5. **Event versus state.** Some facts exist only as events, like the reach roll result. Decide which of them become state fields.
+
+
+## 5. Twin v2: the school (2026-10-08)
+
+The school engine (`engine/`) closes gaps 1-3 of §4:
+- **Seeded randomness.** Every draw comes from a named stream (`engine/rng.js`), and a test forbids `Math.random`.
+- **Headless stepping.** The rules run in Node with no renderer.
+- **Player agents.** There are two scripted agents.
+
+The twin is filled from the engine's own state `S` (`engine/twin.js`), never from meshes.
+
+**Recording:**
+- **Headless:** `node engine/sim.js --seed 7 --agent wander|lesson --minutes 10 --out night.jsonl`. The same seed and agent give a byte-identical file; `engine/test/twin.test.js` checks this. Two minutes of night simulate in about a second.
+- **In the browser:** open `localhost:5182/?record` and press **F9** to download.
+- **Rate:** one line every 5th engine step, so 12 lines per second.
+
+**One line holds:**
+- `t, tick, night, seed`
+- `input`: move, look deltas, run, crouch, use, useHeld, drop, show
+- `player`: position, floor, yaw/pitch, velocity, crouch/run, noise, carrying, seated, hidden, room, stairwell, target
+- `held`: stars, pass, chalk, pages
+- `clock`: minutes, bell
+- `headmaster`: state, position, yaw, lights killed
+- `rooms`: only the room you're in plus any running lesson. Each has kit, roll (lesson, teacher, twists, valuables), state, lesson state, students (position, paper, tracking, facing), teacher, visitor and board.
+- `director`: next patrol, last roll, patrols
+- `stairs`
+- `detention`
+- `layout`: entrances, chalk-pinned chunks
+- `phase`
+- `events`: everything since the last line
+
+**Streams per module** (the training data for each model later):
+
+| Module | Columns |
+|---|---|
+| player | `input` + `player` |
+| Headmaster | `headmaster` + hm* events, with the player's relative position |
+| each lesson | `rooms[id].lesson` + lesson events, per roll |
+| director | `director` + roomRoll / hmArrive / forgot |
+| clock | `clock` + clockMinute / bell |
+| exit | `held.stars` + entranceAppears / homeTime / exitFail |
+
+**Agents:**
+- **`wander`** explores, peeks into rooms, and hides from the Headmaster.
+- **`lesson`** finds unfinished classrooms and plays Hand In Your Work, Eyes On Your Own Paper and Story Time by their rules, slipping deliberately with p = 0.1.
+
+In an 8-minute run, `lesson` completed 4 lessons of all three kinds, was caught by a visitor, served detention and walked on.
