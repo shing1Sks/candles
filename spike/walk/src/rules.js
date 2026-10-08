@@ -7,6 +7,8 @@ export const RULES = {
     walk: 2.4, sprint: 4.4, eyeHeight: 1.36,
     fov: 64, sprintFov: 71,
     radius: 0.35,
+    // mouse look: radians per pixel. Pitch stays gentle; the paper cards read flat if you stare up or down
+    lookYaw: 0.0021, lookPitch: 0.0013, pitchMax: 0.42,
   },
 
   // Loose coloured petals drifting through the grey forest. Never a whole field: just strays.

@@ -69,10 +69,19 @@ addEventListener('mouseup', (e) => { if (e.button === 0 && !keys.has('KeyE')) re
 addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('mousemove', (e) => {
   if (!locked || fx.busy) return;
-  P.yaw -= e.movementX * 0.0021;
-  P.pitch = Math.max(-1.1, Math.min(1.1, P.pitch - e.movementY * 0.0021));
-  turnV += e.movementX * 0.0021;
+  // Chrome on Windows sometimes reports one huge jump under pointer lock: drop those
+  if (Math.abs(e.movementX) > 300 || Math.abs(e.movementY) > 200) return;
+  const L = RULES.player;
+  P.yaw -= e.movementX * L.lookYaw;
+  P.pitch = Math.max(-L.pitchMax, Math.min(L.pitchMax, P.pitch - e.movementY * L.lookPitch));
+  turnV += e.movementX * L.lookYaw;
 });
+// raw mouse input avoids the OS acceleration and the jumps; fall back where it isn't supported
+const lockPointer = () => {
+  const el = $('gl');
+  try { el.requestPointerLock({ unadjustedMovement: true })?.catch?.(() => el.requestPointerLock()); }
+  catch { el.requestPointerLock(); }
+};
 document.addEventListener('pointerlockchange', () => {
   locked = document.pointerLockElement === $('gl');
   $('start').classList.toggle('hidden', locked || AUTO || fx.busy);
@@ -85,9 +94,9 @@ const dialogue = new Dialogue($('line'));
 const fx = new FX();
 let world, petals, field, entity, mist, hands;
 
-$('go').addEventListener('click', () => { sound.start(); $('gl').requestPointerLock(); });
+$('go').addEventListener('click', () => { sound.start(); lockPointer(); });
 // clicking the world also gets you back in (e.g. after an effect ended without the lock)
-$('gl').addEventListener('click', () => { if (!locked && !fx.busy && !$('go').disabled) { sound.start(); $('gl').requestPointerLock(); } });
+$('gl').addEventListener('click', () => { if (!locked && !fx.busy && !$('go').disabled) { sound.start(); lockPointer(); } });
 const refreshOverlay = () => $('start').classList.toggle('hidden', locked || AUTO || fx.busy);
 
 const A = await buildAssets((label, k) => { $('load').textContent = `${label}…`; $('bar').style.width = `${Math.round(k * 100)}%`; });
@@ -118,7 +127,7 @@ function onEvent(ev) {
     case 'fieldGone': dialogue.say('gone'); break;
     case 'reached':
       dialogue.say('reached', true);
-      fx.floodIn(AUTO).then(() => { field.letGo(S); if (!AUTO) $('gl').requestPointerLock(); refreshOverlay(); });
+      fx.floodIn(AUTO).then(() => { field.letGo(S); if (!AUTO) lockPointer(); refreshOverlay(); });
       document.exitPointerLock?.();
       break;
     case 'peekSeen': dialogue.say('peek'); sound.play('staple'); break;

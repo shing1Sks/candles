@@ -7,3 +7,5 @@ spike/walk/shots*/
 assets/audio/_downloads/
 .DS_Store
 Thumbs.db
+# plan execution scratch (ledgers, briefs)
+.superpowers/
