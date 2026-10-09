@@ -136,6 +136,7 @@ const ectx = { lampState, scene, camera, fwd: new THREE.Vector3(), P: null, D: n
 let shake = 0;
 const ending = new Ending(scene);
 const doors = new Doors(town);
+const nightStats = { looks: 0, blinks: 0, caught: 0, lost: false, time: 0 };
 const intro = { t: Q.has('go') ? 99 : -1 };
 const bot = Q.has('bot') ? new Bot() : null, TS = Number(Q.get('ts') || 1);
 
@@ -186,7 +187,10 @@ function frame(now) {
   if (caughtT >= 0) { inp.move.x = inp.move.z = 0; inp.look.yaw = inp.look.pitch = 0; inp.run = false; inp.carry = false; }
   if (auto) { auto.t += dt; const stop = Math.sin(auto.t * 0.21) > 0.85; inp.move.z = stop ? 0 : -1; const wantL = 2.6 + Math.sin(auto.t * 0.13) * 1.4; inp.look.yaw = (-(wantL - player.l) * 0.02 - player.yaw * 0.05) ; }
   let t0 = performance.now();
-  const home = ending.update(dt, { P: player, D: dog, tall, director, extraLights, post, sound: sound.ok ? sound : null, caught: false });
+  // the night, counted (for the last words on the credits)
+  { const ns = nightStats, back = camera.getWorldDirection(_fw).z > 0.45; if (back && !ns.wasBack) ns.looks++; ns.wasBack = back; ns.time = director.t;
+    for (const e of events) if (e.id > (ns.seen || 0)) { if (e.name === 'blink') ns.blinks++; if (e.name === 'respawn') ns.caught++; if (e.name === 'lostDog') ns.lost = true; } ns.seen = evId; }
+  const home = ending.update(dt, { P: player, D: dog, tall, director, extraLights, post, sound: sound.ok ? sound : null, caught: false, stats: nightStats });
   if (home && !ending.musicOn && sound.ok) { ending.musicOn = true; for (const k of ['mus_1', 'mus_2', 'mus_3', 'bed_whistle', 'bed_creak']) sound.loops.get(k)?.set(0, 1); sound.stream('end', '/audio/licensed/music_memory_music_box_choir.ogg', { gain: 0.6, bus: 'music' }); }
   if (!home) {
   // at a front door, facing it: E rings the bell (instead of picking Biscuit up)

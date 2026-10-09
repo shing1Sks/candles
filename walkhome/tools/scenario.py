@@ -144,7 +144,7 @@ with sync_playwright() as pw:
     errs = []
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e) + " | " + str(getattr(e, "stack", ""))[:600]))
     pg.goto(f"http://localhost:{PORT}/?go&shots&stats")
-    pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
+    pg.wait_for_function("window.__wh && __wh.segs.size >= 3", timeout=120000)
     pg.evaluate("__wh.input.enabled = true")
     for st in steps:
         k = st[0]

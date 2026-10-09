@@ -56,7 +56,7 @@ export class Ending {
       return true;
     }
     if (this.state === 'in') { auto(G.door, 1.1); c.post.U.uFlash.value = Math.min(1, this.t / 4); if (this.t > 4.5) { this.state = 'still'; this.t = 0; this.still(c); } return true; }
-    if (this.state === 'still') { c.post.U.uFlash.value = Math.max(0, 1 - this.t / 2); if (this.t > 11) { this.state = 'credits'; this.t = 0; this.credits(); } return true; }
+    if (this.state === 'still') { c.post.U.uFlash.value = Math.max(0, 1 - this.t / 2); if (this.t > 11) { this.state = 'credits'; this.t = 0; this.credits(c.stats); } return true; }
     return true;
   }
 
@@ -133,10 +133,17 @@ export class Ending {
     c.frozen = true;
   }
 
-  credits() {
+  credits(st) {
     const el = document.createElement('div');
+    // how the night went, said quietly
+    const n = (k, one, many) => (k === 1 ? one : many.replace('#', k));
+    const mins = Math.max(1, Math.round(st ? st.time / 60 : 0));
+    const night = st ? [n(mins, 'Home in a minute.', 'Home in # minutes.'), st.caught ? n(st.caught, 'He caught you once.', 'He caught you # times.') : 'He never caught you.',
+      st.lost ? 'Biscuit ran, and you found him.' : 'You never let go of him.',
+      st.looks ? n(st.looks, 'You looked back once.', 'You looked back # times.') : 'You never looked back.', st.blinks ? n(st.blinks, 'You blinked once.', 'You blinked # times.') : ''].join(' ') : '';
     el.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#e8dcc4;font-family:Georgia,serif;text-align:center;opacity:0;transition:opacity 3s;z-index:10';
-    el.innerHTML = `<div style="font-size:40px;letter-spacing:.06em;margin-bottom:28px">The Long Way Home</div>
+    el.innerHTML = `<div style="font-size:40px;letter-spacing:.06em;margin-bottom:18px">The Long Way Home</div>
+      <div style="color:#c8bca8;font-size:15px;font-style:italic;margin-bottom:30px;max-width:640px">${night}</div>
       <div style="color:#a89c88;font-size:15px;line-height:1.9">
       Music by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0<br>
       (creativecommons.org/licenses/by/4.0): "Deep Noise", "Spider Eyes", "SCP-x4x (Mind Leech)", "Gone Beyond". Excerpted and looped.<br>

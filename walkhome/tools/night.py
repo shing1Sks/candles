@@ -14,7 +14,7 @@ with sync_playwright() as pw:
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:200] + " | " + str(getattr(e, "stack", ""))[:300]))
     pg.goto(f"http://localhost:{PORT}/?go&shots&stats&bot&ts={ts}&seed={seed}" + (f"&s={sys.argv[5]}" if len(sys.argv) > 5 else ""))
-    pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
+    pg.wait_for_function("window.__wh && __wh.segs.size >= 3", timeout=120000)
     t0 = time.time(); k = 0; shot = 0
     while time.time() - t0 < maxm * 60:
         time.sleep(10)

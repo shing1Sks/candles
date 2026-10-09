@@ -21,7 +21,7 @@ with sync_playwright() as pw:
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e)))
     pg.on("console", lambda m: errs.append(m.type + ": " + m.text) if m.type in ("error", "warning") else None)
     pg.goto(f"http://localhost:{PORT}/?{q}")
-    pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
+    pg.wait_for_function("window.__wh && __wh.segs.size >= 3", timeout=120000)
     time.sleep(2)
     for v in views:
         parts = v.split(":")

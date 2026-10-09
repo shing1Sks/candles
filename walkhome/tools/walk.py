@@ -20,7 +20,7 @@ with sync_playwright() as pw:
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e) + " | " + str(getattr(e, "stack", ""))[:600]))
     pg.on("console", lambda m: errs.append(m.type + ": " + m.text[:200]) if m.type == "error" and "404" not in m.text else None)
     pg.goto(f"http://localhost:{PORT}/?go&shots&stats&auto{('&' + extra) if extra else ''}")
-    pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
+    pg.wait_for_function("window.__wh && __wh.segs.size >= 3", timeout=120000)
     if pre: pg.evaluate(pre)
     for i in range(count):
         time.sleep(every)
