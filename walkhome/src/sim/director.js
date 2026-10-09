@@ -134,7 +134,12 @@ export function stepDirector(D, ctx, dt, emit) {
     behind.forEach((L, i) => { L.dying = 1.2 + i * 1.6; L.base = 0; });
   }
   const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost && !D.finale;
-  if (canVisit) {
+  // Biscuit hears him first: a few seconds before he comes, the dog stops and stares back the way you
+  // came, ears up, a low growl. Then the whistle
+  if (canVisit && !D.heardAt) { D.heardAt = D.t + 2.8; const p = at(P.s - 38, 0); D.omenPt = { x: p.x, z: p.z, until: D.t + 3.2 }; }
+  if (canVisit && D.t < D.heardAt) { /* waiting: the dog has heard something */ }
+  else if (canVisit) {
+    D.heardAt = 0;
     // behind you, in the dark between lamps. Or, later on, sometimes he's ahead: standing in the
     // road, waiting, and the only way home is past him (backwards, eyes on him, blinking)
     const ahead = D.visits >= 2 && !D.lastAhead && rng.chance(0.4);

@@ -15,7 +15,7 @@ TSTATE = "JSON.stringify({t:+__wh.director.t.toFixed(1), d:+Math.hypot(__wh.tall
 SCEN = {
   # he comes; you turn and hold him with your eyes. Do the lamps, the blink and the flicker move him?
   "stare": [
-    ("js", "__wh.put(420, 3.2, 0, -0.1); __wh.director.glimpse = 'done'; __wh.director.nextVisit = 0; __wh.director.visits = 1;"),
+    ("js", "__wh.put(420, 3.2, 0, -0.1); __wh.deck.nextS = 99999; __wh.director.glimpse = 'done'; __wh.director.nextVisit = 0; __wh.director.visits = 1;"),
     ("wait", 1.5), ("log", TSTATE), ("js", TRACK), ("wait", 0.5), ("shot", "a_first"),
   ] + sum([[("wait", 1.0), ("log", TSTATE)] + ([("shot", f"b_{i:02d}")] if i % 3 == 0 else []) for i in range(26)], []),
   # the hands and Biscuit, close: walking, looking down, stroking, running, carrying, pulling
