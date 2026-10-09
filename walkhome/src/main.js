@@ -241,9 +241,10 @@ function frame(now) {
   // caught: the screen goes, and you wake under the last lamp you passed
   if (caughtT < 0 && events.some((e) => e.name === 'caught' && e.id > seenCaught)) { caughtT = 0; tall.catching = true; ectx.catchYaw = Math.atan2(-(tall.x - player.x), -(tall.z - player.z)); }
   seenCaught = evId;
-  if (caughtT >= 0 && caughtT < 1.1) {
+  // (timeline: he folds down over you in 0.45 s, holds his face there a second, the mouth tears open, black)
+  if (caughtT >= 0 && caughtT < 1.75) {
     // you're turned round to him; he folds down over you, his face right in front of yours, lit for a moment
-    const k = Math.min(1, caughtT / 0.55);
+    const k = Math.min(1, caughtT / 0.45) * (caughtT > 1.0 ? 1 : 0.85 + 0.15 * Math.min(1, caughtT / 0.45));
     let d = ectx.catchYaw - player.yaw; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     player.yaw += d * Math.min(1, dt * 14); player.pitch += (0.12 - player.pitch) * Math.min(1, dt * 10);
     const fx = -Math.sin(ectx.catchYaw), fz = -Math.cos(ectx.catchYaw);
@@ -253,8 +254,8 @@ function frame(now) {
     ectx.catchLight.pos.set(player.x + fx * 0.35, player.y + 0.72, player.z + fz * 0.35); ectx.catchLight.power = 2.0 + Math.random() * 0.6; // from below, like a torch under a chin
     shake = Math.max(shake, 0.5);
   }
-  if (caughtT >= 0) { caughtT += dt; black = caughtT < 0.75 ? 0 : Math.min(1, (caughtT - 0.75) * 5);
-    if (caughtT > 1.0 && ectx.catchLight) { extraLights.splice(extraLights.indexOf(ectx.catchLight), 1); ectx.catchLight = null; tall.catching = false; tallView.stoop(0); } if (caughtT > 2.6 && caughtT - dt <= 2.6) respawn(director, player, tall, dog, emit); if (caughtT > 2.6) black = Math.max(0, 1 - (caughtT - 2.6) / 2.5); if (caughtT > 5.1) caughtT = -1; }
+  if (caughtT >= 0) { caughtT += dt; black = caughtT < 1.45 ? 0 : Math.min(1, (caughtT - 1.45) * 6);
+    if (caughtT > 1.7 && ectx.catchLight) { extraLights.splice(extraLights.indexOf(ectx.catchLight), 1); ectx.catchLight = null; tall.catching = false; tallView.stoop(0); } if (caughtT > 3.2 && caughtT - dt <= 3.2) respawn(director, player, tall, dog, emit); if (caughtT > 3.2) black = Math.max(0, 1 - (caughtT - 3.2) / 2.5); if (caughtT > 5.7) caughtT = -1; }
   if (!(intro.t >= 0 && intro.t < 2.2)) post.U.uBlack.value = black;
   post.U.uHide.value += ((hiddenNow ? 1 : 0) - post.U.uHide.value) * Math.min(1, dt * 3);
   // your eyes: heavy when you've held him too long, then a blink (and he's nearer)

@@ -97,6 +97,10 @@ SCEN = {
     ("js", "(() => { const T = __wh.tall; __wh.put(T.s + 4, T.l + 0.3, 0, 0); })()"), ("wait", 1.0), ("lookat", "{x: __wh.tall.x, y: 2.7, z: __wh.tall.z}"), ("wait", 0.8), ("shot", "b_4m"),
     ("js", "(() => { const T = __wh.tall; __wh.lampState.forEach(l => { if (Math.abs(l.s - T.s) < 30) l.on = 0; }); })()"), ("wait", 1.0), ("shot", "c_dark"),
   ],
+  "catchface": [
+    ("js", "__wh.put(352, 2.4, 0, -0.05); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.glimpse = 'done'; __wh.director.nextOmen = 99999"), ("wait", 2),
+    ("js", "(() => { const T = __wh.tall, P = __wh.player; T.active = true; T.mode = 'hunt'; T.knows = 1; T.x = P.x + 0.3; T.z = P.z + 2.2; T.y = P.y; })()"),
+    ("wait", 0.3), ("shot", "f1"), ("wait", 0.12), ("shot", "f2"), ("wait", 0.12), ("shot", "f3"), ("wait", 0.12), ("shot", "f4"), ("wait", 0.12), ("shot", "f5")],
   "catch": [
     ("js", "__wh.put(352, 2.4, 0, -0.05); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.glimpse = 'done'"), ("wait", 2),
     ("js", "(() => { const T = __wh.tall, P = __wh.player; T.active = true; T.mode = 'hunt'; T.knows = 1; T.x = P.x + 0.3; T.z = P.z + 2.2; T.y = P.y; })()"),

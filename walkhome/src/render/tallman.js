@@ -141,7 +141,7 @@ export class TallManView {
   // the catch: he folds down over you until his face is level with yours
   stoop(k) {
     // and the mouth comes open
-    const want = k > 0.72 ? this.faceOpen : this.faceShut; if (this.porcelain.map !== want) { this.porcelain.map = want; this.porcelain.emissiveMap = want; this.porcelain.needsUpdate = true; }
+    const want = k > 0.99 && (this.openT = (this.openT || 0) + 1) > 30 ? this.faceOpen : this.faceShut; if (k < 0.99) this.openT = 0; /* (the mouth comes open after he's held you a moment) */ if (this.porcelain.map !== want) { this.porcelain.map = want; this.porcelain.emissiveMap = want; this.porcelain.needsUpdate = true; }
     this.porcelain.roughness = 0.28 + k * 0.4; this.porcelain.emissive.setHex(k > 0 ? 0x5a5448 : 0x2a2620);
     // fold at the hips (pivot 1.3 m up): the torso goes over toward you until the face is level with yours
     const a = -k * 1.78, h = 1.3;
