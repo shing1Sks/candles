@@ -18,6 +18,7 @@ export const U = {
   uLampDown: { value: new THREE.Vector3(0, -1, 0) },
   uLampCone: { value: new Array(NL).fill(1) },
   uWind: { value: new THREE.Vector2(1, 0.3) },
+  uRainWet: { value: 0 },     // how soaked the town is (0 dry .. 1 the hill in the rain)
 };
 
 const LEAN_VERT_PARS = /* glsl */`
@@ -71,7 +72,7 @@ const LAMP_FRAG = /* glsl */`
 // WEATHER: old walls aren't clean. Rain has run down them for a hundred years: dark vertical streaks
 // under everything, uneven, thicker in places; and soot. Cheap (two value noises), world-space
 const WEATHER_PARS = /* glsl */`
-  varying vec3 vWPos;
+  varying vec3 vWPos; uniform float uRainWet;
   float wh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float wn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(wh(i), wh(i + vec2(1, 0)), f.x), mix(wh(i + vec2(0, 1)), wh(i + 1.), f.x), f.y); }
 `;
@@ -81,6 +82,7 @@ const WEATHER_FRAG = /* glsl */`
     float streak = wn(vec2(u * 5.0, vWPos.y * 0.4)) * 0.7 + wn(vec2(u * 17.0, vWPos.y * 1.3)) * 0.3;
     float blotch = wn(vWPos.xz * 0.35 + vWPos.y * 0.2);
     diffuseColor.rgb *= 1.0 - smoothstep(0.5, 0.9, streak) * 0.28 - smoothstep(0.55, 0.95, blotch) * 0.12;
+    diffuseColor.rgb *= 1.0 - uRainWet * (0.22 + streak * 0.15);   // soaked: darker, more so where the water runs
   }
 `;
 
@@ -95,6 +97,8 @@ varying vec3 vWPos;` : ''))
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 ` + LEAN_VERT + (weather ? `
 vWPos = (modelMatrix * vec4(position, 1.0)).xyz;` : ''));
+    if (weather) sh.fragmentShader = sh.fragmentShader.replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+roughnessFactor *= 1.0 - uRainWet * 0.5;`);
     if (weather) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 ` + WEATHER_PARS).replace('#include <color_fragment>', `#include <color_fragment>
 ` + WEATHER_FRAG);

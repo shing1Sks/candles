@@ -71,7 +71,7 @@ export class Fx {
     // ---- splashes: little rings opening on the ground all round you when it rains (all in the shader:
     // each one has its own spot in a box round you and its own moment; the ground is a plane through
     // your feet tilted with the road's slope)
-    { const N = 700, g = new THREE.InstancedBufferGeometry(); g.copy(new THREE.RingGeometry(0.6, 1.0, 12, 1)); g.rotateX(-Math.PI / 2); g.instanceCount = N;
+    { const N = 700, g = new THREE.InstancedBufferGeometry(); g.copy(new THREE.RingGeometry(0.82, 1.0, 14, 1)); g.rotateX(-Math.PI / 2); g.instanceCount = N;
       const off = new Float32Array(N * 3); for (let i = 0; i < N; i++) off.set([Math.random() * 16, Math.random(), Math.random() * 16], i * 3);
       g.setAttribute('aOff', new THREE.InstancedBufferAttribute(off, 3));
       this.splashU = { uTime: U.uTime, uCam: { value: new THREE.Vector3() }, uRain: { value: 0 }, uGround: { value: new THREE.Vector3() } };
@@ -81,10 +81,10 @@ export class Fx {
             vec2 xz = aOff.xz + vec2(fract(sin(cyc * 12.9 + aOff.y * 78.2) * 437.5), fract(sin(cyc * 39.3 + aOff.x) * 151.7)) * 3.0;
             xz = mod(xz - uCam.xz + 8.0, 16.0) + uCam.xz - 8.0;
             float y = uGround.x + (xz.y - uGround.z) * uGround.y + 0.015;          // a plane through your feet, tilted with the road
-            float r = 0.012 + ph * 0.075;
+            float r = 0.01 + ph * 0.06;
             vA = (1. - ph) * (1. - ph) * uRain * step(aOff.y, uRain);
             gl_Position = projectionMatrix * viewMatrix * vec4(xz.x + position.x * r, y, xz.y + position.z * r, 1.); }`,
-        fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(vec3(0.75, 0.77, 0.85), vA * 0.5); }' });
+        fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(vec3(0.7, 0.72, 0.8), vA * 0.22); }' });
       this.splash = new THREE.Mesh(g, m); this.splash.frustumCulled = false; this.splash.renderOrder = 6; scene.add(this.splash); }
     // ---- leaves
     const N = 420; this.N = N;

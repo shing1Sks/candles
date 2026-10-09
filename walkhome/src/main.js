@@ -192,7 +192,7 @@ function frame(now) {
   { const door = caughtT < 0 ? doors.at(player, camera.getWorldDirection(_fw)) : null;
     if (door) { if (!Q.has('go') || Q.has('hints')) hint('door', 'E to ring the bell.', 4); if (inp.carry) { inp.carry = false; doors.ring(door, { sound: sound.ok ? sound : null, emit, P: player, D: dog }); } }
     doors.update(dt, { sound: sound.ok ? sound : null, emit, P: player, D: dog }); }
-  stepPlayer(player, inp, dt, obstacles);
+  player.adrenaline = !!director.finale; stepPlayer(player, inp, dt, obstacles);
   // Biscuit
   const hand = vm.hold.getWorldPosition(new THREE.Vector3());
   const om = director.omenPt, omenT = om ? [{ x: om.x, z: om.z, d: 19, seen: true, kind: 'omen' }] : [];
@@ -300,7 +300,7 @@ function frame(now) {
     for (const seg of segs.values()) { for (const L of seg.lamps) if (L.bulb && lampState[L.id].on && Math.abs(L.s - player.s) < 25) bulbs.push(L.bulb); for (const c of seg.chimneys) if (Math.abs(c.z - player.z) < 45) chim.push(c); }
     bulbs.sort((a, b) => a.distanceToSquared(camera.position) - b.distanceToSquared(camera.position));
     fx.update(dt, player, camera, bulbs, chim, fear.v);
-    M.cobble.roughness = 1 - fx.rainLevel * 0.3; M.slab.roughness = 1 - fx.rainLevel * 0.35;
+    U.uRainWet.value = fx.rainLevel; M.cobble.roughness = 1 - fx.rainLevel * 0.3; M.slab.roughness = 1 - fx.rainLevel * 0.35;
   }
   pm('fx', t0); t0 = performance.now();
   puppy.root.visible = !dog.hidden; dog.nearEvil = tall.active && !tall.vanished && Math.hypot(tall.x - dog.x, tall.z - dog.z) < 15;

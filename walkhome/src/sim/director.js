@@ -12,7 +12,7 @@ import { placeTall } from './tallman.js';
 export const DIR = {
   baseFear: { ourStreet: 0.0, longStreet: 0.12, highStreet: 0.18, parkEdge: 0.28, hill: 0.32 },
   // the walk paces him, but so does the clock: dawdle, and the night comes to you anyway
-  firstGlimpseS: 150, firstGlimpseT: 80, firstVisitS: 270, firstVisitT: 55, visitGap: [40, 70], after: [20, 30], peakDist: 7, leftBehind: 70,
+  finaleS: 1475, firstGlimpseS: 150, firstGlimpseT: 80, firstVisitS: 270, firstVisitT: 55, visitGap: [40, 70], after: [20, 30], peakDist: 7, leftBehind: 70,
   omenGap: [13, 28], maxHold: 30,
 };
 
@@ -118,7 +118,18 @@ export function stepDirector(D, ctx, dt, emit) {
   D.holdT = D.hold ? D.holdT + dt : 0;
   const held = D.hold && D.holdT < DIR.maxHold;
   const reached = P.s > DIR.firstVisitS || (D.glimpse === 'done' && D.t > D.glimpseDoneT + DIR.firstVisitT && P.s > 110) || D.visits > 0;
-  const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost;
+  // THE LAST RUN. The final stretch up to the gate: every lamp behind you goes out, one after
+  // another, coming toward you; he's coming with them, and he won't give up. Run, and look back
+  // to hold him, and run (and don't stare: you'll blink). The only way out is the gate.
+  if (!D.finale && P.s > DIR.finaleS && !dog.lost && D.glimpse === 'done') {
+    D.finale = true; if (tall.active) tall.active = false;
+    placeTall(tall, P.s - 55, rng.range(-1.5, 1.5)); tall.mode = 'hunt'; tall.knows = 1; tall.finale = true;
+    D.visits++; D.visitT = 0; setPhase(D, 'hunt', emit); emit('finale', {}); emit('whistle', { x: tall.x, z: tall.z }); D.ledger.push([+D.t.toFixed(1), 'finale']);
+    // the chain: lamps from far behind toward you, each a little after the last
+    const behind = D.lamps.filter((L) => L.on && L.s < P.s + 6 && L.s > P.s - 140).sort((a, b) => a.s - b.s);
+    behind.forEach((L, i) => { L.dying = 1.2 + i * 1.6; L.base = 0; });
+  }
+  const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost && !D.finale;
   if (canVisit) {
     // behind you, in the dark between lamps. Or, later on, sometimes he's ahead: standing in the
     // road, waiting, and the only way home is past him (backwards, eyes on him, blinking)
@@ -145,7 +156,7 @@ export function stepDirector(D, ctx, dt, emit) {
       // a visit can't hover: after a while of following he stops stalking and comes for you
       if (D.visitT > 38 && tall.mode === 'stalk') { tall.mode = 'hunt'; emit('hunt', {}); }
       // you got away: far ahead, survived the peak, hid well enough for long enough, or he's been at it too long
-      const escaped = d > DIR.leftBehind || (D.phase === 'peak' && D.pt > 10) || D.visitT > 95 || (tall.lostFor || 0) > 10;
+      const escaped = !tall.finale && (d > DIR.leftBehind || (D.phase === 'peak' && D.pt > 10) || D.visitT > 95 || (tall.lostFor || 0) > 10);
       if (escaped) { tall.mode = 'withdraw'; emit('withdraw', {}); }
     } else if (tall.vanished || (!tall.seen && (d > 34 || tall.unseenFor > 6))) {
       tall.active = false; tall.vanished = false; setPhase(D, 'after', emit);
@@ -171,6 +182,8 @@ export function respawn(D, P, tall, dog, emit) {
   Object.assign(P, { x: c.x, z: c.z, vx: 0, vz: 0, s: D.checkpoint.s, l: D.checkpoint.l, yaw: 0, pitch: -0.1, stamina: 1, winded: 0 });
   if (dog.carried) { dog.carried = false; P.carrying = false; }
   Object.assign(dog, { x: c.x + 0.4, z: c.z - 0.6, vx: 0, vz: 0, fear: 0.7, state: 'hide', st: 0 });
+  // caught in the last run: back to before it, and it starts again (Biscuit stays with you this time)
+  if (D.finale) { D.finale = false; tall.finale = false; if (D.checkpoint.s > DIR.finaleS - 10) { D.checkpoint = { s: DIR.finaleS - 25, l: 2.6 }; const q = at(D.checkpoint.s, 2.6); Object.assign(P, { x: q.x, z: q.z, s: D.checkpoint.s, l: 2.6 }); Object.assign(dog, { x: q.x + 0.4, z: q.z - 0.6 }); } D.lostOnce = true; }
   // the first time, he bolts. He's up the road, pressed against a garden wall, on whichever side
   if (!D.lostOnce) {
     D.lostOnce = true;

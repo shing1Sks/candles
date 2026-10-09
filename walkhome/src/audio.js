@@ -248,6 +248,7 @@ export class Sound {
         else if (d.kind === 'eyes') this.one('step_leaves', { pos, gain: 0.3, rate: 0.7, verb: 0.2, ref: 2 });
         break;
       }
+      case 'finale': this.one('../licensed/sfx_stinger_dark', { gain: 0.6, slice: false, verb: 0 }); this.shock = Math.max(this.shock || 0, 0.4); break;
       case 'blink': this.one('syn_sub', { gain: 0.35 + Math.max(0, 1 - e.data.d / 12) * 0.5, slice: false, verb: 0, at: 0.18 }); break;
       case 'respawn': this.one('syn_ring', { gain: 0.25, slice: false, verb: 0 }); break;
       case 'step': {

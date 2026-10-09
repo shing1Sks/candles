@@ -81,6 +81,7 @@ export function stepTall(M, P, cam, dt, lamps, ctx, emit) {
     // close up he slows to a stalk, unless he's hunting
     const hunt = M.mode === 'hunt';
     let speed = pd > 22 ? 3.4 : pd > 11 ? (hunt ? TALL.hunt : TALL.walk * 1.25) : (hunt ? (pd < 7 ? TALL.rush : TALL.hunt) : TALL.walk);
+    if (M.finale) speed = pd > 12 ? 2.6 : 2.2;   // the last run: faster than you can walk, not as fast as you can run (while your breath lasts)
     // in the flicker of a dying lamp he comes fast: every dark frame he's a step nearer
     if (M.inView && under && (under.level ?? 1) < 0.5) speed = Math.max(speed, 5.5);
     // he won't step into a lamp's pool while it's steady: he waits at the edge for it to die

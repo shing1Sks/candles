@@ -18,7 +18,7 @@ export function stepPlayer(P, input, dt, obstacles) {
   // running needs breath; once winded you can't run again until you've got some back
   const wantsRun = input.run && !crouching && P.winded <= 0 && (input.move.x || input.move.z);
   P.running = wantsRun && P.stamina > 0;
-  if (P.running) { P.stamina -= dt * (P.carrying ? PLAYER.staminaCarry : PLAYER.staminaDrain); if (P.stamina <= 0) { P.stamina = 0; P.winded = 2.5; } }
+  if (P.running) { P.stamina -= dt * (P.carrying ? PLAYER.staminaCarry : PLAYER.staminaDrain) * (P.adrenaline ? 0.55 : 1); /* (the last run: you find more breath than you had) */ if (P.stamina <= 0) { P.stamina = 0; P.winded = 2.5; } }
   else { P.stamina = Math.min(1, P.stamina + dt * PLAYER.staminaRegen * (P.speed < 0.2 ? 1.6 : 1)); P.winded = Math.max(0, P.winded - dt); }
   const max = crouching ? PLAYER.crouch : P.running ? (P.carrying ? PLAYER.carryRun : PLAYER.run) : (P.carrying ? PLAYER.carryWalk : PLAYER.walk);
   let mx = input.move.x, mz = input.move.z; const ml = Math.hypot(mx, mz); if (ml > 1) { mx /= ml; mz /= ml; }
