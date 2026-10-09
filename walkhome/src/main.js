@@ -265,16 +265,17 @@ function frame(now) {
   // camera: child's eye, a small bounce in the step, a little sway
   const eye = PLAYER.eye + (PLAYER.eyeCrouch - PLAYER.eye) * player.crouch;
   const sp = Math.min(1, player.speed / 3.3);
-  bob = Math.sin(player.phase * Math.PI) * 0.028 * Math.min(1, player.speed / 1.4) * (player.running ? 1.6 : 1);
+  bob = Math.sin(player.phase * Math.PI) * 0.028 * Math.min(1, player.speed / 1.4) * (player.running ? 2.2 : 1);
   camera.position.set(player.x, player.y + eye + Math.abs(bob) - 0.01, player.z);
   shake = Math.max(0, shake - dt * 1.5);
   const jolt = shake * shake * 0.04;
-  camera.rotation.set(player.pitch + (Math.random() - 0.5) * jolt, player.yaw + (Math.random() - 0.5) * jolt, Math.sin(player.phase * Math.PI * 0.5) * 0.006 * sp, 'YXZ');
+  camera.rotation.set(player.pitch + (Math.random() - 0.5) * jolt + (player.running ? Math.sin(player.phase * Math.PI * 2) * 0.006 : 0), player.yaw + (Math.random() - 0.5) * jolt, Math.sin(player.phase * Math.PI * 0.5) * (player.running ? 0.016 : 0.006) * sp, 'YXZ');
   // the world narrows when he's near (tunnel vision), and the first sight of him each time pulls at it
   { const near = tall.active && !tall.vanished ? Math.max(0, 1 - Math.hypot(tall.x - player.x, tall.z - player.z) / 16) : 0;
     for (const e of events) if (e.name === 'tallSeen' && e.id > (ectx.seenFov || 0)) ectx.zoom = 1; ectx.seenFov = evId;
     ectx.zoom = Math.max(0, (ectx.zoom || 0) - dt * 0.8);
-    const fov = 68 - near * 7 - Math.sin(Math.min(1, ectx.zoom) * Math.PI) * 5;
+    ectx.runK = (ectx.runK || 0) + ((player.running ? 1 : 0) - (ectx.runK || 0)) * Math.min(1, dt * 3);
+    const fov = 68 - near * 7 - Math.sin(Math.min(1, ectx.zoom) * Math.PI) * 5 + ectx.runK * 4; // (running: the world rushes at you)
     if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); } }
   camera.updateMatrixWorld();
   // sky and moon follow
