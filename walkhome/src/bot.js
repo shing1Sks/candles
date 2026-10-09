@@ -7,6 +7,7 @@ import { T as roadT, regionAt } from './sim/road.js';
 export class Bot {
   constructor() { this.t = 0; this.nextLook = 6; this.lookUntil = 0; this.tens = 0; this.log = []; this.lastLog = -99; this.calmFor = 0; }
   drive(inp, w, dt) {
+    if (this.paused) return; // (a tool has the controls for a moment)
     const P = w.player, D = w.dog, Tm = w.tall, Dir = w.director;
     this.t += dt;
     const danger = Tm.active && Tm.mode !== 'glimpse';

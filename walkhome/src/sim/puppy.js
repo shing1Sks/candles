@@ -124,11 +124,11 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
       /* left behind (a sniff, a stop), he trots on faster to get back out in front of you */
       { const lag = Math.hypot(tx - D.x, tz - D.z); if (moving && lag > 0.8) want = Math.max(want, P.speed + Math.min(1.1, lag * 0.55)); }
       // something to sniff nearby?
-      if (D.st > 1.5) for (const p of D.poiExtra ? [...world.pois, D.poiExtra] : world.pois) {
+      if (D.st > 1.5 && world.time > (D.nextSniff || 0)) for (const p of D.poiExtra ? [...world.pois, D.poiExtra] : world.pois) {
         const last = D.sniffed.get(p.id) ?? -999;
         if (world.time - last < DOG.poiCooldown) continue;
         const d = Math.hypot(p.x - D.x, p.z - D.z);
-        if (d < 2.2 && Math.hypot(p.x - hand.x, p.z - hand.z) < DOG.lead + 0.4 && rng.chance(dt * 1.5)) { D.state = 'sniff'; D.st = 0; D.poi = p; D.sniffed.set(p.id, world.time); D.sniffFor = rng.range(DOG.sniffMin, DOG.sniffMax) * (p.kind === 'lamp' ? 1.3 : 1); D.pee = (p.kind === 'lamp' || p.kind === 'bin' || p.kind === 'gate') && rng.chance(0.3); emit('sniffStart', { kind: p.kind }); break; }
+        if (d < 2.2 && Math.hypot(p.x - hand.x, p.z - hand.z) < DOG.lead + 0.4 && rng.chance(dt * 1.5)) { D.state = 'sniff'; D.st = 0; D.poi = p; D.sniffed.set(p.id, world.time); D.sniffFor = rng.range(DOG.sniffMin, DOG.sniffMax) * (p.kind === 'lamp' ? 1.3 : 1) * (moving ? 0.6 : 1); D.nextSniff = world.time + D.sniffFor + rng.range(moving ? 6 : 3, moving ? 12 : 7); /* (not every gatepost: a walk is a walk) */ D.pee = (p.kind === 'lamp' || p.kind === 'bin' || p.kind === 'gate') && rng.chance(0.3); emit('sniffStart', { kind: p.kind }); break; }
       }
       // little moments of his own, when it's quiet: scratch an ear, a big yawn, a shake (when wet), a sneeze
       if (D.st > 3 && world.calm && rng.chance(dt * (moving ? 0.03 : 0.12))) {
