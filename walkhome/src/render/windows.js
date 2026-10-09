@@ -16,7 +16,8 @@ export const WIN_U = {
   // waves along the street (world z from, z to, strength): curtains closing house by house; lights going out
   uCurtainWave: { value: new THREE.Vector3(0, 0, 0) },
   uLightsOut: { value: new THREE.Vector3(0, 0, 0) },
-  uTallWin: { value: new THREE.Vector4(0, 0, 0, 0) },   // the centre of the one window he's standing in (w = on)
+  uTallWin: { value: new THREE.Vector4(0, 0, 0, 0) },
+  uLate: { value: 0 },        // how late it's got: people go to bed, the lit windows go out one by one   // the centre of the one window he's standing in (w = on)
 };
 
 const VERT = /* glsl */`
@@ -41,7 +42,7 @@ const VERT = /* glsl */`
 `;
 
 const FRAG = /* glsl */`
-  uniform float uTime, uEvil; uniform vec3 uPlayer; uniform vec3 uMoon, uSkyRefl, uCurtainWave, uLightsOut; uniform vec4 uTallWin;
+  uniform float uTime, uEvil; uniform vec3 uPlayer; uniform vec3 uMoon, uSkyRefl, uCurtainWave, uLightsOut; uniform vec4 uTallWin; uniform float uLate;
   float inWave(vec3 w, float z) { return step(min(w.x, w.y), z) * step(z, max(w.x, w.y)) * w.z; }
   varying vec2 vUv; varying vec4 vRoom; varying vec4 vSize; varying vec3 vT, vB, vN, vWorld, vCenter; varying float vWatch;
   #include <fog_pars_fragment>
@@ -51,7 +52,7 @@ const FRAG = /* glsl */`
   vec3 pal(float t) { return vec3(0.5) + vec3(0.35, 0.3, 0.3) * cos(6.283 * (vec3(0.9, 0.8, 0.7) * t + vec3(0.0, 0.15, 0.3))); }
 
   void main() {
-    float seed = vRoom.x, lit = vRoom.y * (1.0 - inWave(uLightsOut, vCenter.z)), kind = vRoom.z, curtain = max(vRoom.w, inWave(uCurtainWave, vCenter.z));
+    float seed = vRoom.x, lit = vRoom.y * (1.0 - inWave(uLightsOut, vCenter.z)) * max(step(uLate * 0.65, fract(sin(seed * 41.3) * 43758.5)), step(1.0005, vRoom.y)), kind = vRoom.z, /* (home's windows stay lit) */ curtain = max(vRoom.w, inWave(uCurtainWave, vCenter.z));
     float W = vSize.x, H = vSize.y, D = vSize.z, shape = vSize.w;
     vec2 q = vUv - 0.5;
     // the opening's shape

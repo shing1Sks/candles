@@ -257,7 +257,7 @@ export function buildSegment(M, town, i, scene) {
       const seed = wr.range(1, 1000), lit = wr.chance(litBias) ? 1 : 0, kind = lit && wr.chance(0.25) ? 1 : wr.chance(0.2) ? 2 : 0;
       const shape = w.kind === 'round' ? 2 : w.kind === 'fan' ? 3 : (w.kind === 'sash' && !w.small && !w.bay && wr.chance(0.5)) ? 1 : 0;
       const dims = w.kind === 'round' ? [w.r * 2, w.r * 2] : w.kind === 'fan' ? [w.r * 2, w.r] : [w.wdt, w.hgt];
-      const c = wins.add(F, { x: w.x, y: shape === 3 ? w.y + dims[1] / 2 - 0.0 : w.y, z: w.z, ry: w.ry || 0, wdt: dims[0], hgt: dims[1], shape, seed, lit: w.kind === 'fan' ? (o.porchLamp ? 1 : 0.3) : lit, kind: w.kind === 'fan' ? 0 : kind, curtain: wr.chance(0.4) ? wr.range(0.2, 0.9) : 0, watch: wr.chance(0.12) ? 1 : 0 });
+      const c = wins.add(F, { x: w.x, y: shape === 3 ? w.y + dims[1] / 2 - 0.0 : w.y, z: w.z, ry: w.ry || 0, wdt: dims[0], hgt: dims[1], shape, seed, lit: w.kind === 'fan' ? (o.porchLamp ? 1 : 0.3) : o.home && lit ? 1.001 : lit, kind: w.kind === 'fan' ? 0 : kind, curtain: wr.chance(0.4) ? wr.range(0.2, 0.9) : 0, watch: wr.chance(0.12) ? 1 : 0 });
       if (lit && w.kind !== 'fan') lights.push({ pos: c.clone(), color: kind === 1 ? [0.25, 0.35, 0.8] : [1.0, 0.62, 0.3], power: 0.9, base: 0.9, cone: 0, kind: 'window', tv: kind === 1, seed });
     }
     if (out.shopfront) { const sl = shopWindow(group, kit, F, out.shopfront, o, anim); if (sl) lights.push(sl); }

@@ -8,7 +8,7 @@ import { makePlayer, stepPlayer, PLAYER } from './sim/player.js';
 import { makeTextures } from './render/textures.js';
 import { makeMaterials, U, lampify } from './render/materials.js';
 import { buildSegment, buildSegmentLOD, disposeSegment } from './render/street.js';
-import { LightRig, FarLamps, SODIUM } from './render/lamps.js';
+import { LightRig, FarLamps, SODIUM, lampColour } from './render/lamps.js';
 import { makeSky, bakeEnv, SKY_U, makeSkyline } from './render/sky.js';
 import { WIN_U } from './render/windows.js';
 import { Post } from './render/post.js';
@@ -156,8 +156,9 @@ function lightsNow() {
       st.level = st.flick > 0 ? (Math.sin(U.uTime.value * 37 + L.id) > 0.1 ? 1 : 0.15) * (Math.random() > 0.08 ? 1 : 0) : 1;
       if (st.flick > 0 && st.on && !st.dying) st.flick = Math.max(0, st.flick - 0.016);
       const lv = st.on * st.level;
-      if (L.bulbMesh) { L.bulbMesh.material.color.setRGB(1.0 * lv + 0.05, 0.85 * lv + 0.05, 0.6 * lv + 0.06); L.beam.visible = lv > 0.02; L.beam.userData.mat.uniforms.uI.value = lv; }
-      if (lv > 0.01 && L.bulb) { out.push({ pos: L.bulb, color: SODIUM, power: lv, cone: 1, kind: 'lamp' }); const d = L.bulb.distanceTo(camera.position); if (d < 75) airLamps.push({ pos: L.bulb, ground: L.ground ??= groundAt(L.bulb.x, L.bulb.z), color: SODIUM, level: lv, d }); }
+      const col = L.col ??= lampColour(L.region);
+      if (L.bulbMesh) { L.bulbMesh.material.color.setRGB(col[0] * lv + 0.05, (0.3 + col[1] * 0.85) * lv + 0.05, (0.2 + col[2] * 0.8) * lv + 0.06); L.beam.visible = lv > 0.02; const bu = L.beam.userData.mat.uniforms; bu.uI.value = lv; if (!L.colSet) { L.colSet = true; bu.uColor.value.setRGB(col[0], col[1] * 1.03, col[2] * 1.1); } }
+      if (lv > 0.01 && L.bulb) { out.push({ pos: L.bulb, color: col, power: lv, cone: 1, kind: 'lamp' }); const d = L.bulb.distanceTo(camera.position); if (d < 75) airLamps.push({ pos: L.bulb, ground: L.ground ??= groundAt(L.bulb.x, L.bulb.z), color: col, level: lv, d }); }
     }
     for (const l of seg.lights) { if (l.tv) { const t = U.uTime.value; l.power = l.base * (0.45 + 0.35 * Math.sin(t * 7.3 + l.seed) * Math.sin(t * 2.1 + l.seed * 3) + 0.25 * (Math.sin(t * 23 + l.seed) > 0.7 ? 1 : 0)); }
       if (l.kind === 'window' && WIN_U.uLightsOut.value.z > 0.5) { const w = WIN_U.uLightsOut.value; if (l.pos.z >= Math.min(w.x, w.y) && l.pos.z <= Math.max(w.x, w.y)) continue; } out.push(l); }
@@ -336,6 +337,7 @@ function frame(now) {
   WIN_U.uPlayer.value.set(player.x, player.y + 1, player.z);
   U.uLean.value = 1 + fear.v * 0.9;
   WIN_U.uEvil.value = Math.min(1, fear.v + (ectx.evilBoost || 0));
+  WIN_U.uLate.value = Math.min(1, Math.max(0, (player.s - 200) / 1300) * 0.6 + director.t / 1500 * 0.4); // (the further you go and the later it gets, the fewer windows are lit)
   post.U.uFear.value = fear.v * 0.6;
   post.U.uTime.value = U.uTime.value;
   renderer.info.reset();

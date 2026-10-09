@@ -8,6 +8,11 @@ import { U, NL } from './materials.js';
 import { at as roadAt } from '../sim/road.js';
 
 export const SODIUM = [1.0, 0.6, 0.28];
+// what the street lamps are, street by street (1970s Britain had all three): old tungsten in your
+// own street (warm, homely), low-pressure sodium on the long street (that orange), mercury on the
+// high street (a cold blue-green that makes faces look dead), sodium again after
+export const LAMP_COL = { ourStreet: [1.0, 0.74, 0.46], longStreet: SODIUM, highStreet: [0.72, 0.9, 0.86], parkEdge: [1.0, 0.62, 0.32], hill: [1.0, 0.58, 0.26] };
+export const lampColour = (region) => LAMP_COL[region] || SODIUM;
 
 export function beamMaterial() {
   return new THREE.ShaderMaterial({
