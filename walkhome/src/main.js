@@ -238,7 +238,7 @@ function frame(now) {
   const hidden = player.crouch > 0.6 && dog.fear < 0.8 && obstacles.some((o) => Math.hypot(o.x - player.x, o.z - player.z) < 1.4);
   hiddenNow = hidden;
   if (!home) {
-  if (!tall.catching) stepTall(tall, player, { x: camera.position.x, y: camera.position.y, z: camera.position.z, fx: fwd.x, fy: fwd.y, fz: fwd.z }, dt, lampState, { hidden, noise, fear: director.fear }, emit);
+  if (!tall.catching && caughtT < 0) stepTall(tall, player, { x: camera.position.x, y: camera.position.y, z: camera.position.z, fx: fwd.x, fy: fwd.y, fz: fwd.z }, dt, lampState, { hidden, noise, fear: director.fear }, emit);
   director.hold = !!(deck.active && !deck.active.ambient);
   stepDirector(director, { P: player, dog, tall, rng: dirRng, caught: caughtT >= 0, lookingBack: fwd.z > 0.45 }, dt, emit);
   // the omens you can see
