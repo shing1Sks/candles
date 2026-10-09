@@ -14,6 +14,7 @@ import { at as roadAt, N as roadN, T as roadT, regionAt, groundAt, toRoad } from
 import { houseFrame } from './house.js';
 import { TallManView } from './tallman.js';
 import { ROAD } from '../sim/road.js';
+import { carMeshes } from './car.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -124,12 +125,9 @@ function bigDogModel() {
   return shadowed(g);
 }
 function carModel(color) {
-  const g = new THREE.Group(), paint = std(color, { roughness: 0.35, metalness: 0.4 }), glass = std(0x08090c, { roughness: 0.1 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.65, 4.3), paint); body.position.y = 0.6; g.add(body);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.55, 2.2), glass); top.position.set(0, 1.18, 0.2); g.add(top);
-  for (const sx of [-0.82, 0.82]) for (const sz of [-1.35, 1.35]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.22, 14), std(0x111111)); w.rotation.z = Math.PI / 2; w.position.set(sx, 0.32, sz); g.add(w); }
-  const heads = []; for (const sx of [-0.6, 0.6]) { const h = new THREE.Mesh(new THREE.CircleGeometry(0.12, 12), new THREE.MeshBasicMaterial({ color: 0xfff4d8 })); h.position.set(sx, 0.7, -2.16); h.rotation.y = Math.PI; g.add(h); heads.push(h); }
-  for (const sx of [-0.7, 0.7]) { const t = new THREE.Mesh(new THREE.PlaneGeometry(0.25, 0.12), new THREE.MeshBasicMaterial({ color: 0x8a0a0a })); t.position.set(sx, 0.75, 2.16); g.add(t); }
+  const g = carMeshes(color, 4.2, 1.68);
+  const heads = []; for (const sx of [-0.55, 0.55]) { const h = new THREE.Mesh(new THREE.CircleGeometry(0.095, 14), new THREE.MeshBasicMaterial({ color: 0xfff4d8 })); h.position.set(sx, 0.62, -2.15); h.rotation.y = Math.PI; g.add(h); heads.push(h); }
+  for (const sx of [-0.56, 0.56]) { const t = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.11), new THREE.MeshBasicMaterial({ color: 0x8a0a0a })); t.position.set(sx, 0.66, 2.13); g.add(t); }
   g.userData = { heads };
   return shadowed(g);
 }

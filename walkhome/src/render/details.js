@@ -8,6 +8,7 @@ import { makeRng } from '../../../engine/rng.js';
 import { ROAD, at as roadAt, N as roadN, C as roadC, regionAt } from '../sim/road.js';
 import { box, cyl, cone, sphere, tube, limb, xf, V3 } from './kit.js';
 import { houseFrame } from './house.js';
+import { carParts, carMeshes } from './car.js';
 
 const texCache = new Map();
 function canvasTex(key, w, h, draw) {
@@ -21,17 +22,10 @@ const yaw = (s) => { const n = roadN(s); return Math.atan2(n.x, n.z) - Math.PI /
 function parkedCar(kit, s, l, color, r) {
   const p = roadAt(s, l), ry = yaw(s) + (r.chance(0.5) ? 0 : Math.PI) + r.range(-0.04, 0.04), M = new THREE.Matrix4().compose(V3(p.x, p.y, p.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, ry, 0)), V3(1, 1, 1));
   const F = { matrix: M, lean: () => [0, 0, 0] }, A = (g, m, c) => kit.add(g, m, c, F);
-  const len = r.range(3.8, 4.4), w = 1.68;
-  A(xf(box(w, 0.55, len, 2, 1, 4), 0, 0.55, 0), 'paint', color);
-  A(xf(box(w - 0.06, 0.12, len - 0.4), 0, 0.88, 0), 'paint', color);
-  A(xf(box(w - 0.16, 0.5, len * 0.48), 0, 1.15, -0.05), 'paint', color);
-  A(xf(box(w - 0.12, 0.42, len * 0.46), 0, 1.13, -0.05), 'dark', 0); // the glass, black
-  A(xf(box(w - 0.2, 0.06, len * 0.5), 0, 1.42, -0.05), 'paint', color);
-  for (const sz of [-1, 1]) A(xf(box(w + 0.04, 0.14, 0.12), 0, 0.38, sz * (len / 2 + 0.02)), 'metal', 0x8a8a90);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const t = cyl(0.3, 0.3, 0.2, 14); t.rotateZ(Math.PI / 2); A(xf(t, sx * (w / 2 - 0.05), 0.3, sz * (len / 2 - 0.75)), 'dark', 0); const hub = cyl(0.14, 0.14, 0.22, 10); hub.rotateZ(Math.PI / 2); A(xf(hub, sx * (w / 2 - 0.04), 0.3, sz * (len / 2 - 0.75)), 'metal', 0xa0a0a8); }
-  for (const sx of [-0.55, 0.55]) { A(xf(cyl(0.11, 0.11, 0.05, 12), sx, 0.62, -len / 2 - 0.01, Math.PI / 2), 'plastic', 0xd8d4c0); A(xf(box(0.24, 0.1, 0.05), sx, 0.62, len / 2 + 0.01), 'plastic', 0x6a1a14); }
+  const len = r.range(3.8, 4.4), w = 1.66;
+  for (const [g, m, c] of carParts(len, w)) A(g, m, c ?? color);
   // leaves on the bonnet and windscreen: it hasn't moved for days
-  for (let k = 0; k < 5; k++) A(xf(box(0.09, 0.005, 0.12), r.range(-0.6, 0.6), 0.885, r.range(-len / 2 + 0.3, -0.6), 0, r.range(0, 6)), 'plastic', r.pick([0x8a4a20, 0x6a3a18, 0xa86a28]));
+  for (let k = 0; k < 5; k++) A(xf(box(0.09, 0.005, 0.12), r.range(-0.55, 0.55), 0.92, r.range(-len / 2 + 0.35, -len / 2 + 0.85), 0, r.range(0, 6)), 'plastic', r.pick([0x8a4a20, 0x6a3a18, 0xa86a28]));
   return { x: p.x, z: p.z, ry, len };
 }
 
@@ -110,7 +104,7 @@ export function details(kit, group, town, s0, s1) {
       const R = regionAt(s).id; if (R === 'parkEdge' || (s > 1088 && s < 1124)) continue;
       if (!r.chance(R === 'highStreet' ? 0.55 : R === 'hill' ? 0.25 : 0.4)) continue;
       if (town.lamps.some((L) => Math.abs(L.s - s) < 3.5 && L.side === side)) continue;
-      const c = parkedCar(kit, s, side * 2.05, r.pick([0x6a2a26, 0x2a3a5a, 0x3a4a3a, 0x8a8a84, 0x5a4a2a, 0x2a2a30, 0x7a6a40]), r);
+      const c = parkedCar(kit, s, side * 2.05, r.pick([0x7a2420, 0x24406e, 0x3c5a3c, 0x9a9a92, 0x8a6a30, 0x3a3a42, 0xa88a48, 0x6a3a5a]), r);
       for (const k of [-1, 1]) obstacles.push({ x: c.x + Math.sin(c.ry) * k * c.len * 0.28, z: c.z + Math.cos(c.ry) * k * c.len * 0.28, r: 0.95, car: true });
     }
   }

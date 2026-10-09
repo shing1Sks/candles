@@ -78,7 +78,7 @@ export function stepDirector(D, ctx, dt, emit) {
     if (D.t > L.wait) { D.relight.shift(); L.on = 1; L.flick = 0.6; L.wait = 0; emit('lampOn', { id: L.id, x: L.x, z: L.z }); }
   }
   // ---- fear
-  let target = DIR.baseFear[region] ?? 0;
+  let target = (DIR.baseFear[region] ?? 0) + (D.catches || 0) * 0.05;
   if (tall.active) {
     const d = Math.hypot(tall.x - P.x, tall.z - P.z);
     target += Math.max(0, 1 - d / 45) * 0.65 + (tall.seen ? 0.12 : 0);
@@ -178,6 +178,9 @@ export function respawn(D, P, tall, dog, emit) {
     emit('lostDog', { s });
   }
   tall.active = false; D.phase = 'after'; D.pt = 0; D.afterUntil = D.t + 50; D.nextVisit = D.afterUntil + 40; D.caughtAt = D.t;
+  // every time he has you, the way ahead gets darker for good: some lamps up the road won't come back on
+  D.catches = (D.catches || 0) + 1;
+  for (const L of D.lamps) if (L.s > P.s + 20 && Math.random() < 0.12) { L.base = 0; L.on = 0; }
   D.relight = D.lamps.filter((L) => !L.on && L.base).sort((a, b) => Math.abs(a.s - P.s) - Math.abs(b.s - P.s));
   emit('respawn', { s: D.checkpoint.s });
 }

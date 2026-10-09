@@ -171,6 +171,7 @@ export function makeMaterials(T, envMap) {
     hedge: tex('hedge', { roughness: 1 }, { wind: true }),
     bark: tex('bark', {}, { wind: true }),
     paint: std({ color: 0xffffff, roughness: 0.55, vertexColors: true }, {}),
+    carpaint: std({ color: 0xffffff, roughness: 0.32, metalness: 0.0, vertexColors: true, env: true, envMapIntensity: 0.14 }, {}),
     plastic: std({ color: 0xffffff, roughness: 0.4, vertexColors: true }, {}),
     cloth: std({ color: 0xffffff, roughness: 0.95, vertexColors: true, side: THREE.DoubleSide }, { wind: true }),
     dark: std({ color: 0x0a090c, roughness: 0.9 }, {}),
