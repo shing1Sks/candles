@@ -462,3 +462,10 @@ Research in `09_terror_research.md`.
     - looks back were over-counted;
     - a shooting-star NaN guard;
     - the stride tilt leaked into the catch pose.
+- **And:**
+  - **A child laughing** somewhere off in the gardens (a real CC0 recording, BigSoundBank #1660; at most twice a night).
+  - **Lightning on the hill:** a white instant that lights him wherever he is (and freezes him), then thunder rolling in 1–4 s later.
+  - **Lost, Biscuit's collar light blinks red** on the wall beside him: a beacon to find him by.
+  - **The gnome** (Act I's teacher) is bigger and glossy-painted, because he was invisible in the dark. The cat's eyes catch the light.
+  - **A favicon:** the only 404 left in the console was `favicon.ico`.
+  - **The peek** is capped at three a night.

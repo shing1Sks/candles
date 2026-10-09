@@ -27,7 +27,7 @@ const OMENS = [
 function omen(D, ctx, emit) {
   const { P, rng, dog } = ctx, R = regionAt(P.s).id;
   const flickL = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40);
-  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done') && !(k === 'laugh' && (D.omenCount.laugh || 0) >= 2));
+  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done') && !(k === 'laugh' && (D.omenCount.laugh || 0) >= 2) && !(k === 'peek' && (D.omenCount.peek || 0) >= 3));
   const w = (o) => o[1] / (1 + (D.omenCount[o[0]] || 0) * 0.8); // each one rarer the more it's happened
   let r = rng.range(0, pool.reduce((a, o) => a + w(o), 0)), kind = pool[0][0];
   for (const o of pool) { r -= w(o); if (r <= 0) { kind = o[0]; break; } }
