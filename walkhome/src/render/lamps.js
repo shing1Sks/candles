@@ -26,8 +26,9 @@ export function beamMaterial() {
         float t = clamp(0.5 - vY / uH, 0., 1.);                 // 0 at the bulb, 1 at the ground
         float rim = pow(abs(dot(normalize(vN), normalize(vV))), 1.6);
         // mist moving through the beam, and specks of dust catching the light
-        float mist = 0.55 + 0.45 * n3(vW * 0.9 + vec3(uTime * 0.15, -uTime * 0.05, uTime * 0.1));
-        float dust = smoothstep(0.93, 1.0, n3(vW * 9.0 + vec3(0., -uTime * 0.25, uTime * 0.1) + uSeed));
+        // mist moving through it (cheap: two slow waves, not noise: this covers a lot of screen)
+        float mist = 0.7 + 0.18 * sin(vW.x * 1.7 + vW.y * 0.9 + uTime * 0.4) + 0.12 * sin(vW.z * 2.3 - vW.y * 1.3 - uTime * 0.27);
+        float dust = smoothstep(0.985, 1.0, h(floor(vW * 14.0 + vec3(0., -uTime * 2.0, 0.)) + uSeed));
         float a = rim * (1. - t * 0.8) * mist * 0.11 + dust * rim * 0.25 * (1. - t * 0.5);
         gl_FragColor = vec4(uColor * a * uI, 1.);
       }`,

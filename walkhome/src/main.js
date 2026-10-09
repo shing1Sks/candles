@@ -53,7 +53,7 @@ const env = bakeEnv(renderer);
 scene.fog = new THREE.FogExp2(SKY_U.uHorizon.value.clone().multiplyScalar(0.9), 0.024);
 const hemi = new THREE.HemisphereLight(0x2a3456, 0x08070a, 0.14); scene.add(hemi);
 const moon = new THREE.DirectionalLight(0x8a9cc8, 0.32);
-moon.castShadow = !Q.has('noshadow'); moon.shadow.mapSize.set(1536, 1536); moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.04;
+moon.castShadow = !Q.has('noshadow'); moon.shadow.mapSize.set(1024, 1024); moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.04;
 Object.assign(moon.shadow.camera, { left: -24, right: 24, top: 24, bottom: -24, near: 1, far: 120 });
 scene.add(moon, moon.target);
 
@@ -324,7 +324,7 @@ function frame(now) {
   post.U.uTime.value = U.uTime.value;
   renderer.info.reset();
   if (frameNo % 30 === 0) { lampify(scene); far.setStates(lampState.map((L) => L.on)); } // anything new picks up the street lamps; dead lamps are dark far off too
-  if (++frameNo % 2 === 0) renderer.shadowMap.needsUpdate = true; // the moon's shadows barely move: every other frame
+  if (++frameNo % 3 === 0) renderer.shadowMap.needsUpdate = true; // the moon's shadows barely move: every third frame
   t0 = performance.now();
   if (ending.stillScene) { vm.rig.visible = false; post.render(ending.stillScene, ending.stillCam, dt); } else post.render(scene, camera, dt);
   pm('render', t0); pm('frame', tA);
@@ -336,7 +336,7 @@ function frame(now) {
     const dir = fps < 40 ? -1 : fps > 55 && post.scale < 0.95 ? 1 : 0;
     ectx.scaleRun = dir && dir === ectx.scaleDir ? (ectx.scaleRun || 0) + 1 : dir ? 1 : 0; ectx.scaleDir = dir;
     const want = ectx.scaleRun >= (dir < 0 ? 2 : 4) ? post.scale + dir * 0.05 : post.scale;
-    if (want !== post.scale && !Q.has('fixres')) { post.scale = Math.max(0.6, Math.min(0.95, want)); post.setSize(innerWidth, innerHeight); ectx.scaleRun = 0; }
+    if (want !== post.scale && !Q.has('fixres')) { post.scale = Math.max(innerWidth > 1600 ? 0.5 : 0.6, Math.min(0.95, want)); post.setSize(innerWidth, innerHeight); ectx.scaleRun = 0; }
     if (Q.has('stats')) stats.textContent = `${fps.toFixed(0)} fps  x${post.scale.toFixed(2)}  calls ${renderer.info.render.calls}  tris ${(renderer.info.render.triangles / 1000).toFixed(0)}k  s ${player.s.toFixed(0)} ${regionAt(player.s).name}`;
   }
   requestAnimationFrame(frame);
