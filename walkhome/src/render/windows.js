@@ -16,6 +16,7 @@ export const WIN_U = {
   // waves along the street (world z from, z to, strength): curtains closing house by house; lights going out
   uCurtainWave: { value: new THREE.Vector3(0, 0, 0) },
   uLightsOut: { value: new THREE.Vector3(0, 0, 0) },
+  uTallWin: { value: new THREE.Vector3(0, 0, 0) },   // x, z of one window he's standing in (z = on)
 };
 
 const VERT = /* glsl */`
@@ -40,7 +41,7 @@ const VERT = /* glsl */`
 `;
 
 const FRAG = /* glsl */`
-  uniform float uTime, uEvil; uniform vec3 uPlayer; uniform vec3 uMoon, uSkyRefl, uCurtainWave, uLightsOut;
+  uniform float uTime, uEvil; uniform vec3 uPlayer; uniform vec3 uMoon, uSkyRefl, uCurtainWave, uLightsOut, uTallWin;
   float inWave(vec3 w, float z) { return step(min(w.x, w.y), z) * step(z, max(w.x, w.y)) * w.z; }
   varying vec2 vUv; varying vec4 vRoom; varying vec4 vSize; varying vec3 vT, vB, vN, vWorld, vCenter; varying float vWatch;
   #include <fog_pars_fragment>
@@ -128,6 +129,13 @@ const FRAG = /* glsl */`
         if (got) { t = tw3; p = pw3; }
       }
     }
+    // him. Standing in someone's front room, in his hat, too tall for the ceiling, head bent under it
+    if (uTallWin.z > 0.5 && length(vCenter.xz - uTallWin.xy) < 1.3) {
+      float zf5 = -D * 0.5, tw5 = (zf5 - ro.z) / rd.z;
+      if (tw5 > 0. && tw5 < t) { vec3 pw5 = ro + rd * tw5; float px5 = pw5.x, py5 = pw5.y - FL;
+        float b5 = step(abs(px5), 0.24 + py5 * 0.04) * step(py5, 1.95) + step(length(vec2(px5 - 0.08, py5 - 2.1)), 0.13) + step(abs(px5 - 0.12), 0.24) * step(abs(py5 - 2.22), 0.025) + step(abs(px5 - 0.14), 0.15) * step(2.22, py5) * step(py5, 2.55);
+        if (b5 > 0.5) { col = vec3(0.0); t = tw5; p = pw5; } }
+    }
     // someone crossing a lit room now and then: a shadow sliding past the lamp
     if (lit > 0.5 && kind < 0.5 && h1(seed * 17.7) < 0.3) {
       float cyc = fract(uTime * 0.045 + h1(seed * 19.1)), zf2 = -D * 0.42, tw2 = (zf2 - ro.z) / rd.z;
@@ -150,6 +158,7 @@ const FRAG = /* glsl */`
     // curtains, just behind the glass: pinch pleats; watcher windows close as you come near
     float near = 1.0 - smoothstep(6.0, 12.0, length(uPlayer - vCenter));
     float cover = clamp(curtain + vWatch * near * (1.0 - curtain), 0.0, 1.0);
+    if (uTallWin.z > 0.5 && length(vCenter.xz - uTallWin.xy) < 1.3) cover = 0.0; // the curtains are open: he wants you to see
     float twitch = vWatch > 0.5 ? 0.0 : 0.04 * step(0.85, h1(seed * 15.5)) * max(0., sin(uTime * 0.7 + seed * 9.0));
     float edgeL = -W * 0.5 + cover * W * 0.5 + twitch, edgeR = W * 0.5 - cover * W * 0.5;
     if (shape < 3.5 && cover > 0.01) {
@@ -269,7 +278,7 @@ function spillMaterial() {
         vec4 mvPosition = viewMatrix * vec4(p, 1.); gl_Position = projectionMatrix * mvPosition;
         float fd = 0.024 * -mvPosition.z; vFog = exp(-fd * fd);   // the street's fog swallows it, like everything
       }`,
-    fragmentShader: `varying vec2 vUv; varying vec3 vC; varying float vZ, vFog; uniform vec4 uLightsOut;
+    fragmentShader: `varying vec2 vUv; varying vec3 vC; varying float vZ, vFog; uniform vec3 uLightsOut;
       void main(){ vec2 d = vUv - 0.5; float a = smoothstep(0.5, 0.0, length(d * vec2(1.0, 1.2)));
         // the lights-out wave takes the spill with it
         if (uLightsOut.z > 0.5 && vZ >= min(uLightsOut.x, uLightsOut.y) && vZ <= max(uLightsOut.x, uLightsOut.y)) a = 0.;
