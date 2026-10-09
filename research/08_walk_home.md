@@ -494,3 +494,5 @@ Research in `09_terror_research.md`.
     - the lead arm's sleeve was being stretched;
     - glint noise lost precision far down the road;
     - a lured Biscuit gave no warning when he came.
+  - **Biscuit was out of sight most of the walk.** His trot (1.6 m/s) is barely faster than your walk (1.45), so after a sniff he spent 10+ s at your heel, below the view. Now, left behind, he trots on faster to get back out in front. Over a minute of walking he's in view ahead of you 72% of the time (it was 13%).
+  - **The moon in a puddle** was a blown-out white blob, from a near-mirror puddle and env intensity 1.5. Now it's a soft, dim glow.
