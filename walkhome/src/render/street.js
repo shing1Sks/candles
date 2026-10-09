@@ -79,7 +79,12 @@ function yard(kit, o, F, r) {
       for (const y of [0.3, 0.72]) A(xf(box(0.04, 0.07, b - a), edge - 0.04, y, (a + b) / 2), 'paint', 0xc8c4b8);
     }
     // the gate, left a little open
-    const g = box(0.04, 0.85, 1.1); g.translate(0, 0, 0.55); A(xf(g, edge, 0.5, dz - 0.62, 0, -0.55), 'paint', 0xc8c4b8);
+    // (pickets on two rails, like the fence it hangs in)
+    for (let z = 0.08; z < 1.1; z += 0.16) {
+      const p = box(0.025, 0.86, 0.09); p.translate(0, -0.02, z); A(xf(p, edge, 0.5, dz - 0.62, 0, -0.55), 'paint', 0xd8d4c8);
+      const t = box(0.025, 0.07, 0.07); t.rotateX(Math.PI / 4); t.translate(0, 0.41, z); A(xf(t, edge, 0.5, dz - 0.62, 0, -0.55), 'paint', 0xd8d4c8);
+    }
+    for (const y of [-0.2, 0.22]) { const g = box(0.04, 0.07, 1.1); g.translate(-0.035, y, 0.55); A(xf(g, edge, 0.5, dz - 0.62, 0, -0.55), 'paint', 0xc8c4b8); }
   } else if (o.boundary === 'iron') {
     for (const [a, b] of runs) {
       for (let z = a + 0.06; z < b; z += 0.13) { A(xf(cyl(0.012, 0.012, 1.1, 5), edge, 0.6, z), 'metal', 0x18181c); A(xf(cone(0.03, 0.12, 5), edge, 1.2, z), 'metal', 0x18181c); }
