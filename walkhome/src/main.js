@@ -125,7 +125,7 @@ refreshPois();
 // autopilot for playtests: walks up the road weaving gently, stops now and then
 const auto = Q.has('auto') ? { t: 0 } : null;
 // ---------------------------------------------------------------- the director and the Tall Man
-const director = makeDirector(lampState), dirRng = makeRng(SEED + ':director');
+const director = makeDirector(lampState), dirRng = makeRng(SEED + ':director' + (Q.has('seed') ? '' : ':' + Date.now())); // (the same road every time; never quite the same night)
 const tall = makeTall(), tallView = new TallManView(scene);
 const noise = [];
 let black = 0, caughtT = -1, hiddenNow = false;
