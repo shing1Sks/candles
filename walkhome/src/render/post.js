@@ -46,10 +46,15 @@ export class Post {
           float tcl = clamp(-b, 0., dist); vec3 cp = uCamPos + rd * tcl; float below = 1. - smoothstep(-1.1, 0.25, cp.y - L.y);
           air += uLC[i] * I * min(sc, 6.) * (0.18 + 0.82 * below);
           vec4 R = uLR[i]; if (R.w > 0. && ground > 0.01) { float dx = (uv.x - R.x) * uAspect, dy = uv.y - R.y; float sy = R.z;
-            refl += uLC[i] * I * exp(-dx * dx / (R.w * R.w)) * exp(-dy * dy / (sy * sy)) * step(dist, length(L - uCamPos) + 3.); }
+            float w = R.w * (1. + max(0., -dy) * 5.); /* wider as it comes toward you */
+            refl += uLC[i] * I * sqrt(R.w / w) * exp(-dx * dx / (w * w)) * exp(-dy * dy / (sy * sy)) * step(dist, length(L - uCamPos) + 3.); }
         }
         vec3 a = air * uMist;
-        gl_FragColor = vec4(a + refl * ground * uWet, dot(a, vec3(0.3333)));
+        /* the wet ground isn't a mirror: stones and puddles break the streak into glints */
+        vec2 g = wp.xz * 3.1; vec2 gi = floor(g), gf = fract(g); gf = gf * gf * (3. - 2. * gf);
+        float h00 = fract(sin(dot(gi, vec2(127.1, 311.7))) * 43758.5), h10 = fract(sin(dot(gi + vec2(1., 0.), vec2(127.1, 311.7))) * 43758.5), h01 = fract(sin(dot(gi + vec2(0., 1.), vec2(127.1, 311.7))) * 43758.5), h11 = fract(sin(dot(gi + vec2(1.), vec2(127.1, 311.7))) * 43758.5);
+        float brk = mix(mix(h00, h10, gf.x), mix(h01, h11, gf.x), gf.y);
+        gl_FragColor = vec4(a + refl * ground * uWet * (0.3 + 1.1 * brk * brk), dot(a, vec3(0.3333)));
       }`, { tDepth: { value: null }, uTexel: { value: new THREE.Vector2() } });
     // the graded frame at render resolution; FXAA smooths its edges while it's scaled up to the screen
     this.ldr = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
@@ -153,7 +158,7 @@ export class Post {
       // the mirror image of the bulb in the road, on screen; how wide and long its streak is
       v.set(s.pos.x, 2 * s.ground - s.pos.y, s.pos.z).project(camera);
       const d = s.pos.distanceTo(camera.position);
-      if (v.z < 1 && v.z > -1) { const base = _w.set(s.pos.x, s.ground, s.pos.z).project(camera); const my = v.y * 0.5 + 0.5, by = base.y * 0.5 + 0.5; R[i].set(v.x * 0.5 + 0.5, my - (by - my) * 0.25, Math.max(0.02, Math.abs(by - my) * 0.75), (s.refl ?? 1) * Math.max(0.005, 0.2 / (d + 2))); }
+      if (v.z < 1 && v.z > -1) { const base = _w.set(s.pos.x, s.ground, s.pos.z).project(camera); const my = v.y * 0.5 + 0.5, by = base.y * 0.5 + 0.5; R[i].set(v.x * 0.5 + 0.5, my - (by - my) * 0.25, Math.max(0.02, Math.abs(by - my) * 0.75), (s.refl ?? 1) * Math.max(0.008, 0.24 / (d + 2))); }
       else R[i].set(0, 0, 0, 0);
     }
   }
