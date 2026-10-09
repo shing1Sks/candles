@@ -330,7 +330,7 @@ function frame(now) {
   puppy.root.visible = !dog.hidden; dog.nearEvil = tall.active && !tall.vanished && Math.hypot(tall.x - dog.x, tall.z - dog.z) < 15;
   puppy.update(dog, dt, camera);
   tallView.update(tall, dt, camera);
-  vm.update(dt, player, dog, puppy, groundAt);
+  vm.update(dt, player, dog, puppy, groundAt, fear.v);
   pm('vm', t0); t0 = performance.now();
   if (!Q.has('nolamps') && !window.__wh?.rigOff) rig.update(camera, lightsNow()); else lightsNow();
   // the air and the wet road: the nearest lamps' glow in the mist and their streaks on the cobbles

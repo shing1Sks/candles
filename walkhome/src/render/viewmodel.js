@@ -119,8 +119,10 @@ export class Viewmodel {
   }
 
   // mode: 'lead' | 'carry' | 'pet'
-  update(dt, P, D, puppy, ground) {
+  update(dt, P, D, puppy, ground, fear = 0) {
     this.t += dt;
+    // your hands shake when you're frightened (fine and fast; worse when he's close)
+    const tremble = Math.max(0, fear - 0.35) * 0.012, tr = (this.trv ||= new THREE.Vector3()).set(Math.sin(this.t * 37) * tremble, Math.sin(this.t * 43 + 1) * tremble, 0);
     // sway: lag behind turns, bob with steps
     const dyaw = P.yaw - this.lastYaw, dp = P.pitch - this.lastPitch; this.lastYaw = P.yaw; this.lastPitch = P.pitch;
     this.sway.x += (Math.max(-0.08, Math.min(0.08, dyaw * 0.8)) - this.sway.x) * Math.min(1, dt * 10);
@@ -149,6 +151,7 @@ export class Viewmodel {
       L.visible = this.petT > 0.05;
       if (L.visible) { this.stroke(L, puppy, this.petT); if (D.lickT > 0.4) L.position.y += Math.sin((D.lickT - 0.4) / 0.3 * Math.PI) * 0.025; } // a lick: the hand flinches up (it tickles)
     }
+    R.position.add(tr); if (LF.visible) LF.position.addScaledVector(tr, 0.8);
     R.visible = true;
     // puppy carried: sits in your arms in front of you
     if (carry) {
