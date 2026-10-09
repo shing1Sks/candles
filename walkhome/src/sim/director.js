@@ -12,7 +12,7 @@ import { placeTall } from './tallman.js';
 export const DIR = {
   baseFear: { ourStreet: 0.0, longStreet: 0.12, highStreet: 0.18, parkEdge: 0.28, hill: 0.32 },
   // the walk paces him, but so does the clock: dawdle, and the night comes to you anyway
-  firstGlimpseS: 150, firstGlimpseT: 80, firstVisitS: 270, firstVisitT: 55, visitGap: [40, 70], after: [28, 40], peakDist: 7, leftBehind: 70,
+  firstGlimpseS: 150, firstGlimpseT: 80, firstVisitS: 270, firstVisitT: 55, visitGap: [40, 70], after: [20, 30], peakDist: 7, leftBehind: 70,
   omenGap: [13, 28], maxHold: 30,
 };
 
@@ -119,11 +119,14 @@ export function stepDirector(D, ctx, dt, emit) {
   const reached = P.s > DIR.firstVisitS || (D.glimpse === 'done' && D.t > D.glimpseDoneT + DIR.firstVisitT && P.s > 110) || D.visits > 0;
   const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost;
   if (canVisit) {
-    // behind you, in the dark between lamps
-    const back = rng.range(30, 42);
-    placeTall(tall, P.s - back, rng.range(-2.4, 2.8));
+    // behind you, in the dark between lamps. Or, later on, sometimes he's ahead: standing in the
+    // road, waiting, and the only way home is past him (backwards, eyes on him, blinking)
+    const ahead = D.visits >= 2 && !D.lastAhead && rng.chance(0.4);
+    D.lastAhead = ahead;
+    if (ahead) placeTall(tall, P.s + rng.range(34, 44), rng.range(-1.6, 1.6));
+    else placeTall(tall, P.s - rng.range(30, 42), rng.range(-2.4, 2.8));
     tall.mode = region === 'parkEdge' || region === 'hill' || D.visits >= 3 ? 'hunt' : 'stalk';
-    D.visits++; D.visitT = 0; emit('visit', { n: D.visits, mode: tall.mode }); D.ledger.push([+D.t.toFixed(1), 'visit ' + tall.mode]);
+    D.visits++; D.visitT = 0; emit('visit', { n: D.visits, mode: tall.mode, ahead }); D.ledger.push([+D.t.toFixed(1), 'visit ' + tall.mode + (ahead ? ' ahead' : '')]);
     // his first tell: a whistle, far off
     emit('whistle', { x: tall.x, z: tall.z });
   }
@@ -171,7 +174,7 @@ export function respawn(D, P, tall, dog, emit) {
   if (!D.lostOnce) {
     D.lostOnce = true;
     const s = D.checkpoint.s + 30 + Math.random() * 12, side = Math.random() < 0.5 ? -1 : 1, q = at(s, side * 4.45);
-    dog.lost = { x: q.x, z: q.z, s }; dog.x = q.x; dog.z = q.z; dog.whimperCd = 3;
+    dog.lost = { x: q.x, z: q.z, s }; dog.x = q.x; dog.z = q.z; dog.l = side * 4.45; dog.whimperCd = 3;
     emit('lostDog', { s });
   }
   tall.active = false; D.phase = 'after'; D.pt = 0; D.afterUntil = D.t + 50; D.nextVisit = D.afterUntil + 40; D.caughtAt = D.t;

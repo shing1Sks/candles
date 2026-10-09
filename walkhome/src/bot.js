@@ -14,9 +14,11 @@ export class Bot {
     if (this.t > this.nextLook) { this.lookUntil = this.t + 0.9; this.nextLook = this.t + (danger ? 3.5 + Math.random() * 2 : 8 + Math.random() * 6); }
     const back = this.t < this.lookUntil;
     // steer along the road, keeping to the pavement-ish line
-    const tg = roadT(P.s), roadYaw = Math.atan2(-tg.x, -tg.z), wantL = 3.95;
+    // Biscuit's run off: go to him (across the road if that's where the whimpering is)
+    const lost = D.lost, wantL = lost && lost.s - P.s < 25 && lost.s > P.s - 2 ? Math.sign(D.l || 1) * 4.2 : 3.95;
+    const tg = roadT(P.s), roadYaw = Math.atan2(-tg.x, -tg.z);
     let want = roadYaw - (wantL - P.l) * 0.12 * (P.l < wantL ? -1 : 1) * 0;
-    want += Math.max(-0.4, Math.min(0.4, (P.l - wantL) * 0.35));
+    want += Math.max(-0.7, Math.min(0.7, (P.l - wantL) * 0.35));
     if (back) want += Math.PI;
     let d = want - P.yaw; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2;
     inp.look.yaw = d * Math.min(1, dt * (back ? 14 : 5)); inp.look.pitch = (-0.1 - P.pitch) * Math.min(1, dt * 4);

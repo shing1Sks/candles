@@ -68,6 +68,24 @@ export class Fx {
             gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.); }`,
         fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(vec3(0.62, 0.64, 0.75), vA * 0.32); }' });
       this.rain = new THREE.LineSegments(g, m); this.rain.frustumCulled = false; this.rain.renderOrder = 6; scene.add(this.rain); }
+    // ---- splashes: little rings opening on the ground all round you when it rains (all in the shader:
+    // each one has its own spot in a box round you and its own moment; the ground is a plane through
+    // your feet tilted with the road's slope)
+    { const N = 700, g = new THREE.InstancedBufferGeometry(); g.copy(new THREE.RingGeometry(0.6, 1.0, 12, 1)); g.rotateX(-Math.PI / 2); g.instanceCount = N;
+      const off = new Float32Array(N * 3); for (let i = 0; i < N; i++) off.set([Math.random() * 16, Math.random(), Math.random() * 16], i * 3);
+      g.setAttribute('aOff', new THREE.InstancedBufferAttribute(off, 3));
+      this.splashU = { uTime: U.uTime, uCam: { value: new THREE.Vector3() }, uRain: { value: 0 }, uGround: { value: new THREE.Vector3() } };
+      const m = new THREE.ShaderMaterial({ uniforms: this.splashU, transparent: true, depthWrite: false,
+        vertexShader: `attribute vec3 aOff; uniform float uTime, uRain; uniform vec3 uCam, uGround; varying float vA;
+          void main(){ float ph = fract(uTime * 2.2 + aOff.y), cyc = floor(uTime * 2.2 + aOff.y);
+            vec2 xz = aOff.xz + vec2(fract(sin(cyc * 12.9 + aOff.y * 78.2) * 437.5), fract(sin(cyc * 39.3 + aOff.x) * 151.7)) * 3.0;
+            xz = mod(xz - uCam.xz + 8.0, 16.0) + uCam.xz - 8.0;
+            float y = uGround.x + (xz.y - uGround.z) * uGround.y + 0.015;          // a plane through your feet, tilted with the road
+            float r = 0.012 + ph * 0.075;
+            vA = (1. - ph) * (1. - ph) * uRain * step(aOff.y, uRain);
+            gl_Position = projectionMatrix * viewMatrix * vec4(xz.x + position.x * r, y, xz.y + position.z * r, 1.); }`,
+        fragmentShader: 'varying float vA; void main(){ gl_FragColor = vec4(vec3(0.75, 0.77, 0.85), vA * 0.5); }' });
+      this.splash = new THREE.Mesh(g, m); this.splash.frustumCulled = false; this.splash.renderOrder = 6; scene.add(this.splash); }
     // ---- leaves
     const N = 420; this.N = N;
     const lm = inject(new THREE.MeshStandardMaterial({ map: leafTex(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.8 }), {});
@@ -138,7 +156,10 @@ export class Fx {
     // the weather turns as you go: dry until the park, a drizzle in it, rain up the hill
     const rainWant = P.s < 1000 ? 0 : P.s < 1250 ? Math.min(0.45, (P.s - 1000) / 120) : Math.min(1, 0.45 + (P.s - 1250) / 150);
     this.rainLevel = (this.rainLevel ?? 0) + (rainWant - (this.rainLevel ?? 0)) * Math.min(1, dt * 0.3);
-    this.rainU.uRain.value = this.rainLevel; this.rainU.uCam.value.copy(camera.position); this.rainU.uWindX.value = 0.3 + this.gust * 0.8;
+    this.rainU.uRain.value = this.rainLevel; this.rainU.uCam.value.copy(camera.position);
+    this.rain.visible = this.splash.visible = this.rainLevel > 0.01;
+    this.splashU.uRain.value = this.rainLevel; this.splashU.uCam.value.copy(camera.position);
+    { const a = roadAt(P.s, P.l), b = roadAt(P.s + 1, P.l); this.splashU.uGround.value.set(P.y, (b.y - a.y) / (b.z - a.z || -1), P.z); } this.rainU.uWindX.value = 0.3 + this.gust * 0.8;
     // ---- wind gusts come and go
     this.gustT -= dt; if (this.gustT < 0) { this.gust = 1; this.gustT = 6 + Math.random() * 12; }
     this.gust = Math.max(0, this.gust - dt * 0.35);

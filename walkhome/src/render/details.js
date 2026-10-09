@@ -150,9 +150,9 @@ export function details(kit, group, town, s0, s1) {
     const arms = [[2.75, 0.35, 0.1, 'HOME'], [2.35, -2.5, -0.12, 'HOME'], [1.95, 1.3, 0.18, 'HOME?']];
     for (const [y, ry, rz, txt] of arms) {
       const sh = new THREE.Shape(); sh.moveTo(0, -0.15); sh.lineTo(0.95, -0.15); sh.lineTo(1.15, 0); sh.lineTo(0.95, 0.15); sh.lineTo(0, 0.15); sh.closePath();
-      const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.04, bevelEnabled: false }); const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) / 1.15, (uv.getY(i) + 0.15) / 0.3);
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.04, bevelEnabled: false }); const uv = geo.attributes.uv, gp = geo.attributes.position; for (let i = 0; i < uv.count; i++) { const u = uv.getX(i) / 1.15; uv.setXY(i, gp.getZ(i) < 0.001 ? 1 - u : u, (uv.getY(i) + 0.15) / 0.3); } // the back reads the right way round too
       const tex = canvasTex('arm:' + txt, 256, 64, (g, w, h) => { g.fillStyle = '#d8ccb0'; g.fillRect(0, 0, w, h); for (let i = 0; i < 30; i++) { g.fillStyle = `rgba(80,60,40,${Math.random() * 0.15})`; g.fillRect(0, Math.random() * h, w, 1 + Math.random() * 2); } g.fillStyle = '#2a1a14'; g.font = 'bold 40px Georgia'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(txt, w * 0.45, h / 2 + 2); });
-      const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 })); m.position.set(p.x + 0.06, p.y + y, p.z); m.rotation.set(0, ry + sp.turn, rz); m.castShadow = true; group.add(m);
+      const m = new THREE.Mesh(geo, [new THREE.MeshStandardMaterial({ map: tex, roughness: 0.8 }), new THREE.MeshStandardMaterial({ color: 0x8a7a60, roughness: 0.9 })]); m.position.set(p.x + 0.06, p.y + y, p.z); m.rotation.set(0, ry + sp.turn, rz); m.castShadow = true; group.add(m);
     }
   }
   // pillar boxes, a bus shelter, signs, chalk

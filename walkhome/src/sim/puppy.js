@@ -34,6 +34,14 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     if (input.call) { D.whimperCd = Math.min(D.whimperCd, 0.5); D.answer = 0.6; }
     if (D.answer > 0 && (D.answer -= dt) <= 0) emit('bark', { x: D.x, z: D.z, loud: 0.6, lost: true });
     if (D.whimperCd < 0) { emit('whimper', { lost: true }); D.whimperCd = 2.0 + rng.range(0, 1.6); }
+    // walk on past him and he bolts again, further up the road (he's following you, in his way);
+    // the third time, he comes running to you on his own: the night can't go on without him
+    if (P.s > L.s + 12) {
+      L.runs = (L.runs || 0) + 1;
+      if (L.runs >= 3) { D.lost = null; D.state = 'come'; D.st = 0; D.fear = 0.5; emit('found', { himself: true }); return D; }
+      const s = P.s + 22 + rng.range(0, 10), side = -Math.sign(D.l || 1) || 1, q = at(s, side * 4.45);
+      Object.assign(L, { x: q.x, z: q.z, s }); D.l = side * 4.45; emit('whimper', { lost: true });
+    }
     if (Math.hypot(P.x - D.x, P.z - D.z) < 1.9) { D.lost = null; D.state = 'come'; D.st = 0; D.fear = 0.35; D.calm = 0.6; emit('found', {}); }
     return D;
   }

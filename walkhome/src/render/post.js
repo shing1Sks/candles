@@ -26,11 +26,33 @@ export class Post {
     this.r = renderer; this.scale = 0.85; this.w = 0; this.h = 0;
     this.main = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(4, 4, THREE.UnsignedIntType), samples: 0 });
     this.mips = [0, 1, 2, 3].map(() => new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }));
+    // the graded frame at render resolution; FXAA smooths its edges while it's scaled up to the screen
+    this.ldr = new THREE.WebGLRenderTarget(4, 4, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
+    this.fxaa = pass(/* glsl */`
+      uniform sampler2D tSrc; uniform vec2 uTexel; varying vec2 vUv;
+      float lu(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+      void main(){
+        vec3 m = texture2D(tSrc, vUv).rgb;
+        vec3 nw = texture2D(tSrc, vUv + vec2(-1., 1.) * uTexel).rgb, ne = texture2D(tSrc, vUv + vec2(1., 1.) * uTexel).rgb;
+        vec3 sw = texture2D(tSrc, vUv + vec2(-1., -1.) * uTexel).rgb, se = texture2D(tSrc, vUv + vec2(1., -1.) * uTexel).rgb;
+        float lNW = lu(nw), lNE = lu(ne), lSW = lu(sw), lSE = lu(se), lM = lu(m);
+        float lMin = min(lM, min(min(lNW, lNE), min(lSW, lSE))), lMax = max(lM, max(max(lNW, lNE), max(lSW, lSE)));
+        vec2 dir = vec2(-((lNW + lNE) - (lSW + lSE)), ((lNW + lSW) - (lNE + lSE)));
+        float red = max((lNW + lNE + lSW + lSE) * 0.25 * 0.125, 1. / 128.);
+        dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + red), -8., 8.) * uTexel;
+        vec3 a = 0.5 * (texture2D(tSrc, vUv + dir * (1. / 3. - 0.5)).rgb + texture2D(tSrc, vUv + dir * (2. / 3. - 0.5)).rgb);
+        vec3 b = a * 0.5 + 0.25 * (texture2D(tSrc, vUv + dir * -0.5).rgb + texture2D(tSrc, vUv + dir * 0.5).rgb);
+        float lB = lu(b);
+        vec3 o = (lB < lMin || lB > lMax) ? a : b;
+        // and a touch of sharpening, so the scale-up doesn't soften the drawing
+        o += (o - (nw + ne + sw + se) * 0.25) * 0.4 * (1. - smoothstep(0.02, 0.12, lMax - lMin));
+        gl_FragColor = vec4(o, 1.);
+      }`, { tSrc: { value: null }, uTexel: { value: new THREE.Vector2() } });
     this.ups = [0, 1, 2].map(() => new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }));
     this.U = {
       tColor: { value: null }, tDepth: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uNear: { value: 0.05 }, uFar: { value: 600 },
       uL: { value: Array.from({ length: 10 }, () => new THREE.Vector4()) }, uLC: { value: Array.from({ length: 10 }, () => new THREE.Vector3()) }, uLR: { value: Array.from({ length: 10 }, () => new THREE.Vector4()) },
-      uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() }, uMist: { value: 0.035 }, uWet: { value: 0.5 }, uAspect: { value: 1.7 },
+      uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() }, uMist: { value: 0.035 }, uWet: { value: 0.5 }, uLowMist: { value: 0.3 }, uGround: { value: 0 }, uMistCol: { value: new THREE.Color(0.06, 0.05, 0.06) }, uAspect: { value: 1.7 },
       uTime: { value: 0 }, uFear: { value: 0 }, uExposure: { value: 0.8 }, uInk: { value: 1.0 }, uFlash: { value: 0 }, uBlack: { value: 0 }, uHide: { value: 0 }, uLid: { value: 0 },
     };
     this.bright = pass(/* glsl */`
@@ -47,7 +69,7 @@ export class Post {
       uniform sampler2D tA, tB; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tA, vUv).rgb + texture2D(tB, vUv).rgb * 0.8, 1.); }`, { tA: { value: null }, tB: { value: null } });
     this.final = pass(/* glsl */`
       uniform sampler2D tColor, tDepth, tBloom; uniform vec2 uRes; uniform float uNear, uFar, uTime, uFear, uExposure, uInk, uFlash, uBlack, uHide, uLid;
-      uniform vec4 uL[10]; uniform vec3 uLC[10]; uniform vec4 uLR[10]; uniform mat4 uInvProj, uCamWorld; uniform vec3 uCamPos; uniform float uMist, uWet, uAspect;
+      uniform vec4 uL[10]; uniform vec3 uLC[10]; uniform vec4 uLR[10]; uniform mat4 uInvProj, uCamWorld; uniform vec3 uCamPos, uMistCol; uniform float uMist, uWet, uAspect, uLowMist, uGround;
       varying vec2 vUv;
       vec3 worldAt(vec2 uv, float zb){ vec4 v = uInvProj * vec4(uv * 2. - 1., zb * 2. - 1., 1.); v /= v.w; return (uCamWorld * vec4(v.xyz, 1.)).xyz; }
       float lin(vec2 uv){ float z = texture2D(tDepth, uv).x * 2. - 1.; return 2. * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
@@ -78,6 +100,9 @@ export class Post {
             refl += uLC[i] * I * exp(-dx * dx / (R.w * R.w)) * exp(-dy * dy / (sy * sy)) * step(dist, length(L - uCamPos) + 3.); }
         }
         c += air * uMist + refl * ground * uWet;
+        // mist lying low: it pools in the road and the gardens, thicker with distance, and the lamps light it
+        float hm = (1. - exp(-dist * 0.05)) * exp(-max(wp.y - uGround, 0.) * 1.4) * uLowMist * step(zb, 0.99999);
+        c = mix(c, uMistCol + air * uMist * 0.6, clamp(hm, 0., 0.85));
         // ink: depth discontinuities (silhouettes) and depth creases, relative to distance
         float d = lin(uv), dl = lin(uv - vec2(px.x, 0.)), dr = lin(uv + vec2(px.x, 0.)), du = lin(uv + vec2(0., px.y)), dd = lin(uv - vec2(0., px.y));
         float edge = (abs(dl - d) + abs(dr - d) + abs(du - d) + abs(dd - d)) / max(d, 0.1);
@@ -129,7 +154,7 @@ export class Post {
     const rw = Math.max(320, Math.round(w * this.scale)), rh = Math.max(180, Math.round(h * this.scale));
     if (rw === this.w && rh === this.h) return;
     this.w = rw; this.h = rh;
-    this.main.setSize(rw, rh);
+    this.main.setSize(rw, rh); this.ldr.setSize(rw, rh);
     let mw = rw >> 1, mh = rh >> 1;
     for (const [i, m] of this.mips.entries()) { m.setSize(Math.max(2, mw), Math.max(2, mh)); if (this.ups[i]) this.ups[i].setSize(Math.max(2, mw), Math.max(2, mh)); mw >>= 1; mh >>= 1; }
     this.U.uRes.value.set(rw, rh);
@@ -148,6 +173,9 @@ export class Post {
     let prev = m[m.length - 1];
     for (let i = m.length - 2; i >= 0; i--) { this.add.m.uniforms.tA.value = m[i].texture; this.add.m.uniforms.tB.value = prev.texture; r.setRenderTarget(this.ups[i]); r.render(this.add.s, cam); prev = this.ups[i]; }
     this.U.tColor.value = this.main.texture; this.U.tDepth.value = this.main.depthTexture; this.U.tBloom.value = prev.texture;
-    r.setRenderTarget(null); r.render(this.final.s, cam);
+    if (this.noAA) { r.setRenderTarget(null); r.render(this.final.s, cam); return; }
+    r.setRenderTarget(this.ldr); r.render(this.final.s, cam);
+    this.fxaa.m.uniforms.tSrc.value = this.ldr.texture; this.fxaa.m.uniforms.uTexel.value.set(1 / this.w, 1 / this.h);
+    r.setRenderTarget(null); r.render(this.fxaa.s, cam);
   }
 }

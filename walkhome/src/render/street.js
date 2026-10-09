@@ -20,7 +20,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 function mergeStatic(group) {
   const sets = new Map();
   for (const o of group.children) {
-    if (!o.isMesh || o.isInstancedMesh || o.children.length || o.userData.dynamic || !o.visible) continue;
+    if (!o.isMesh || o.isInstancedMesh || o.children.length || o.userData.dynamic || !o.visible || Array.isArray(o.material)) continue;
     const g = o.geometry, key = o.material.uuid + '|' + Object.keys(g.attributes).sort().join(',') + '|' + (g.index ? 'i' : 'n') + '|' + o.renderOrder;
     (sets.get(key) || sets.set(key, []).get(key)).push(o);
   }
