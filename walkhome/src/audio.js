@@ -28,7 +28,7 @@ export class Sound {
     // the beds start at once (they stream); the rest of the sounds load in the background
     this.ok = true; this.startBeds();
     pre.forEach((n) => this.load(n));
-    for (const n of ['../licensed/amb_fluorescent_hum_loop', '../licensed/sfx_light_flicker', '../licensed/sfx_stinger_dark', '../licensed/sfx_heartbeat_slow', '../school/light_clunk']) this.load(n);
+    for (const n of ['../licensed/sfx_whispers', '../licensed/amb_fluorescent_hum_loop', '../licensed/sfx_light_flicker', '../licensed/sfx_stinger_dark', '../licensed/sfx_heartbeat_slow', '../school/light_clunk']) this.load(n);
   }
 
   impulse(secs, decay) {
@@ -242,6 +242,7 @@ export class Sound {
         else if (d.kind === 'tv') this.one('tv_static', { pos, gain: 0.5, verb: 0.15, ref: 3, muffle: 700 });
         else if (d.kind === 'phoneIn') this.one('syn_phone', { pos, gain: 0.6, slice: false, verb: 0.2, ref: 3, muffle: 900 });
         else if (d.kind === 'knock') this.one('syn_knock', { pos, gain: 0.9, slice: false, verb: 0.3, ref: 3, muffle: 1400 });
+        else if (d.kind === 'whisper') this.one('../licensed/sfx_whispers', { pos, gain: 0.45, rate: 0.85, verb: 0.35, ref: 2, muffle: 5000 });
         else if (d.kind === 'breath') this.one('breath_run', { pos, gain: 0.32, rate: 0.62, verb: 0.02, ref: 1, slice: true });
         else if (d.kind === 'flicker' && d.id !== undefined) { const L = S.lampById(d.id); if (L) this.one('../licensed/sfx_light_flicker', { pos: L, gain: 0.45, verb: 0.3, ref: 3 }); }
         else if (d.kind === 'eyes') this.one('step_leaves', { pos, gain: 0.3, rate: 0.7, verb: 0.2, ref: 2 });

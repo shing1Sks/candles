@@ -22,7 +22,7 @@ const OMENS = [
   // kind, weight, the regions it suits (null: anywhere)
   ['echo', 3, null], ['dogStare', 3, null], ['flicker', 2.5, null], ['eyes', 2, ['longStreet', 'parkEdge', 'hill', 'highStreet']],
   ['gate', 2, ['ourStreet', 'longStreet', 'hill']], ['tv', 1.5, ['ourStreet', 'longStreet', 'hill']], ['phoneIn', 1.2, ['longStreet', 'highStreet', 'hill']],
-  ['breath', 1.2, ['highStreet', 'parkEdge', 'hill']], ['figure', 2.2, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['whistleFar', 1.5, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['knock', 1.5, ['ourStreet', 'longStreet', 'highStreet', 'hill']],
+  ['breath', 1.2, ['highStreet', 'parkEdge', 'hill']], ['figure', 2.2, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['whisper', 1.4, ['longStreet', 'parkEdge', 'hill']], ['whistleFar', 1.5, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['knock', 1.5, ['ourStreet', 'longStreet', 'highStreet', 'hill']],
 ];
 function omen(D, ctx, emit) {
   const { P, rng, dog } = ctx, R = regionAt(P.s).id;
@@ -43,9 +43,9 @@ function omen(D, ctx, emit) {
   else if (kind === 'figure') { /* placed by the renderer, at the edge of your eye */ }
   else if (kind === 'whistleFar') { const p = at(P.s + (rng.chance(0.6) ? -1 : 1) * rng.range(50, 80), side * 3); emit('whistle', { x: p.x, z: p.z }); D.ledger.push([+D.t.toFixed(1), 'omen whistleFar']); return; }
   else {
-    const behind = kind === 'gate' || kind === 'breath', p = at(P.s + (behind ? -rng.range(6, 9) : rng.range(2, 8)), side * (kind === 'breath' ? 1.2 : 7.6));
+    const behind = kind === 'gate' || kind === 'breath' || kind === 'whisper', p = at(P.s + (behind ? -rng.range(6, 9) : rng.range(2, 8)), side * (kind === 'breath' ? 1.2 : 7.6));
     Object.assign(e, { x: p.x, y: p.y + (kind === 'breath' ? 1.3 : 1.4), z: p.z });
-    if (behind) D.omenPt = { x: p.x, z: p.z, until: D.t + 3 };
+    if (behind) D.omenPt = { x: p.x, z: p.z, until: D.t + (kind === 'whisper' ? 5 : 3) };
   }
   emit('omen', e); D.ledger.push([+D.t.toFixed(1), 'omen ' + kind]);
 }
