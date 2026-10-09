@@ -447,3 +447,18 @@ Research in `09_terror_research.md`.
 - **QA:**
   - a frame every 50 m along the whole road showed no broken geometry;
   - three seeds of full bot nights all reach home with no errors.
+- **More of Pass 7:**
+  - **The moonlight comes and goes** as cloud crosses the moon. The CPU samples the sky shader's own cloud noise at the moon's direction.
+  - **Newspapers** tumble down the street in the gusts (SEARCH FOR BOY GOES ON).
+  - **The lure is captioned**, because the synthesised whisper may not be intelligible.
+  - **A third code review fixed:**
+    - you could step off the bridge into the air over the canal;
+    - lamp beams lost their street colour after a rebuild;
+    - the towpath slot could be jumped by another encounter;
+    - the towpath man stood over the water;
+    - a peek or him-in-a-window could come before the first glimpse;
+    - a stale warning skipped Biscuit's ears-up;
+    - windows that had gone dark still lit the street;
+    - looks back were over-counted;
+    - a shooting-star NaN guard;
+    - the stride tilt leaked into the catch pose.
