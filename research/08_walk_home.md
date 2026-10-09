@@ -471,3 +471,15 @@ Research in `09_terror_research.md`.
   - **The peek** is capped at three a night.
   - **A bench in the park:** E to sit a moment. Biscuit settles at your feet, the music box plays, your breath comes back and the fear eases. But you're sitting still in the open, and if he comes you're up at once.
   - **The park railings are solid** (they weren't: you and Biscuit could walk straight through them). In and out only by the two gates, one each side of the canal. Gardens are the same now, both ways. The canal stops you at the bank instead of snapping you onto the bridge.
+  - **Biscuit goes quiet** (an omen, at most twice, only after the first glimpse). His tag stops jingling and he stops panting. His ears go flat, he stops wagging, and he presses against your leg, shaking, eyes on the dark behind you. The owls and dogs go quiet with him. It's what he does when the Tall Man is right there. Nothing is.
+  - **A fourth review, fixed:**
+    - the canal bank could stop you dead on the pavement;
+    - lightning could strike during the homecoming;
+    - Biscuit's lead dragged you along the bench;
+    - you could get in at the park's open ends or walk through the gate pillars;
+    - a high-street shop stood inside the railings.
+    - The park's ends now have railings across them.
+  - **Event spam found by counting a night's events:**
+    - lured, Biscuit flipped between pulling and alert every frame;
+    - a catch fired `caught` about 30 times, because he kept stepping through the blackout.
+  - **Perf:** the finest two generations of twigs are drawn only within ~50 m. That's 60% of each tree's triangles, and the mist hides them further off anyway. At 1080p with a fixed render scale it went from 15.7 to 18.7 fps.

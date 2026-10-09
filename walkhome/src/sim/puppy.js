@@ -114,7 +114,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   switch (D.state) {
     case 'follow': {
       // you're kneeling with your hand out: he stays right there at your hand
-      if (input.pet) { tx = P.x + vfx * 0.68 + vrx * 0.05; tz = P.z + vfz * 0.68 + vrz * 0.05; want = DOG.trot * 0.6; look = { x: P.x, z: P.z }; break; }
+      if (input.pet) { tx = P.x + vfx * 0.7 - vrx * 0.1; tz = P.z + vfz * 0.7 - vrz * 0.1; want = DOG.trot * 0.6; look = { x: tx + vrx * 3, z: tz + vrz * 3 }; break; } /* side-on to you, leaning into your hand */
       /* gone quiet: right against your leg, eyes on the dark behind you */
       if (world.quiet) { const a = moving ? 0.85 : 0.25; tx = P.x + fx * a + rx * 0.42; tz = P.z + fz * a + rz * 0.42; want = Math.max(DOG.trot * 0.8, P.speed * 1.2); look = { x: P.x - fx * 20, z: P.z - fz * 20 }; break; }
       // a little ahead and to the right of you; idles beside you when you stop
@@ -149,7 +149,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     case 'sneeze': tx = D.x; tz = D.z; if (D.st > 0.9) { D.state = 'follow'; D.st = 0; } break;
     case 'intro': tx = D.x; tz = D.z; look = { x: P.x, z: P.z }; if (D.st > 4.5 || P.speed > 0.6) { D.state = 'follow'; D.st = 0; } break;
     case 'pee': tx = D.x; tz = D.z; if (D.st > 2.4) { D.state = 'follow'; D.st = 0; } break;
-    case 'come': tx = P.x + vfx * (input.pet ? 0.68 : 0.7) + vrx * (input.pet ? 0.05 : 0.35); tz = P.z + vfz * (input.pet ? 0.68 : 0.7) + vrz * (input.pet ? 0.05 : 0.35); want = DOG.run * 0.8; look = { x: P.x, z: P.z }; if (D.st > 1.6 && Math.hypot(tx - D.x, tz - D.z) < 0.5) { D.state = 'follow'; D.st = 0; } break;
+    case 'come': tx = P.x + vfx * 0.7 + vrx * (input.pet ? -0.1 : 0.35); tz = P.z + vfz * 0.7 + vrz * (input.pet ? -0.1 : 0.35); want = DOG.run * 0.8; look = { x: P.x, z: P.z }; if (D.st > 1.6 && Math.hypot(tx - D.x, tz - D.z) < 0.5) { D.state = 'follow'; D.st = 0; } break;
     case 'alert': tx = D.x; tz = D.z; look = th ? { x: th.x, z: th.z } : null; if (D.st > 0.6) { tx = P.x + rx * 0.45 + fx * 0.4; tz = P.z + rz * 0.45 + fz * 0.4; want = DOG.trot * 0.7; } break;
     case 'hide': {
       // behind your legs, away from it

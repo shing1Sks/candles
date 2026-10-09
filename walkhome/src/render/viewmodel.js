@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 
 const N = 26, TUBE_SEG = 40, TUBE_R = 5;
-const _m = new THREE.Matrix4(), _up = new THREE.Vector3(), SH_R = new THREE.Vector3(0.34, -0.72, 0.12), SH_L = new THREE.Vector3(-0.34, -0.72, 0.12);
+const _yAxis = new THREE.Vector3(0, 1, 0), _sh = new THREE.Vector3(), SH_PET = new THREE.Vector3(-0.42, -0.62, 0.06), _m = new THREE.Matrix4(), _up = new THREE.Vector3(), SH_R = new THREE.Vector3(0.34, -0.72, 0.12), SH_L = new THREE.Vector3(-0.34, -0.72, 0.12);
 
 // a knitted texture: rows of stockinette Vs (colour and bump), with a little fuzz
 function knitTex(base, dark, seed = 1) {
@@ -60,7 +60,9 @@ export class Viewmodel {
     this.camera = camera; this.scene = scene;
     this.rig = new THREE.Group(); camera.add(this.rig);
     const wool = woolTex();
-    const sleeve = new THREE.MeshStandardMaterial({ color: 0x34406a, roughness: 1, bumpMap: wool, bumpScale: 1.2, emissive: 0x080b16 });
+    const sleeve = new THREE.MeshStandardMaterial({ color: 0x34406a, roughness: 1, bumpMap: wool, bumpScale: 1.2, emissive: 0x161d34 });
+    // a round arm, not a flat band: darker toward its edges, as cloth over an arm is
+    sleeve.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb *= 0.4 + 0.6 * sqrt(max(dot(normalize(normal), normalize(vViewPosition)), 0.0));\n#include <dithering_fragment>'); };
     const knit = new THREE.MeshStandardMaterial({ color: 0x9a3a30, roughness: 1, bumpMap: ribTex(), bumpScale: 1.6, emissive: 0x15130f });
     const mt = knitTex('#c23a30', '#6a1612');
     mt.repeat.set(5, 4);
@@ -71,7 +73,7 @@ export class Viewmodel {
       const sg = new THREE.CylinderGeometry(0.05, 0.066, 0.5, 18, 10, true); const sp = sg.attributes.position;
       for (let i = 0; i < sp.count; i++) { const x = sp.getX(i), y = sp.getY(i), z = sp.getZ(i), a = Math.atan2(z, x), k = 1 + 0.06 * Math.sin(a * 3 + y * 18) * Math.max(0, 0.5 - y) + 0.03 * Math.sin(y * 40 + a); sp.setX(i, x * k); sp.setZ(i, z * k); }
       sg.computeVertexNormals(); sg.rotateX(Math.PI / 2); sg.translate(0, 0, 0.27);
-      const s = new THREE.Mesh(sg, sleeve); g.add(s);
+      const s = new THREE.Mesh(sg, sleeve); g.add(s); g.userData.sleeve = s;
       // a turned-back cuff on the coat, then the knitted cuff of the mitten tucked inside it
       const cuffCoat = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.05, 18, 1, true), sleeve); cuffCoat.rotation.x = Math.PI / 2; cuffCoat.position.z = 0.04; g.add(cuffCoat);
       const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.041, 0.047, 0.045, 18, 1, true), knit); rib.rotation.x = Math.PI / 2; rib.position.z = 0.005; g.add(rib);
@@ -88,6 +90,9 @@ export class Viewmodel {
       return g;
     };
     this.right = mk(1, false); this.left = mk(-1, true); this.leftFist = mk(-1, false);
+    // the stroking arm bends: an upper arm from the elbow back down to your shoulder
+    const ug = new THREE.CylinderGeometry(0.064, 0.072, 1, 16, 1, true); ug.translate(0, 0.5, 0);
+    this.upper = new THREE.Mesh(ug, sleeve); this.upper.visible = false; this.upper.receiveShadow = true; this.rig.add(this.upper);
     // the lead's handle: a loop through your fist, the rope comes out of the bottom
     const loop = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.006, 6, 18), new THREE.MeshStandardMaterial({ color: 0xa82a24, roughness: 0.7 }));
     loop.position.set(0.0, -0.035, -0.0); loop.rotation.set(0, Math.PI / 2, 0); loop.scale.set(1, 1.5, 1); this.right.hand.add(loop);
@@ -107,6 +112,8 @@ export class Viewmodel {
   aim(G, w, shoulder, roll = 0) {
     G.position.copy(w);
     _m.lookAt(shoulder, w, _up.set(Math.sin(roll), Math.cos(roll), 0)); G.quaternion.setFromRotationMatrix(_m);
+    // reaching far, the sleeve still runs all the way back to the shoulder (never ends in mid-air)
+    if (G.userData.sleeve) G.userData.sleeve.scale.z = Math.max(1, (w.distanceTo(shoulder) + 0.12) / 0.52);
   }
 
   makeTube() {
@@ -134,7 +141,7 @@ export class Viewmodel {
     const R = this.right, L = this.left, LF = this.leftFist;
     if (carry) {
       this.aim(R, this.v.c.set(0.15, -0.5 + breathe, -0.5), SH_R, -0.9); this.aim(LF, this.v.d.set(-0.15, -0.5 + breathe, -0.5), SH_L, 0.9); LF.visible = !D.petting;
-      L.visible = D.petting; if (D.petting) this.stroke(L, puppy, 1);
+      L.visible = D.petting; this.upper.visible = false; if (D.petting) this.stroke(L, puppy, 1);
     } else {
       // the lead hand: out in front, swinging a little with the walk; when he pulls, your arm goes
       // out toward him and jerks with his tugs
@@ -148,7 +155,7 @@ export class Viewmodel {
       // the free hand: pumps when you run, goes flat onto his head when you stroke him
       LF.visible = this.runT > 0.05 && this.petT < 0.05;
       if (LF.visible) { const s = Math.sin(P.phase * Math.PI); this.aim(LF, this.v.d.set(-0.26 + this.sway.x * 0.6, -0.6 + this.runT * 0.16 + Math.max(0, s) * 0.07, -0.44 - s * 0.07), SH_L, 0.4); }
-      L.visible = this.petT > 0.05;
+      L.visible = this.petT > 0.05; this.upper.visible = false;
       if (L.visible) { this.stroke(L, puppy, this.petT); if (D.lickT > 0.4) L.position.y += Math.sin((D.lickT - 0.4) / 0.3 * Math.PI) * 0.025; } // a lick: the hand flinches up (it tickles)
     }
     R.position.add(tr); if (LF.visible) LF.position.addScaledVector(tr, 0.8);
@@ -168,11 +175,15 @@ export class Viewmodel {
     const head = puppy.head.getWorldPosition(this.v.a), neck = puppy.collarWorld(this.v.b);
     const h = this.camera.worldToLocal(head.clone()), n = this.camera.worldToLocal(neck.clone());
     const back = n.clone().sub(h); back.y = 0; if (back.lengthSq() < 1e-6) back.set(0, 0, 1); back.normalize();
-    const c = (Math.sin(this.t * 2.2) + 1) / 2, lift = Math.max(0, Math.sin(this.t * 2.2 + 1.6)) * 0.02; // forward, then back over the head
-    const target = h.clone().addScaledVector(back, -0.03 + c * 0.11).add(new THREE.Vector3(0, 0.15 + lift, 0));
+    const c = (Math.sin(this.t * 2.2) + 1) / 2, lift = Math.max(0, Math.sin(this.t * 2.2 + 1.6)) * 0.02; // from the top of his head, back down his neck and along his back
+    const target = h.clone().lerp(n, 0.5 + c * 0.9).add(_up.set(0, 0.17 + lift, 0)); /* behind his ears, down his neck, along his back */
     const rest = new THREE.Vector3(-0.22, -0.62, -0.32);
-    // palm down on his head, the arm reaching from your shoulder
-    this.aim(L, rest.lerp(target, Math.min(1, k)), SH_L, 0);
+    // palm down on him; the forearm comes up from an elbow out to your side and below, the upper
+    // arm runs from there back down off the bottom of the screen (a reach has a bend in it)
+    const wrist = rest.lerp(target, Math.min(1, k)), sh = _sh.copy(SH_L).lerp(SH_PET, Math.min(1, k));
+    const elbow = this.v.d.copy(wrist).lerp(sh, 0.5).add(_up.set(-0.07, -0.1 * k, 0.02));
+    this.aim(L, wrist, elbow, 0);
+    const U = this.upper, dir = _up.copy(sh).sub(elbow), len = dir.length(); U.visible = true; U.position.copy(elbow); U.quaternion.setFromUnitVectors(_yAxis, dir.divideScalar(len || 1)); U.scale.set(1, len + 0.05, 1);
   }
 
   rope(dt, puppy, ground, free = false) {
