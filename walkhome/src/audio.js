@@ -19,8 +19,11 @@ export class Sound {
     this.duck = C.createBiquadFilter(); this.duck.type = 'lowpass'; this.duck.frequency.value = 18000;
     const comp = C.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.3;
     this.master.connect(this.duck); this.duck.connect(comp); comp.connect(C.destination);
+    // your own body (heart, breath) bypasses the muffling: when the world goes far away, they don't
+    this.body = C.createGain(); this.body.gain.value = 0.9; this.body.connect(comp);
     this.bus = {};
     for (const [k, g] of Object.entries({ sfx: 1, amb: 0.8, music: 0.55, dog: 1.0, him: 1.0 })) { const n = C.createGain(); n.gain.value = g; n.connect(this.master); this.bus[k] = n; }
+    this.bus.body = this.body;
     // a street's echo: a short convolver reverb for positional things
     this.verb = C.createConvolver(); this.verb.buffer = this.impulse(1.6, 2.6); const vg = C.createGain(); vg.gain.value = 0.32; this.verb.connect(vg); vg.connect(this.master);
     this.slices = await fetch(W + 'slices.json').then((r) => r.json()).catch(() => ({}));
@@ -156,10 +159,10 @@ export class Sound {
     // hiding, crouched behind something with your hand on him: the world goes muffled, you hear your own heart
     this.duck.frequency.setTargetAtTime(S.caught ? 600 : S.hidden ? 1400 : Math.min(18000 - fear * 9000, 900 + (1 - Math.min(1, this.shock)) * 17000), C.currentTime, this.shock > 0.5 ? 0.05 : 0.4);
     // heartbeat
-    const hb = this.loop('heart', '../licensed/sfx_heartbeat_slow', { gain: 0, bus: 'sfx', verb: 0, rate: 1 });
+    const hb = this.loop('heart', '../licensed/sfx_heartbeat_slow', { gain: 0, bus: 'body', verb: 0, rate: 1 });
     if (hb) { hb.set(Math.max(0, fear - 0.5) * 1.4, 0.6); hb.src.playbackRate.value = 0.9 + fear * 0.5; }
     // ---- you: your own breath, when you've been running (a child's, quick and high), and held when you hide
-    const br = this.loop('breath', 'breath_run', { gain: 0, bus: 'sfx', verb: 0, rate: 1.3 });
+    const br = this.loop('breath', 'breath_run', { gain: 0, bus: 'body', verb: 0, rate: 1.3 });
     if (br) { const Pl = S.player, want = Pl.crouch > 0.6 && S.fear > 0.4 ? 0.04 : Math.max(0, 0.85 - Pl.stamina) * 0.5 + (Pl.winded > 0 ? 0.18 : 0); br.set(want, want > br.lastWant ? 0.3 : 1.2); br.lastWant = want; br.src.playbackRate.value = 1.2 + (1 - Pl.stamina) * 0.2; }
     // ---- Biscuit: panting when hot, positioned on him
     const D = S.dog, dp = { x: D.x, y: D.y + 0.3, z: D.z };

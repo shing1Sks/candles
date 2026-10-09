@@ -358,7 +358,7 @@ pauseEl.addEventListener('click', (e) => { if (e.target.closest('#settings')) re
 // a few settings on the pause screen (kept between visits)
 const SET = { vol: Number(localStorage.getItem('walkhome.vol') ?? 0.9), film: localStorage.getItem('walkhome.film') !== 'off' };
 function applySettings() {
-  if (sound.master) sound.master.gain.value = SET.vol;
+  if (sound.master) { sound.master.gain.value = SET.vol; sound.body.gain.value = SET.vol; }
   post.U.uFilm.value = SET.film ? 1 : 0;
   const el = (k) => document.querySelector(`#settings [data-k="${k}"] i`);
   if (el('vol')) { el('vol').textContent = Math.round(SET.vol * 100) + '%'; el('mouse').textContent = LOOK.speed.toFixed(1); el('film').textContent = SET.film ? 'on' : 'off'; }
