@@ -14,7 +14,7 @@ import { at as roadAt, N as roadN, T as roadT, regionAt, groundAt, toRoad } from
 import { houseFrame } from './house.js';
 import { TallManView } from './tallman.js';
 import { ROAD } from '../sim/road.js';
-import { carMeshes } from './car.js';
+import { carMeshes, vanMeshes } from './car.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -85,24 +85,7 @@ function neighbourModel() {
   g.userData = { head, faceM, wide: faceTex(true), narrow: faceM.map };
   return shadowed(g);
 }
-function vanModel() {
-  const g = new THREE.Group(), white = std(0xd8d4c8, { roughness: 0.5, metalness: 0.2 }), pink = std(0xd88aa0, { roughness: 0.6 }), glass = std(0x0a0c10, { roughness: 0.1 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.9, 3.8), white); body.position.set(0, 1.35, 0.6); g.add(body);
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.2, 1.4), white); cab.position.set(0, 1.0, -1.9); g.add(cab);
-  const ws = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.65), glass); ws.position.set(0, 1.85, -2.31); ws.rotation.x = -0.35; ws.rotation.y = Math.PI; g.add(ws);
-  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.25, 3.82), pink); stripe.position.set(0, 0.75, 0.6); g.add(stripe);
-  // the cone on the roof
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.7, 12), std(0xc8a060)); cone.position.set(0, 2.65, -0.6); cone.rotation.x = Math.PI; g.add(cone);
-  const scoop = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), pink); scoop.position.set(0, 3.05, -0.6); g.add(scoop);
-  // the serving hatch, lit, someone inside
-  const hatch = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.9), new THREE.MeshBasicMaterial({ color: 0xffe0a0 })); hatch.position.set(1.01, 1.55, 0.5); hatch.rotation.y = Math.PI / 2; g.add(hatch);
-  const man = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.4, 4, 10), std(0x0a0a0c)); man.position.set(0.6, 1.4, 0.6); g.add(man);
-  const mh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), std(0x0a0a0c)); mh.position.set(0.62, 1.95, 0.6); g.add(mh);
-  for (const sx of [-0.8, 0.8]) for (const sz of [-1.9, 1.6]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.24, 14), std(0x111111)); w.rotation.z = Math.PI / 2; w.position.set(sx * 1.0, 0.36, sz); g.add(w); }
-  const lights = []; for (const sx of [-0.7, 0.7]) { const h = new THREE.Mesh(new THREE.CircleGeometry(0.13, 12), new THREE.MeshBasicMaterial({ color: 0x222222 })); h.position.set(sx, 0.9, -2.62); h.rotation.y = Math.PI; g.add(h); lights.push(h); }
-  g.userData = { hatch, lights, man };
-  return shadowed(g);
-}
+function vanModel() { return shadowed(vanMeshes()); }
 function phoneBoxModel() {
   const g = new THREE.Group(), red = std(0xa81818, { roughness: 0.5 }), pane = new THREE.MeshStandardMaterial({ color: 0x1a1612, roughness: 0.1, emissive: 0x3a3020 });
   const frame = new THREE.Mesh(new THREE.BoxGeometry(0.95, 2.5, 0.95), red); frame.position.y = 1.25; g.add(frame);

@@ -74,3 +74,37 @@ export function carMeshes(color, len, w, opts) {
   for (const [geo, key, c] of carParts(len, w, opts)) { const m = new THREE.Mesh(geo, mat(key, c ?? color)); m.castShadow = true; m.receiveShadow = true; g.add(m); }
   return g;
 }
+
+// THE ICE-CREAM VAN. A tall old Bedford: a short snub bonnet, a raked windscreen, the body behind
+// the cab stepping up high and boxy, two-tone (faded pink and cream), a serving hatch on the kerb
+// side with a striped awning, a cone on the roof. Front toward -z, kerb side +x.
+export function vanMeshes() {
+  const g = new THREE.Group(), cream = mat('carpaint', 0xd8d0bc), pink = mat('carpaint', 0xc8889a), glassM = mat('gutter', 0x0a0c10), chrome = mat('metal', 0xc0c0c8), black = mat('dark', 0x0c0c0c);
+  const add = (geo, m) => { const o = new THREE.Mesh(geo, m); o.castShadow = true; o.receiveShadow = true; g.add(o); return o; };
+  const w = 2.0, half = 2.4, wb = 1.55, wr = 0.38;
+  const body = [[-half, 0.36], [-half, 0.8], ...arc(-half + 0.2, 0.8, 0.2, Math.PI, Math.PI / 2, 4), [-half + 0.55, 1.08], [-half + 0.95, 1.95], [-half + 1.3, 2.02], [-half + 1.42, 2.5], ...arc(half - 0.18, 2.5, 0.18, Math.PI / 2, 0, 4), [half, 0.36],
+    ...arc(wb, 0.36, wr + 0.07, 0, Math.PI, 8), [-wb + wr + 0.07, 0.36], ...arc(-wb + 0.15, 0.36, wr + 0.07, 0, Math.PI, 8)];
+  add(profile(body, w, 0.08), cream);
+  // the pink lower half: a skirt of the same profile, clipped by a slightly wider band
+  const skirt = profile([[-half + 0.3, 0.42], [-half + 0.3, 0.95], [half - 0.05, 0.95], [half - 0.05, 0.42]], w + 0.06, 0.03); add(skirt, pink);
+  // windscreen, side windows of the cab
+  const ws = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.3, 0.8), glassM); ws.position.set(0, 1.55, -half + 0.77); ws.rotation.x = 0.66; ws.rotation.y = Math.PI; g.add(ws);
+  for (const sx of [-1, 1]) { const sw = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), glassM); sw.position.set(sx * (w / 2 + 0.005), 1.55, -half + 1.15); sw.rotation.y = sx * Math.PI / 2; g.add(sw); }
+  // bumpers, wheels, lamps
+  for (const sz of [-1, 1]) add(xf(box(w + 0.08, 0.12, 0.12), 0, 0.46, sz * (half + 0.03)), chrome);
+  for (const sx of [-1, 1]) for (const sz of [-wb + 0.15, wb]) { const t = cyl(wr, wr, 0.24, 18); t.rotateZ(Math.PI / 2); add(xf(t, sx * (w / 2 - 0.12), wr, sz), black); const hc = cyl(0.17, 0.17, 0.26, 14); hc.rotateZ(Math.PI / 2); add(xf(hc, sx * (w / 2 - 0.11), wr, sz), chrome); }
+  const lights = []; for (const sx of [-1, 1]) { const h = new THREE.Mesh(new THREE.CircleGeometry(0.12, 14), new THREE.MeshBasicMaterial({ color: 0x222222 })); h.position.set(sx * 0.68, 0.88, -half - 0.015); h.rotation.y = Math.PI; g.add(h); lights.push(h); }
+  // the hatch on the kerb side (+x), lit; a striped awning over it; a dark shape inside
+  const hatch = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.85), new THREE.MeshBasicMaterial({ color: 0xffe0a0 })); hatch.position.set(w / 2 + 0.01, 1.65, 0.6); hatch.rotation.y = Math.PI / 2; g.add(hatch);
+  const sc = document.createElement('canvas'); sc.width = 64; sc.height = 8; const s2 = sc.getContext('2d'); for (let i = 0; i < 8; i++) { s2.fillStyle = i % 2 ? '#e8e0d0' : '#c84858'; s2.fillRect(i * 8, 0, 8, 8); }
+  const awn = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.5), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(sc), roughness: 0.9, side: THREE.DoubleSide })); awn.position.set(w / 2 + 0.22, 2.2, 0.6); awn.rotation.set(0, Math.PI / 2, 0); awn.rotateX(-0.9); g.add(awn);
+  const man = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.4, 4, 10), mat('dark', 0x0a0a0c)); man.position.set(0.55, 1.5, 0.6); g.add(man);
+  const mh = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), mat('dark', 0x0a0a0c)); mh.position.set(0.57, 2.05, 0.6); g.add(mh);
+  // ICES on the front above the windscreen, and the cone on the roof
+  const ic = document.createElement('canvas'); ic.width = 128; ic.height = 32; const i2 = ic.getContext('2d'); i2.fillStyle = '#e8e0d0'; i2.fillRect(0, 0, 128, 32); i2.fillStyle = '#b83848'; i2.font = 'bold 26px Georgia'; i2.textAlign = 'center'; i2.fillText('ICES', 64, 26);
+  const ices = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.25), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(ic), roughness: 0.6 })); ices.position.set(0, 2.3, -half + 1.05 - 0.02); ices.rotation.y = Math.PI; g.add(ices);
+  const cone = add(new THREE.ConeGeometry(0.2, 0.62, 12), mat('carpaint', 0xc8a060)); cone.position.set(0, 2.9, 0.2); cone.rotation.x = Math.PI;
+  const scoop = add(new THREE.SphereGeometry(0.23, 12, 10), pink); scoop.position.set(0, 3.25, 0.2);
+  g.userData = { hatch, lights, man };
+  return g;
+}
