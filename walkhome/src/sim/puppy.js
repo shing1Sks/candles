@@ -104,6 +104,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   if (input.call) { D.state = 'come'; D.st = 0; emit('call', {}); }
   if (D.lured && D.state !== 'come' && D.state !== 'hide') D.state = 'lured';
   else if (!D.lured && D.state === 'lured') { D.state = 'follow'; D.st = 0; }
+  // lured, he still warns you once when it comes (without leaving off pulling)
+  if (D.lured && th && danger > 0.15 && !D.luredAlert) { D.luredAlert = true; emit('alert', { x: th.x, z: th.z }); } else if (danger < 0.08) D.luredAlert = false;
   if (D.fear > 0.55 && D.state !== 'come') { if (D.state !== 'hide') { D.state = 'hide'; D.st = 0; } }
   else if (D.state === 'hide' && D.fear < 0.4) { D.state = 'follow'; D.st = 0; }
   else if (danger > 0.15 && !D.lured && D.state !== 'come' && D.state !== 'alert' && D.state !== 'hide') { D.state = 'alert'; D.st = 0; emit('alert', { x: th.x, z: th.z }); }

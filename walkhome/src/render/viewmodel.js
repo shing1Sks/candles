@@ -63,6 +63,7 @@ export class Viewmodel {
     const sleeve = new THREE.MeshStandardMaterial({ color: 0x34406a, roughness: 1, bumpMap: wool, bumpScale: 1.2, emissive: 0x161d34 });
     // a round arm, not a flat band: darker toward its edges, as cloth over an arm is
     sleeve.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', 'gl_FragColor.rgb *= 0.4 + 0.6 * sqrt(max(dot(normalize(normal), normalize(vViewPosition)), 0.0));\n#include <dithering_fragment>'); };
+    sleeve.customProgramCacheKey = () => 'sleeve-rim'; /* its own program (not shared with the cuff's) */
     const knit = new THREE.MeshStandardMaterial({ color: 0x9a3a30, roughness: 1, bumpMap: ribTex(), bumpScale: 1.6, emissive: 0x15130f });
     const mt = knitTex('#c23a30', '#6a1612');
     mt.repeat.set(5, 4);
@@ -109,11 +110,11 @@ export class Viewmodel {
 
   // put an arm's wrist at w (camera space), the sleeve running back from it to the shoulder, so it
   // always leaves the screen at the bottom like a real arm does (never pointing at you)
-  aim(G, w, shoulder, roll = 0) {
+  aim(G, w, shoulder, roll = 0, reach = false) {
     G.position.copy(w);
     _m.lookAt(shoulder, w, _up.set(Math.sin(roll), Math.cos(roll), 0)); G.quaternion.setFromRotationMatrix(_m);
     // reaching far, the sleeve still runs all the way back to the shoulder (never ends in mid-air)
-    if (G.userData.sleeve) G.userData.sleeve.scale.z = Math.max(1, (w.distanceTo(shoulder) + 0.12) / 0.52);
+    if (G.userData.sleeve) G.userData.sleeve.scale.z = reach ? Math.max(1, (w.distanceTo(shoulder) + 0.12) / 0.52) : 1;
   }
 
   makeTube() {
@@ -173,16 +174,15 @@ export class Viewmodel {
   // and down the neck, slowly, the way you would
   stroke(L, puppy, k) {
     const head = puppy.head.getWorldPosition(this.v.a), neck = puppy.collarWorld(this.v.b);
-    const h = this.camera.worldToLocal(head.clone()), n = this.camera.worldToLocal(neck.clone());
-    const back = n.clone().sub(h); back.y = 0; if (back.lengthSq() < 1e-6) back.set(0, 0, 1); back.normalize();
+    const h = this.camera.worldToLocal(head), n = this.camera.worldToLocal(neck);
     const c = (Math.sin(this.t * 2.2) + 1) / 2, lift = Math.max(0, Math.sin(this.t * 2.2 + 1.6)) * 0.02; // from the top of his head, back down his neck and along his back
-    const target = h.clone().lerp(n, 0.5 + c * 0.9).add(_up.set(0, 0.17 + lift, 0)); /* behind his ears, down his neck, along his back */
-    const rest = new THREE.Vector3(-0.22, -0.62, -0.32);
+    const target = h.lerp(n, 0.5 + c * 0.9).add(_up.set(0, 0.17 + lift, 0)); /* behind his ears, down his neck, along his back */
+    const rest = (this.v.rest ||= new THREE.Vector3()).set(-0.22, -0.62, -0.32);
     // palm down on him; the forearm comes up from an elbow out to your side and below, the upper
     // arm runs from there back down off the bottom of the screen (a reach has a bend in it)
     const wrist = rest.lerp(target, Math.min(1, k)), sh = _sh.copy(SH_L).lerp(SH_PET, Math.min(1, k));
-    const elbow = this.v.d.copy(wrist).lerp(sh, 0.5).add(_up.set(-0.07, -0.1 * k, 0.02));
-    this.aim(L, wrist, elbow, 0);
+    const elbow = this.v.d.copy(wrist).lerp(sh, 0.45).add(_up.set(-0.13, -0.17 * k, 0.03));
+    this.aim(L, wrist, elbow, 0, true);
     const U = this.upper, dir = _up.copy(sh).sub(elbow), len = dir.length(); U.visible = true; U.position.copy(elbow); U.quaternion.setFromUnitVectors(_yAxis, dir.divideScalar(len || 1)); U.scale.set(1, len + 0.05, 1);
   }
 

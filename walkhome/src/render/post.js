@@ -51,7 +51,7 @@ export class Post {
         }
         vec3 a = air * uMist;
         /* the wet ground isn't a mirror: stones and puddles break the streak into glints */
-        vec2 g = wp.xz * 3.1; vec2 gi = floor(g), gf = fract(g); gf = gf * gf * (3. - 2. * gf);
+        vec2 g = wp.xz * 3.1; vec2 gi = mod(floor(g), 289.), gf = fract(g); /* (small numbers for sin, all down the road) */ gf = gf * gf * (3. - 2. * gf);
         float h00 = fract(sin(dot(gi, vec2(127.1, 311.7))) * 43758.5), h10 = fract(sin(dot(gi + vec2(1., 0.), vec2(127.1, 311.7))) * 43758.5), h01 = fract(sin(dot(gi + vec2(0., 1.), vec2(127.1, 311.7))) * 43758.5), h11 = fract(sin(dot(gi + vec2(1.), vec2(127.1, 311.7))) * 43758.5);
         float brk = mix(mix(h00, h10, gf.x), mix(h01, h11, gf.x), gf.y);
         gl_FragColor = vec4(a + refl * ground * uWet * (0.3 + 1.1 * brk * brk), dot(a, vec3(0.3333)));
