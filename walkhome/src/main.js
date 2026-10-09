@@ -9,7 +9,7 @@ import { makeTextures } from './render/textures.js';
 import { makeMaterials, U, lampify } from './render/materials.js';
 import { buildSegment, buildSegmentLOD, disposeSegment } from './render/street.js';
 import { LightRig, FarLamps, SODIUM, lampColour } from './render/lamps.js';
-import { makeSky, bakeEnv, SKY_U, makeSkyline } from './render/sky.js';
+import { makeSky, bakeEnv, SKY_U, makeSkyline, cloudOverMoon } from './render/sky.js';
 import { WIN_U } from './render/windows.js';
 import { Post } from './render/post.js';
 import { Input, LOOK, setMouseSpeed } from './input.js';
@@ -302,6 +302,8 @@ function frame(now) {
     const lim = R === 'parkEdge' ? 5.4 : R === 'highStreet' ? 3.3 : R === 'hill' ? 3.8 : 4.3, cl = R === 'hill' ? 0.82 : R === 'parkEdge' ? 0.68 : R === 'highStreet' ? 0.58 : 0.5;
     S.uStarLimit.value += (lim + (1 - lampState.filter((L) => Math.abs(L.s - player.s) < 40 && L.on).length / 4) * 0.4 - S.uStarLimit.value) * k;
     S.uCloud.value += (cl - S.uCloud.value) * k;
+    // the moonlight comes and goes as cloud crosses the moon (shadows soften and fade with it)
+    { const over = cloudOverMoon(U.uTime.value); moon.intensity += (0.34 * (1 - over * 0.8) - moon.intensity) * Math.min(1, dt * 1.5); hemi.intensity = 0.12 + moon.intensity * 0.12; }
     // now and then, when it's quiet and you're looking up, a shooting star (a little wonder, for the two of you)
     if (S.uMeteor.value.w >= 0) { S.uMeteor.value.w += dt * 1.6; if (S.uMeteor.value.w > 1) S.uMeteor.value.w = -1; }
     else if (director.phase === 'calm' && player.pitch > 0.25 && S.uCloud.value < 0.7 && Math.random() < dt * 0.04) {

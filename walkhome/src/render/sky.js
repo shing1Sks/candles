@@ -175,3 +175,16 @@ export function makeSkyline() {
   const m = new THREE.Mesh(geo, mat); m.renderOrder = -9; m.frustumCulled = false;
   return m;
 }
+
+// how much cloud is over the moon right now (the same noise the sky draws), so the moonlight itself
+// can come and go as the cloud passes over it
+const fr = (x) => x - Math.floor(x);
+const h2 = (x, y) => fr(Math.sin(x * 127.1 + y * 311.7) * 43758.5453);
+function n2(x, y) { const ix = Math.floor(x), iy = Math.floor(y); let fx = x - ix, fy = y - iy; fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); const a = h2(ix, iy), b = h2(ix + 1, iy), c = h2(ix, iy + 1), d = h2(ix + 1, iy + 1); return (a + (b - a) * fx) * (1 - fy) + (c + (d - c) * fx) * fy; }
+function fbm(x, y) { let s = 0, a = 0.5; for (let i = 0; i < 5; i++) { s += a * n2(x, y); x = x * 2.03 + 17.1; y = y * 2.03 + 17.1; a *= 0.5; } return s; }
+export function cloudOverMoon(time) {
+  const d = SKY_U.uMoonDir.value, el = d.y, k = 1 / Math.max(el + 0.12, 0.04);
+  const x = d.x * k * 0.8 + time * 0.010, y = d.z * k * 0.8 + time * 0.003;
+  const c = SKY_U.uCloud.value, v = fbm(x, y), t = Math.max(0, Math.min(1, (v - (1 - c)) / 0.33));
+  return t * t * (3 - 2 * t);
+}
