@@ -27,7 +27,7 @@ export class Sound {
     // a street's echo: a short convolver reverb for positional things
     this.verb = C.createConvolver(); this.verb.buffer = this.impulse(1.6, 2.6); const vg = C.createGain(); vg.gain.value = 0.32; this.verb.connect(vg); vg.connect(this.master);
     this.slices = await fetch(W + 'slices.json').then((r) => r.json()).catch(() => ({}));
-    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick', 'syn_whisper_biscuit', 'syn_splash', 'syn_jingle', 'syn_wetstep'];
+    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick', 'syn_whisper_biscuit', 'syn_splash', 'syn_jingle', 'syn_wetstep', 'child_laugh'];
     // the beds start at once (they stream); the rest of the sounds load in the background
     this.ok = true; this.startBeds();
     pre.forEach((n) => this.load(n));
@@ -247,7 +247,8 @@ export class Sound {
       case 'caught': if (!this.caughtOnce) { this.caughtOnce = true; this.one('../licensed/sfx_stinger_dark', { gain: 0.9, slice: false, verb: 0 }); this.one('syn_sub', { gain: 1, slice: false, verb: 0 }); setTimeout(() => (this.caughtOnce = false), 4000); } break;
       case 'omen': {
         const d = e.data, pos = d.x !== undefined ? { x: d.x, y: d.y ?? 1.2, z: d.z } : null;
-        if (d.kind === 'fox') this.one('syn_fox', { pos, gain: 1.0, slice: false, verb: 0.6, ref: 8, roll: 0.6 });
+        if (d.kind === 'laugh') this.one('child_laugh', { pos, gain: 0.55, rate: 0.9, verb: 0.65, ref: 6, roll: 0.8, muffle: 3200 });
+        else if (d.kind === 'fox') this.one('syn_fox', { pos, gain: 1.0, slice: false, verb: 0.6, ref: 8, roll: 0.6 });
         else if (d.kind === 'gate') this.one('gate_creak', { pos, gain: 0.7, rate: rand(0.75, 0.9), verb: 0.4, ref: 3 });
         else if (d.kind === 'tv') this.one('tv_static', { pos, gain: 0.5, verb: 0.15, ref: 3, muffle: 700 });
         else if (d.kind === 'phoneIn') this.one('syn_phone', { pos, gain: 0.6, slice: false, verb: 0.2, ref: 3, muffle: 900 });

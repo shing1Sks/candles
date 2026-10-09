@@ -32,6 +32,8 @@ SET = {
   'step_leaves':        ('0137', 'feet-in-leaves', 'one', None, None, {}),
   'step_gravel':        ('0085', 'step-on-gravel', 'one', None, None, {}),
   'step_grass':         ('1253', 'steps-in-the-grass-slow', 'one', None, None, {}),
+  # a child laughing, somewhere in the gardens (an omen)
+  'child_laugh':        ('1660', 'laughter-of-children', 'one', None, None, {}),
   # beds
   'amb_night_rain':     ('0621', 'night-after-rain', 'loop', None, None, {'stereo': True}),
   'amb_city_far':       ('0680', 'paris-by-night', 'loop', None, None, {'stereo': True}),

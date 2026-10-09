@@ -22,12 +22,12 @@ const OMENS = [
   // kind, weight, the regions it suits (null: anywhere)
   ['echo', 3, null], ['dogStare', 3, null], ['flicker', 2.5, null], ['eyes', 2, ['longStreet', 'parkEdge', 'hill', 'highStreet']],
   ['gate', 2, ['ourStreet', 'longStreet', 'hill']], ['tv', 1.5, ['ourStreet', 'longStreet', 'hill']], ['phoneIn', 1.2, ['longStreet', 'highStreet', 'hill']],
-  ['breath', 1.2, ['highStreet', 'parkEdge', 'hill']], ['figure', 2.2, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['whisper', 1.4, ['longStreet', 'parkEdge', 'hill']], ['tallWindow', 1.6, ['longStreet', 'highStreet', 'hill']], ['peek', 2.4, ['parkEdge', 'hill', 'ourStreet', 'longStreet']], ['whistleFar', 1.5, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['knock', 1.5, ['ourStreet', 'longStreet', 'highStreet', 'hill']],
+  ['breath', 1.2, ['highStreet', 'parkEdge', 'hill']], ['figure', 2.2, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['whisper', 1.4, ['longStreet', 'parkEdge', 'hill']], ['tallWindow', 1.6, ['longStreet', 'highStreet', 'hill']], ['peek', 2.4, ['parkEdge', 'hill', 'ourStreet', 'longStreet']], ['laugh', 1.4, ['longStreet', 'parkEdge', 'hill']], ['whistleFar', 1.5, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['knock', 1.5, ['ourStreet', 'longStreet', 'highStreet', 'hill']],
 ];
 function omen(D, ctx, emit) {
   const { P, rng, dog } = ctx, R = regionAt(P.s).id;
   const flickL = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40);
-  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done'));
+  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done') && !(k === 'laugh' && (D.omenCount.laugh || 0) >= 2));
   const w = (o) => o[1] / (1 + (D.omenCount[o[0]] || 0) * 0.8); // each one rarer the more it's happened
   let r = rng.range(0, pool.reduce((a, o) => a + w(o), 0)), kind = pool[0][0];
   for (const o of pool) { r -= w(o); if (r <= 0) { kind = o[0]; break; } }
@@ -45,6 +45,7 @@ function omen(D, ctx, emit) {
   else if (kind === 'figure') { /* placed by the renderer, at the edge of your eye */ }
   else if (kind === 'whistleFar') { const p = at(P.s + (rng.chance(0.6) ? -1 : 1) * rng.range(50, 80), side * 3); emit('whistle', { x: p.x, z: p.z }); D.ledger.push([+D.t.toFixed(1), 'omen whistleFar']); return; }
   else {
+    if (kind === 'laugh') { const p = at(P.s + rng.range(-10, 25), side * rng.range(14, 24)); Object.assign(e, { x: p.x, y: p.y + 1, z: p.z }); D.omenPt = { x: p.x, z: p.z, until: D.t + 4 }; emit('omen', e); D.ledger.push([+D.t.toFixed(1), 'omen laugh']); return; }
     const behind = kind === 'gate' || kind === 'breath' || kind === 'whisper', p = at(P.s + (behind ? -rng.range(6, 9) : rng.range(2, 8)), side * (kind === 'breath' ? 1.2 : 7.6));
     Object.assign(e, { x: p.x, y: p.y + (kind === 'breath' ? 1.3 : 1.4), z: p.z });
     if (behind) D.omenPt = { x: p.x, z: p.z, until: D.t + (kind === 'whisper' ? 5 : 3) };

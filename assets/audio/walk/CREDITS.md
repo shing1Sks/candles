@@ -19,6 +19,7 @@ crossfade from tail to head so they loop seamlessly, and were levelled to a quie
 | `cat_complain.ogg` | Cat complaining (#0658) | https://bigsoundbank.com/cat-complaining-s0658.html | CC0 1.0 |
 | `cat_growl.ogg` | Growling cat #1 (#1885) | https://bigsoundbank.com/growling-cat-1-s1885.html | CC0 1.0 |
 | `cats_fight.ogg` | Two Cats Fighting (#0817) | https://bigsoundbank.com/two-cats-fighting-s0817.html | CC0 1.0 |
+| `child_laugh.ogg` | Laughter of Children (#1660) | https://bigsoundbank.com/laughter-of-children-s1660.html | CC0 1.0 |
 | `chimes.ogg` | Cluster Chimes #1 (#2687) | https://bigsoundbank.com/cluster-chimes-1-s2687.html | CC0 1.0 |
 | `crow_1.ogg` | Carrion crow #1 (#3461) | https://bigsoundbank.com/carrion-crow-1-s3461.html | CC0 1.0 |
 | `crows.ogg` | Crows #1 (#0754) | https://bigsoundbank.com/crows-s0754.html | CC0 1.0 |

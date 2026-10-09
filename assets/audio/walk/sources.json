@@ -2931,5 +2931,24 @@
   "secs": 76.0,
   "stereo": true,
   "slices": []
+ },
+ "child_laugh": {
+  "name": "child_laugh",
+  "id": "1660",
+  "title": "Laughter of Children",
+  "page": "https://bigsoundbank.com/laughter-of-children-s1660.html",
+  "kind": "one",
+  "secs": 4.7,
+  "stereo": false,
+  "slices": [
+   [
+    0.14,
+    2.51
+   ],
+   [
+    2.73,
+    3.48
+   ]
+  ]
  }
 }
