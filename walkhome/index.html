@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Long Way Home</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; font-family: Georgia, 'Times New Roman', serif; }
+  canvas { display: block; }
+  #title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #e8dcc4; background: radial-gradient(ellipse at center, rgba(10,8,14,0.55), rgba(0,0,0,0.92)); cursor: pointer; transition: opacity 1.6s; text-align: center; }
+  #title h1 { font-weight: normal; font-size: 46px; letter-spacing: 0.06em; margin: 0 0 14px; }
+  #title p { margin: 4px; color: #a89c88; font-size: 16px; }
+  #title .go { margin-top: 26px; color: #e8dcc4; font-size: 15px; letter-spacing: 0.2em; }
+  #hints { position: fixed; left: 18px; bottom: 16px; color: rgba(232,220,196,0.55); font-size: 13px; line-height: 1.55; pointer-events: none; transition: opacity 1.2s; text-shadow: 0 1px 2px #000; }
+  #hints b { color: rgba(232,220,196,0.85); font-weight: normal; }
+  #caption { position: fixed; left: 0; right: 0; bottom: 12%; text-align: center; color: #e8dcc4; font-size: 20px; font-style: italic; opacity: 0; transition: opacity 1.2s; pointer-events: none; text-shadow: 0 2px 6px #000; }
+  #pause { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; color: #e8dcc4; background: rgba(0,0,0,0.55); cursor: pointer; }
+  #pause .p1 { font-size: 26px; font-style: italic; margin-bottom: 18px; } #pause .p2 { font-size: 13px; letter-spacing: .2em; color: #a89c88; }
+  #hint { position: fixed; left: 18px; bottom: 120px; color: rgba(232,220,196,0.8); font-size: 15px; opacity: 0; transition: opacity 1s; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #stats { position: fixed; right: 8px; top: 6px; color: #8a8; font: 11px monospace; display: none; }
+</style>
+</head>
+<body>
+<div id="title">
+  <h1>The Long Way Home</h1>
+  <p>It's late. Biscuit needs to go home.</p>
+  <p>So do you.</p>
+  <div class="go">CLICK TO WALK</div>
+</div>
+<div id="hints">
+  <b>WASD</b> walk &nbsp; <b>Shift</b> run &nbsp; <b>C</b> crouch<br>
+  <b>E</b> pick up / put down Biscuit &nbsp; <b>F</b> stroke Biscuit<br>
+  <b>Right mouse</b> tug the lead &nbsp; <b>R</b> call Biscuit<br>
+  <b>[ ]</b> mouse speed
+</div>
+<div id="caption"></div>
+<div id="stats"></div>
+<div id="pause"><div class="p1">Biscuit is waiting.</div><div class="p2">CLICK TO KEEP WALKING</div></div>
+<div id="hint"></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
