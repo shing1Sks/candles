@@ -106,7 +106,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   else if (!D.lured && D.state === 'lured') { D.state = 'follow'; D.st = 0; }
   if (D.fear > 0.55 && D.state !== 'come') { if (D.state !== 'hide') { D.state = 'hide'; D.st = 0; } }
   else if (D.state === 'hide' && D.fear < 0.4) { D.state = 'follow'; D.st = 0; }
-  else if (danger > 0.15 && D.state !== 'come' && D.state !== 'alert' && D.state !== 'hide') { D.state = 'alert'; D.st = 0; emit('alert', { x: th.x, z: th.z }); }
+  else if (danger > 0.15 && !D.lured && D.state !== 'come' && D.state !== 'alert' && D.state !== 'hide') { D.state = 'alert'; D.st = 0; emit('alert', { x: th.x, z: th.z }); }
   else if (D.state === 'alert' && danger < 0.08 && D.st > 2) { D.state = 'follow'; D.st = 0; }
   // his name, called from the dark: frightened or not, he goes to it (until you haul him back)
   if (D.lured && D.lureUntil && D.state !== 'come') { if (D.state !== 'lured') { D.state = 'lured'; D.st = 0; } }
