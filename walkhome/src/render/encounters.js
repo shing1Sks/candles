@@ -485,10 +485,12 @@ export class Deck {
       if (stale || this.active.update(dt, c)) { this.activeT = 0; this.active.dispose(c); this.log.push([+c.P.s.toFixed(0), this.activeId, 'end']); this.active = null; this.nextS = c.P.s + rand(26, 48); }
       return;
     }
-    if (c.P.s < this.nextS || c.director.phase === 'peak' || c.caught) return;
+    const bridgeTime = !this.ran.has('towpath') && c.P.s > 1072 && c.P.s < 1096;
+    if ((c.P.s < this.nextS && !bridgeTime) || c.director.phase === 'peak' || c.caught) return;
     // the gnome comes first, in our street, always
     let id = null;
     if (!this.ran.has('gnome') && c.P.s > 25 && c.P.s < 160) id = 'gnome';
+    else if (!this.ran.has('towpath') && c.P.s > 1072 && c.P.s < 1096 && !c.tall?.active) id = 'towpath'; // (the bridge has its own)
     else {
       const R = regionAt(c.P.s).id, ph = c.director.phase;
       const busy = c.tall?.active; // while he's about, only the quiet wrongness, not people
