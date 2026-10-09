@@ -422,3 +422,28 @@ Research in `09_terror_research.md`.
     - the stranger cut off by the deck;
     - Biscuit carried upside down after a belly rub.
   - **Gameplay clips** (bot): `assets/art/walkhome/game2/clips/` (kept out of git).
+
+### Pass 7 (2026-10-09, late afternoon): small true things
+
+- **Street by street, the lamps change:**
+  - tungsten in your street (warm);
+  - low-pressure sodium on the long street (orange);
+  - mercury on the high street (a cold blue-green that makes faces look dead);
+  - sodium again after.
+  - Beams, the light in the mist and the reflections all follow the lamp's colour.
+- **The night gets late:** lit windows go out one by one as people go to bed. Home's stay lit.
+- **Biscuit hears him first:** about 3 s before each visit he stops and stares back down the road, growling. Then the whistle.
+- **Him, peering round a tree trunk ahead** (omen): a top hat and a pale face leaning out from behind the bark. Hold his eye and he slides back in.
+- **Your body:**
+  - your breath shows in the cold, more when you've run or you're frightened;
+  - your hands tremble with fear.
+- **Small sounds:** Biscuit's tag jingles as he trots (and goes quiet when he does); your footsteps splash in the rain.
+- **His walk** lurches with a hitch every other step, head level and locked on you. You catch it at the edges of your eyes.
+- **A rare shooting star** when it's calm and you look up.
+- **The toy-shop dolls** turn their heads to follow you once the night has turned.
+- **The credits say how your night went:** minutes, catches, whether Biscuit ran, how often you looked back and blinked.
+- **The same road every time, never quite the same night:** the director's RNG is fresh each play (unless `?seed`).
+- **Mix check:** I recorded the Web Audio output during a bot visit and measured it. Quiet stretches sit about −31 dB RMS, a peak about −17 dB, no clipping. The default volume is up a touch.
+- **QA:**
+  - a frame every 50 m along the whole road showed no broken geometry;
+  - three seeds of full bot nights all reach home with no errors.
