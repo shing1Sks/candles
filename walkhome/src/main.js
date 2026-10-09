@@ -23,7 +23,7 @@ import { makeTall, stepTall } from './sim/tallman.js';
 import { TallManView } from './render/tallman.js';
 import { Sound } from './audio.js';
 import { Fx } from './render/fx.js';
-import { Deck } from './render/encounters.js';
+import { Deck, caption } from './render/encounters.js';
 import { Ending } from './render/ending.js';
 import { Bot } from './bot.js';
 import { Doors } from './render/doors.js';
@@ -243,6 +243,7 @@ function frame(now) {
     if (dog.state === 'lured' && dog.lureUntil) hint('haul', "He's pulling toward it. Right mouse (or Q) to haul him back.", 5);
     if (tall.active && tall.seen && tall.mode !== 'glimpse') hint('look', "Don't take your eyes off him.", 4);
     if (events.some((e) => e.name === 'blink')) hint('blink', 'You blinked.', 3);
+    for (const e of events) if (e.name === 'lure' && e.id > (ectx.seenLure || 0)) { ectx.seenLure = e.id; caption('(from the dark, very quietly) "Biscuit..."', 3.5); }
     if (events.some((e) => e.name === 'visit' && e.data.ahead)) hint('ahead', "He's in the road. Get past him. Keep your eyes on him.", 5);
     if (events.some((e) => e.name === 'finale')) hint('finale', 'Home is right there. Run.', 4);
     if (player.winded > 0) hint('wind', 'Out of breath.', 3);
