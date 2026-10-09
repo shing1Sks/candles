@@ -289,7 +289,14 @@ function frame(now) {
   { const R = regionAt(player.s).id, k = Math.min(1, dt * 0.2), S = SKY_U;
     const lim = R === 'parkEdge' ? 5.4 : R === 'highStreet' ? 3.3 : R === 'hill' ? 3.8 : 4.3, cl = R === 'hill' ? 0.82 : R === 'parkEdge' ? 0.68 : R === 'highStreet' ? 0.58 : 0.5;
     S.uStarLimit.value += (lim + (1 - lampState.filter((L) => Math.abs(L.s - player.s) < 40 && L.on).length / 4) * 0.4 - S.uStarLimit.value) * k;
-    S.uCloud.value += (cl - S.uCloud.value) * k; S.uHalo22.value += ((player.s > 820 && player.s < 1150 ? 1 : 0) - S.uHalo22.value) * k; }
+    S.uCloud.value += (cl - S.uCloud.value) * k;
+    // now and then, when it's quiet and you're looking up, a shooting star (a little wonder, for the two of you)
+    if (S.uMeteor.value.w >= 0) { S.uMeteor.value.w += dt * 1.6; if (S.uMeteor.value.w > 1) S.uMeteor.value.w = -1; }
+    else if (director.phase === 'calm' && player.pitch > 0.25 && S.uCloud.value < 0.7 && Math.random() < dt * 0.04) {
+      const yaw = player.yaw + (Math.random() - 0.5) * 0.6, el = player.pitch + 0.15 + Math.random() * 0.2;
+      S.uMeteor.value.set(-Math.sin(yaw) * Math.cos(el), Math.sin(el), -Math.cos(yaw) * Math.cos(el), 0);
+      S.uMeteorDir.value.set(Math.cos(yaw) * (Math.random() < 0.5 ? 1 : -1), -0.35, 0).normalize();
+    } S.uHalo22.value += ((player.s > 820 && player.s < 1150 ? 1 : 0) - S.uHalo22.value) * k; }
   // lights
   // footsteps, by what's underfoot
   if (player.stepped) { const al = Math.abs(player.l); emit('step', { surface: al > 4.8 ? (Math.random() < 0.4 ? 'leaves' : 'grass') : al < 2.9 ? 'stone' : 'stone', run: player.running, crouch: player.crouch > 0.5 }); }

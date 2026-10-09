@@ -13,6 +13,8 @@ export const SKY_U = {
   uGlow: { value: new THREE.Color(0.2, 0.09, 0.04) },
   uStarLimit: { value: 4.2 }, // faintest star you can see (magnitude): the lamps' glare hides the rest
   uHalo22: { value: 0 },      // the ring round the moon that comes before rain
+  uMeteor: { value: new THREE.Vector4(0, 0, 0, -1) }, // a shooting star: start direction (xyz), progress 0..1 (w < 0: none)
+  uMeteorDir: { value: new THREE.Vector3(1, 0, 0) },
 };
 
 // the sky, built like the real one (then pushed a little toward a picture book):
@@ -24,7 +26,7 @@ export const SKY_U = {
 //     seas and craters, a faint earthshine on the dark side, a corona when thin cloud crosses it
 //   - two layers of cloud, lit by the moon: dark bellies, silver edges where they cross it
 const FRAG = /* glsl */`
-  uniform float uTime, uCloud, uStarLimit, uHalo22; uniform vec3 uMoonDir, uHorizon, uZenith, uGlow;
+  uniform float uTime, uCloud, uStarLimit, uHalo22; uniform vec3 uMoonDir, uHorizon, uZenith, uGlow, uMeteorDir; uniform vec4 uMeteor;
   varying vec3 vDir;
   float h(vec3 p){ return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
   float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -83,6 +85,12 @@ const FRAG = /* glsl */`
     float corona = exp(-ang / 0.03) * (hi + cl * (1. - cl) * 2.) * 0.8;
     col += vec3(0.75, 0.78, 0.95) * glowM * (1. - cl * 0.85) + vec3(0.8, 0.75, 0.7) * ring * 0.08 + vec3(0.9, 0.85, 0.8) * corona * 0.25;
     col += moon * (1. - hi * 0.5);
+    // a shooting star: a short bright streak sliding along a great circle, fading at both ends
+    if (uMeteor.w >= 0.) {
+      vec3 a = normalize(uMeteor.xyz), b = normalize(uMeteorDir), head = normalize(a + b * uMeteor.w * 0.5), tail = normalize(a + b * max(0., uMeteor.w * 0.5 - 0.08));
+      vec3 ab = head - tail; float h = clamp(dot(d - tail, ab) / dot(ab, ab), 0., 1.); float dd = length(d - tail - ab * h);
+      col += vec3(1.0, 0.95, 0.85) * exp(-dd * dd / 0.0000035) * h * sin(uMeteor.w * 3.14159) * 3.0;
+    }
     col = mix(col, cloudCol, cl * 0.94);
     col = mix(col, col * 0.7 + vec3(0.05, 0.05, 0.065) * (1. + pow(max(md, 0.), 30.) * 4.), hi * 0.6);
     gl_FragColor = vec4(col, 1.);
