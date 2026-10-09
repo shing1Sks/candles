@@ -153,10 +153,14 @@ export class Sound {
     this.shock = Math.max(0, (this.shock || 0) - dt / 5);
     if (this.shock > 0.55 && !this.ringing) { this.ringing = true; this.one('syn_ring', { gain: 0.12 + this.shock * 0.1, slice: false, verb: 0 }); }
     if (this.shock < 0.2) this.ringing = false;
-    this.duck.frequency.setTargetAtTime(S.caught ? 600 : Math.min(18000 - fear * 9000, 900 + (1 - Math.min(1, this.shock)) * 17000), C.currentTime, this.shock > 0.5 ? 0.05 : 0.4);
+    // hiding, crouched behind something with your hand on him: the world goes muffled, you hear your own heart
+    this.duck.frequency.setTargetAtTime(S.caught ? 600 : S.hidden ? 1400 : Math.min(18000 - fear * 9000, 900 + (1 - Math.min(1, this.shock)) * 17000), C.currentTime, this.shock > 0.5 ? 0.05 : 0.4);
     // heartbeat
     const hb = this.loop('heart', '../licensed/sfx_heartbeat_slow', { gain: 0, bus: 'sfx', verb: 0, rate: 1 });
     if (hb) { hb.set(Math.max(0, fear - 0.5) * 1.4, 0.6); hb.src.playbackRate.value = 0.9 + fear * 0.5; }
+    // ---- you: your own breath, when you've been running (a child's, quick and high), and held when you hide
+    const br = this.loop('breath', 'breath_run', { gain: 0, bus: 'sfx', verb: 0, rate: 1.3 });
+    if (br) { const Pl = S.player, want = Pl.crouch > 0.6 && S.fear > 0.4 ? 0.04 : Math.max(0, 0.85 - Pl.stamina) * 0.5 + (Pl.winded > 0 ? 0.18 : 0); br.set(want, want > br.lastWant ? 0.3 : 1.2); br.lastWant = want; br.src.playbackRate.value = 1.2 + (1 - Pl.stamina) * 0.2; }
     // ---- Biscuit: panting when hot, positioned on him
     const D = S.dog, dp = { x: D.x, y: D.y + 0.3, z: D.z };
     if (D.carried) { dp.x = p.x; dp.y = p.y - 0.4; dp.z = p.z; }

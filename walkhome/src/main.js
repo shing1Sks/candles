@@ -288,7 +288,7 @@ function frame(now) {
   t0 = performance.now();
   if (sound.ok) {
     const lampById = (id) => { const L = lampState[id], T = town.lamps[id]; return T.bulb ? { x: T.bulb.x, y: T.bulb.y, z: T.bulb.z } : { x: L.x, y: 5.6, z: L.z }; };
-    const S = { cam: camera, fwd: camera.getWorldDirection(new THREE.Vector3()), up: new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), player, dog, tall, director, region: regionAt(player.s).id, fear: fear.v, rain: fx.rainLevel || 0, dt, caught: caughtT >= 0, lampById,
+    const S = { cam: camera, fwd: camera.getWorldDirection(new THREE.Vector3()), up: new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), player, dog, tall, director, region: regionAt(player.s).id, fear: fear.v, hidden: hiddenNow, rain: fx.rainLevel || 0, dt, caught: caughtT >= 0, lampById,
       lamps: lampState.filter((L) => L.on && Math.abs(L.s - player.s) < 30).map((L) => ({ ...lampById(L.id), level: L.level, d: Math.hypot(L.x - player.x, L.z - player.z) })).sort((a, b) => a.d - b.d) };
     for (const e of events) if (e.id > (sound.lastId || 0)) sound.on(e, S);
     sound.lastId = evId;
