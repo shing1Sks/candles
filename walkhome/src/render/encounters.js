@@ -389,6 +389,71 @@ E.car = {
   dispose(c) { c.scene.remove(this.g); this.eng?.stop(0.8); const i = c.extraLights.indexOf(this.light); if (i >= 0) c.extraLights.splice(i, 1); },
 };
 
+// THE MAN FROM THE BUS STOP. Not him: a man. Sitting in the shelter with his hat down. When you've
+// gone past, he gets up, and walks behind you, at your pace. Stop, and he stops. Run, and he runs.
+// Look round and he's looking at the pavement. If you let him catch up he walks right up to you,
+// says something about the dog, and goes on past, and away. Nothing happens. That's worse.
+function strangerModel() {
+  const g = new THREE.Group(), coat = std(0x2a2620, { roughness: 0.95 }), dark = std(0x121212), skin = std(0x8a7a6a, { roughness: 0.7 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.27, 0.95, 12), coat); body.position.y = 1.15; g.add(body);
+  const sh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8), coat); sh.scale.set(1.15, 0.5, 0.8); sh.position.y = 1.6; g.add(sh);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 10), skin); head.position.y = 1.78; head.rotation.x = 0.35; g.add(head);
+  const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.08, 14), dark); hat.position.set(0, 1.88, -0.01); g.add(hat);
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.015, 16), dark); brim.position.set(0, 1.85, -0.03); brim.rotation.x = 0.2; g.add(brim);
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(s * 0.1, 0.72, 0); g.add(hip);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.72, 8), dark); leg.position.y = -0.36; hip.add(leg);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.07, 0.26), dark); shoe.position.set(0, -0.72, -0.06); hip.add(shoe); legs.push(hip);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.68, 8), coat); arm.position.set(s * 0.27, 1.25, 0.02); g.add(arm);
+  }
+  g.userData = { legs, head };
+  return shadowed(g);
+}
+E.stranger = {
+  regions: ['highStreet', 'longStreet'], phases: ['calm', 'unease', 'dread'], weight: 3, minS: 380,
+  start(c) {
+    // the bus shelter on the high street if it's coming up, otherwise a dark doorway
+    this.s = c.P.s > 700 && c.P.s < 755 ? 760 : c.P.s + 28; this.side = this.s === 760 ? 1 : (Math.random() < 0.5 ? -1 : 1);
+    const p = roadAt(this.s, this.side * 4.5); this.g = strangerModel(); this.g.position.set(p.x, groundAt(p.x, p.z), p.z); this.g.rotation.y = faceYaw(p, roadAt(this.s, 0)) + Math.PI; /* (his front is -z) */ c.scene.add(this.g);
+    this.state = 'wait'; this.t = 0; this.phase = 0; this.spoke = 0; this.follow = 0; return true;
+  },
+  update(dt, c) {
+    this.t += dt; const g = this.g, P = c.P, gp = g.position, d = Math.hypot(P.x - gp.x, P.z - gp.z);
+    const seen = looking(c.camera, c.fwd, { x: gp.x, y: gp.y + 1.6, z: gp.z }, 0.9);
+    if (this.state === 'wait') { if (P.s > this.s + 6) { this.state = 'follow'; this.t = 0; c.sound?.one('step_concrete', { pos: P3(gp), gain: 0.5, rate: 0.8, verb: 0.4 }); } return P.s > this.s + 60; }
+    if (this.state === 'follow') {
+      // keep about ten metres behind you, walking when you walk, running when you run
+      const want = roadAt(P.s - 10, Math.max(-4.2, Math.min(4.2, P.l))), dx = want.x - gp.x, dz = want.z - gp.z, dd = Math.hypot(dx, dz);
+      const sp = Math.min(P.running ? 3.0 : 1.5, dd > 0.3 ? dd * 1.5 : 0) * (P.speed < 0.2 && d < 11 ? 0.0 : 1);
+      if (dd > 0.05 && sp > 0) { gp.x += dx / dd * sp * dt; gp.z += dz / dd * sp * dt; g.rotation.y = Math.atan2(-dx, -dz); this.phase += sp * dt / 0.75; this.follow += sp * dt; }
+      gp.y = groundAt(gp.x, gp.z);
+      g.userData.legs.forEach((L, i) => (L.rotation.x = Math.sin(this.phase * Math.PI + i * Math.PI) * 0.45 * Math.min(1, sp)));
+      g.userData.head.rotation.x = seen ? 0.6 : 0.35;                       // when you look, he looks down
+      const step = Math.floor(this.phase); if (step !== this.lastStep && sp > 0.2) { this.lastStep = step; c.sound?.one('step_concrete', { pos: P3(gp), gain: 0.45, rate: 0.78 + Math.random() * 0.06, verb: 0.45, ref: 3 }); }
+      c.D.fear = Math.min(1, c.D.fear + dt * (d < 14 ? 0.06 : 0)); if (d < 14 && Math.random() < dt * 0.3) c.emit('growl', { level: 0.4 });
+      c.fearAdd = d < 16 ? 0.2 : 0;
+      if (seen && !this.spoke && d < 16) { this.spoke = 1; caption('"Evening."', 3); }
+      // stand still long enough and he comes right up to you
+      if (P.speed < 0.2) { this.still = (this.still || 0) + dt; if (this.still > 4) { this.state = 'pass'; this.t = 0; } } else this.still = 0;
+      if (this.follow > 55 || this.t > 60) { this.state = 'gone'; this.t = 0; }
+      return false;
+    }
+    if (this.state === 'pass') {
+      // walks up beside you, says it, and goes on past you, up the road, and away
+      const tgt = this.t < 4 ? roadAt(P.s + (this.t < 2.5 ? -0.5 : 8), P.l > 0 ? P.l - 1.1 : P.l + 1.1) : roadAt(P.s + 40, P.l > 0 ? 2.4 : -2.4);
+      const dx = tgt.x - gp.x, dz = tgt.z - gp.z, dd = Math.hypot(dx, dz), sp = 1.4;
+      if (dd > 0.1) { gp.x += dx / dd * sp * dt; gp.z += dz / dd * sp * dt; g.rotation.y = Math.atan2(-dx, -dz); this.phase += sp * dt / 0.75; }
+      gp.y = groundAt(gp.x, gp.z); g.userData.legs.forEach((L, i) => (L.rotation.x = Math.sin(this.phase * Math.PI + i * Math.PI) * 0.45));
+      if (d < 2.2 && this.spoke < 2) { this.spoke = 2; caption('"Nice dog."', 3); c.D.fear = Math.min(1, c.D.fear + 0.4); c.emit('growl', { level: 0.7 }); }
+      return this.t > 22 || d > 45;
+    }
+    if (this.state === 'gone') { if (!seen) { g.visible = false; return true; } return this.t > 15; }
+    return false;
+  },
+  dispose(c) { c.scene.remove(this.g); c.fearAdd = 0; },
+};
+
 // ---------------------------------------------------------------- the deck
 const KEY = 'walkhome.seenEncounters';
 export class Deck {

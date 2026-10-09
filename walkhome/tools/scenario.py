@@ -43,6 +43,12 @@ SCEN = {
   "belly": [("js", "__wh.put(40, 3.4, 0, -0.1); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.nextOmen = 99999; __wh.director.glimpse = 'done'"), ("hold", "KeyW", 2), ("wait", 17),
             ("js", "(() => { const P = __wh.player, D = __wh.dog; P.yaw = Math.atan2(-(D.x - P.x), -(D.z - P.z)); P.pitch = -0.5; })()"), ("wait", 0.5), ("shot", "a_lying"), ("log", "JSON.stringify({lie: __wh.dog.lie, st: __wh.dog.state})"),
             ("js", "__wh.input.keys.add('KeyF')"), ("wait", 7), ("shot", "b_belly"), ("log", "JSON.stringify({belly: __wh.dog.belly, pet: __wh.dog.petting, lie: __wh.dog.lie})"), ("wait", 2), ("shot", "c_belly2"), ("js", "__wh.input.keys.clear()")],
+  # the man from the bus stop: walk past, look back, stop and let him come
+  "stranger": [("js", "__wh.put(700, 3.4, 0, -0.05); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.nextOmen = 99999; __wh.director.glimpse = 'done'; __wh.deck.force('stranger', __wh.ectx)"), ("wait", 1),
+               ("lookat", "{x: __wh.deck.active.g.position.x, y: 1.4, z: __wh.deck.active.g.position.z}"), ("wait", 0.5), ("shot", "a_shelter"), ("look", 0, -0.05),
+               ("hold", "KeyW", 50), ("log", "JSON.stringify({st: __wh.deck.active && __wh.deck.active.state, s: __wh.player.s})"),
+               ("look", 3.14, 0.0), ("wait", 0.6), ("shot", "b_behind"), ("log", "JSON.stringify({cap: document.getElementById('caption').textContent})"),
+               ("wait", 7), ("shot", "c_close"), ("log", "JSON.stringify({st: __wh.deck.active && __wh.deck.active.state, cap: document.getElementById('caption').textContent})"), ("wait", 4), ("shot", "d_past")],
   # a slow human-paced walk: stop, look about, walk on. What happens in 4 minutes?
   "human": [("js", "__wh.put(2, 3.4, 0, -0.1)")] + sum([[("hold", "KeyW", 7), ("look", 3.0, -0.05), ("wait", 1.5), ("log", TSTATE), ("look", 0.0, -0.1), ("wait", 2.0), ("log", TSTATE)] for i in range(22)], []),
   # walk up the long street; the director sends him; look back now and then
