@@ -71,6 +71,9 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     if (D.fear > 0.6 && D.whimperCd < 0) { emit('whimper', {}); D.whimperCd = 2.5 + rng.range(0, 2); }
     if (D.fear > 0.75 && danger > 0.5 && D.barkCd < 0 && rng.chance(dt * (1.4 - D.calm * 1.2))) { emit('bark', { x: D.x, z: D.z, loud: 1 }); D.barkCd = 1.2 + rng.range(0, 1.5); }
   }
+  // in the park, when it's quiet, he finds a stick and carries it, very proud of it; a fright and he drops it
+  if (!D.stick && world.calm && world.park && !D.carried && D.fear < 0.15 && rng.chance(dt * 0.02)) { D.stick = 25 + rng.range(0, 30); emit('stick', {}); }
+  if (D.stick) { D.stick -= dt; if (D.stick <= 0 || D.fear > 0.3 || D.carried) D.stick = 0; }
   // stroked for a while, he licks your mitten
   D.lickT = Math.max(0, (D.lickT || 0) - dt);
   if (petting && D.st > 1.5 && D.lickT <= 0 && rng.chance(dt * 0.45)) { D.lickT = 0.7; emit('lick', {}); }
@@ -220,7 +223,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.crouch = ease(D.crouch, D.state === 'hide' ? 1 : D.state === 'alert' ? 0.35 : 0, 5, dt);
   D.ears = ease(D.ears, D.state === 'hide' ? -1 : D.state === 'alert' ? 1 : D.state === 'come' ? 0.3 : 0, 6, dt);
   D.wag = ease(D.wag, petting || D.state === 'come' || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 1 : D.state === 'alert' || D.state === 'hide' ? 0 : 0.45, 3, dt);
-  D.tailUp = ease(D.tailUp, D.state === 'alert' ? 1 : 0, 4, dt);
+  D.tailUp = ease(D.tailUp, D.state === 'alert' || D.stick ? 1 : 0, 4, dt);
   D.scared = D.state === 'hide';
   D.pant = ease(D.pant, D.hush ? 0 : D.speed > 2 || P.running ? 1 : 0, D.hush ? 8 : 1.5, dt);
   D.tilt = ease(D.tilt, petting || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 0.6 : 0, 4, dt);

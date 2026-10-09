@@ -122,6 +122,8 @@ export class Puppy {
     // a glow round the collar light, so in the dark you can find him by it
     { const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d'), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
       this.ledGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), color: 0x66ff88, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); this.ledGlow.scale.setScalar(0.08); this.led.add(this.ledGlow); }
+    // a stick, for when he finds one (in his mouth, crossways)
+    this.stick = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, 0.34, 6), new THREE.MeshStandardMaterial({ color: 0x5a4028, roughness: 0.9 })); this.stick.rotation.z = Math.PI / 2 + 0.15; this.stick.position.set(0.02, -0.06, -0.13); this.stick.visible = false; this.head.add(this.stick);
     this.collarAnchor = new THREE.Object3D(); this.collarAnchor.position.set(0, 0.085, 0.01); this.neck.add(this.collarAnchor);
     // legs: furry all the way down, fluffy paws
     this.legs = [];
@@ -217,6 +219,7 @@ export class Puppy {
     // blinking
     this.blink -= dt; const closed = this.blink < 0.12 && this.blink > 0;
     if (this.blink < 0) this.blink = 2 + Math.random() * 4;
+    this.stick.visible = !!P.stick && !P.carried;
     // stroked, he half-closes his eyes; lying down, now and then they close for a while
     const content = P.petting ? 0.35 : lie > 0.8 && Math.sin(this.t * 0.31) > 0.4 ? 0.12 : 1;
     for (const e of this.eyes) e.scale.y += ((closed ? 0.15 : content) - e.scale.y) * Math.min(1, dt * 12);

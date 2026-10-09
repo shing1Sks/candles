@@ -197,7 +197,7 @@ function frame(now) {
   const hand = vm.hold.getWorldPosition(new THREE.Vector3());
   const om = director.omenPt, omenT = om ? [{ x: om.x, z: om.z, d: 19, seen: true, kind: 'omen' }] : [];
   const threats = omenT.length && !tall.active ? omenT : tall.active && tall.mode !== 'glimpse' ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z), seen: tall.seen, kind: 'tall' }] : tall.active ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z) + 12, seen: tall.seen, kind: 'tall' }] : [];
-  stepDog(dog, player, inp, dt, { pois, threats, hand: { x: hand.x, z: hand.z }, time: U.uTime.value, calm: director.phase === 'calm' || director.phase === 'after', wet: fx.rainLevel || 0, watched: dogWatched(), blocked: town.blocked, gateAt: town.gateAt, obstacles }, emit, dogRng);
+  stepDog(dog, player, inp, dt, { pois, threats, hand: { x: hand.x, z: hand.z }, time: U.uTime.value, calm: director.phase === 'calm' || director.phase === 'after', wet: fx.rainLevel || 0, watched: dogWatched(), park: regionAt(player.s).id === 'parkEdge', blocked: town.blocked, gateAt: town.gateAt, obstacles }, emit, dogRng);
   }
   // noise he can hear: barking, running
   noise.length = 0;
