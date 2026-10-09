@@ -18,7 +18,7 @@ npm run dev      # then open http://localhost:5184
 | WASD, mouse | walk, look |
 | Shift | run (you run out of breath) |
 | C | crouch (behind a hedge or a car, with Biscuit quiet, he loses you) |
-| E | pick Biscuit up, put him down; at a front door, ring the bell; answers a ringing phone |
+| E | pick Biscuit up, put him down; at a front door, ring the bell; answers a ringing phone; on a park bench, sit a moment |
 | F (hold) | kneel and stroke Biscuit; it calms him |
 | Right mouse / Q | tug the lead |
 | R | squeak his toy (call him; if he's run off, he answers. It carries) |
