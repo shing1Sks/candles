@@ -65,7 +65,7 @@ export function stepTall(M, P, cam, dt, lamps, ctx, emit) {
   }
   // a withdrawal you're watching: you blink, and he's gone
   if (M.mode === 'withdraw' && blinking) { M.vanished = true; M.speed = 0; return M; }
-  if (M.mode === 'withdraw' && looked && M.seenFor > 2.5 && !M.blink) { M.blink = TALL.blinkT; M.seenFor = 0; emit('blink', { d: pd }); }
+  if (M.mode === 'withdraw' && looked && M.seenFor > 2.5 && M.blink <= 0) { M.blink = TALL.blinkT; M.seenFor = 0; emit('blink', { d: pd }); }
   // frozen while watched (and he's never caught moving: during a blink he goes further than he could walk)
   if (looked) { M.speed = 0; return M; }
   if (blinking && M.blinkJump > 0 && M.mode !== 'withdraw' && M.target) {
@@ -121,5 +121,5 @@ function moveToward(M, tx, tz, speed, dt) {
 
 // put him somewhere: s along the road, l across it
 export function placeTall(M, s, l) {
-  const p = at(s, l); Object.assign(M, { active: true, x: p.x, z: p.z, y: p.y, s, l, mode: 'stalk', knows: 0.3, seen: false, inView: false, seenFor: 0, unseenFor: 0, blink: 0, heavy: 0, vanished: false, watchedUnder: null, blinkJump: 0 });
+  const p = at(s, l); Object.assign(M, { active: true, x: p.x, z: p.z, y: p.y, s, l, mode: 'stalk', knows: 0.3, seen: false, inView: false, seenFor: 0, unseenFor: 0, blink: 0, heavy: 0, vanished: false, watchedUnder: null, blinkJump: 0, lostFor: 0, searchPt: null, searchT: 0, target: null });
 }

@@ -127,7 +127,7 @@ export class Post {
         c += (hash(floor(vUv * uRes) + fract(uTime * 13.7) * 91.) - 0.5) * (0.045 + uFear * 0.03);
         // eyelids: heavy when you've stared too long, shut for a blink
         float ey = abs(cc.y) + cc.x * cc.x * 0.42;
-        c *= 1. - smoothstep((1. - uLid) * 0.62 - 0.07, (1. - uLid) * 0.62, ey);
+        c *= 1. - smoothstep((1. - uLid) * 0.62 - 0.07, (1. - uLid) * 0.62, ey) * step(0.001, uLid);
         c = mix(c, vec3(1.), uFlash);
         c *= 1. - uBlack;
         gl_FragColor = vec4(c, 1.);

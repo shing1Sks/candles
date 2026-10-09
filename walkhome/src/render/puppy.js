@@ -143,6 +143,8 @@ export class Puppy {
     }
     this.t = 0; this.blink = 0;
     this.prevPos = new THREE.Vector3(); this.drag = new THREE.Vector3();
+    // only the big shapes throw a shadow (each furry part casts all its shells: legs and ears and tail aren't worth it)
+    this.root.traverse((o) => { if (o.isInstancedMesh) o.castShadow = false; }); this.torso.castShadow = true;
   }
 
   // P: { x, y, z, yaw, speed, phase, headYaw, headPitch, ears (0 down..1 up/back -1 flat), wag, tailUp, crouch, sit, sniff, pant, carried, scared }

@@ -31,14 +31,14 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     D.state = 'hide'; D.crouch = 1; D.scared = true; D.ears = -1; D.wag = 0; D.sit = 0; D.sniff = 0; D.tailUp = 0;
     D.headYaw = ease(D.headYaw, Math.sin(D.st * 0.7) * 0.6, 2, dt); D.headPitch = -0.1; P.pull = null; D.tension = 0; D.carried = false; P.carrying = false;
     // call him (R) and he answers: a yip, from wherever he's hiding (but you've shouted, at night)
-    if (input.call) { D.whimperCd = Math.min(D.whimperCd, 0.5); D.answer = 0.6; }
+    if (input.call) { D.whimperCd = Math.min(D.whimperCd, 0.5); D.answer = 0.6; emit('call', {}); }
     if (D.answer > 0 && (D.answer -= dt) <= 0) emit('bark', { x: D.x, z: D.z, loud: 0.6, lost: true });
     if (D.whimperCd < 0) { emit('whimper', { lost: true }); D.whimperCd = 2.0 + rng.range(0, 1.6); }
     // walk on past him and he bolts again, further up the road (he's following you, in his way);
     // the third time, he comes running to you on his own: the night can't go on without him
     if (P.s > L.s + 12) {
       L.runs = (L.runs || 0) + 1;
-      if (L.runs >= 3) { D.lost = null; D.state = 'come'; D.st = 0; D.fear = 0.5; emit('found', { himself: true }); return D; }
+      if (L.runs >= 3) { D.lost = null; D.state = 'come'; D.st = 0; D.fear = 0.5; D.returning = true; emit('found', { himself: true }); return D; }
       const s = P.s + 22 + rng.range(0, 10), side = -Math.sign(D.l || 1) || 1, q = at(s, side * 4.45);
       Object.assign(L, { x: q.x, z: q.z, s }); D.l = side * 4.45; emit('whimper', { lost: true });
     }
@@ -171,7 +171,9 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   const lx = nx - hand.x, lz = nz - hand.z, ll = Math.hypot(lx, lz);
   D.tension = Math.max(0, Math.min(1, (ll - DOG.lead * 0.8) / (DOG.lead * 0.2)));
   P.pull = null;
-  if (ll > DOG.lead) {
+  // (running back to you on his own from up the road: the lead isn't taut yet, he's not on it)
+  if (D.returning && ll <= DOG.lead) D.returning = false;
+  if (ll > DOG.lead && !D.returning) {
     const ux = lx / ll, uz = lz / ll;
     // he wants to go on: he pulls you (harder when lured or frightened), and is held back
     const strength = D.state === 'lured' ? 2.6 : D.state === 'sniff' || D.state === 'pee' ? 0.9 : 0.6;
@@ -184,7 +186,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   if (Math.abs(rc.l) > lim) { const c = at(rc.s, Math.sign(rc.l) * lim); nx = c.x; nz = c.z; rc.l = Math.sign(rc.l) * lim; }
   // garden walls and fences are solid for him too: in and out only by the gate
   if (world.blocked) {
-    const was = D.l ?? 0, EDGE = 4.82, side = Math.sign(rc.l) || Math.sign(was);
+    const was = toRoad(D.x, D.z).l, EDGE = 4.82, side = Math.sign(rc.l) || Math.sign(was); // (where he was before this step)
     const crossing = (Math.abs(was) <= EDGE) !== (Math.abs(rc.l) <= EDGE);
     if (crossing && world.blocked(rc.s, side)) { const c = at(rc.s, side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16)); nx = c.x; nz = c.z; rc.l = side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16); }
   }

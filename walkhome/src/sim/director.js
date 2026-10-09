@@ -26,7 +26,8 @@ const OMENS = [
 ];
 function omen(D, ctx, emit) {
   const { P, rng, dog } = ctx, R = regionAt(P.s).id;
-  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3));
+  const flickL = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40);
+  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3));
   const w = (o) => o[1] / (1 + (D.omenCount[o[0]] || 0) * 0.8); // each one rarer the more it's happened
   let r = rng.range(0, pool.reduce((a, o) => a + w(o), 0)), kind = pool[0][0];
   for (const o of pool) { r -= w(o); if (r <= 0) { kind = o[0]; break; } }
@@ -38,7 +39,7 @@ function omen(D, ctx, emit) {
   if (kind === 'echo') D.echo = { until: D.t + rng.range(9, 16), back: rng.range(12, 17), steps: 0 };
   else if (kind === 'dogStare') { const p = at(P.s - rng.range(18, 28), side * rng.range(3, 6)); Object.assign(e, { x: p.x, z: p.z }); D.omenPt = { x: p.x, z: p.z, until: D.t + 5.5 }; }
   else if (kind === 'eyes') { const p = at(P.s + rng.range(9, 15), side * rng.range(5.3, 6.4)); Object.assign(e, { x: p.x, y: p.y + rng.range(0.3, 0.55), z: p.z, until: D.t + 14 }); D.omenPt = { x: p.x, z: p.z, until: D.t + 9 }; }
-  else if (kind === 'flicker') { const L = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40); if (!L) return; L.flick = 2.2; e.id = L.id; }
+  else if (kind === 'flicker') { flickL.flick = 2.2; e.id = flickL.id; }
   else if (kind === 'fox') { const p = at(P.s + rng.range(-6, 14), side * rng.range(16, 24)); Object.assign(e, { x: p.x, y: p.y + 1, z: p.z }); D.omenPt = { x: p.x, z: p.z, until: D.t + 4 }; emit('omen', e); emit('bark', { x: dog.x, z: dog.z, loud: 0.4, at: 0.9 }); emit('startle', { amount: 0.25 }); D.ledger.push([+D.t.toFixed(1), 'omen fox']); return; }
   else if (kind === 'figure') { /* placed by the renderer, at the edge of your eye */ }
   else if (kind === 'whistleFar') { const p = at(P.s + (rng.chance(0.6) ? -1 : 1) * rng.range(50, 80), side * 3); emit('whistle', { x: p.x, z: p.z }); D.ledger.push([+D.t.toFixed(1), 'omen whistleFar']); return; }

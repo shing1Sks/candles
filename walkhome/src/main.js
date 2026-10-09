@@ -310,10 +310,11 @@ function frame(now) {
   pm('vm', t0); t0 = performance.now();
   if (!Q.has('nolamps') && !window.__wh?.rigOff) rig.update(camera, lightsNow()); else lightsNow();
   // the air and the wet road: the nearest lamps' glow in the mist and their streaks on the cobbles
-  airLamps.sort((a, b) => a.d - b.d); post.setLamps(post.noAir ? [] : airLamps, camera);
+  airLamps.sort((a, b) => a.d - b.d); post.setLamps(post.noAir || ending.stillScene ? [] : airLamps, camera);
   { const R = regionAt(player.s).id, rain = fx.rainLevel || 0; post.U.uMist.value = (R === 'parkEdge' ? 0.05 : R === 'hill' ? 0.045 : 0.032) + rain * 0.03 + fear.v * 0.01; post.U.uWet.value = 0.2 + rain * 0.5;
     post.U.uLowMist.value += ((R === 'parkEdge' ? 0.6 : R === 'hill' ? 0.42 : R === 'highStreet' ? 0.18 : 0.28) + Math.sin(U.uTime.value * 0.05) * 0.06 - post.U.uLowMist.value) * Math.min(1, dt * 0.3);
-    post.U.uGround.value = player.y; post.U.uMistCol.value.copy(scene.fog.color).multiplyScalar(0.75); }
+    post.U.uGround.value = player.y; post.U.uMistCol.value.copy(scene.fog.color).multiplyScalar(0.75);
+    if (ending.stillScene) post.U.uWet.value = post.U.uLowMist.value = post.U.uMist.value = 0; } // the last picture is indoors
   pm('rig', t0);
   WIN_U.uPlayer.value.set(player.x, player.y + 1, player.z);
   U.uLean.value = 1 + fear.v * 0.9;

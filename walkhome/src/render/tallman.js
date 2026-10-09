@@ -64,7 +64,7 @@ export class TallManView {
     const leather = new THREE.MeshStandardMaterial({ color: 0x0a0909, roughness: 0.3 });
     const skin = new THREE.MeshStandardMaterial({ color: 0x9a9088, roughness: 0.6 });
     this.faceShut = faceTexture(false); this.faceOpen = faceTexture(true);
-    const porcelain = this.porcelain = new THREE.MeshStandardMaterial({ map: this.faceShut, color: 0xd8d2c8, roughness: 0.28, metalness: 0, emissive: 0x161410 });
+    const porcelain = this.porcelain = new THREE.MeshStandardMaterial({ map: this.faceShut, emissiveMap: this.faceShut, color: 0xd8d2c8, roughness: 0.28, metalness: 0, emissive: 0x2a2620 }); // (the glow follows the paint: the holes stay black)
     const pale = new THREE.MeshStandardMaterial({ color: 0xcfc6b6, roughness: 0.3 });
     const sh = (o) => { o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; };
     // the coat: a lathe profile (shoulders down to the flared hem), with folds pressed into it
@@ -141,8 +141,8 @@ export class TallManView {
   // the catch: he folds down over you until his face is level with yours
   stoop(k) {
     // and the mouth comes open
-    const want = k > 0.72 ? this.faceOpen : this.faceShut; if (this.porcelain.map !== want) { this.porcelain.map = want; this.porcelain.needsUpdate = true; }
-    this.porcelain.roughness = 0.28 + k * 0.4; this.porcelain.emissive.setHex(k > 0 ? 0x34302a : 0x161410);
+    const want = k > 0.72 ? this.faceOpen : this.faceShut; if (this.porcelain.map !== want) { this.porcelain.map = want; this.porcelain.emissiveMap = want; this.porcelain.needsUpdate = true; }
+    this.porcelain.roughness = 0.28 + k * 0.4; this.porcelain.emissive.setHex(k > 0 ? 0x5a5448 : 0x2a2620);
     // fold at the hips (pivot 1.3 m up): the torso goes over toward you until the face is level with yours
     const a = -k * 1.78, h = 1.3;
     this.body.rotation.x = a; this.body.position.set(0, h * (1 - Math.cos(a)), -h * Math.sin(a));
