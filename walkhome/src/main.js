@@ -131,6 +131,8 @@ const noise = [];
 let black = 0, caughtT = -1, hiddenNow = false;
 const sound = new Sound();
 const fx = new Fx(scene);
+// him, peering round a tree trunk (an omen): a second figure, leaning out from behind the bark
+const peekView = new TallManView(scene), peek = { on: false };
 const deck = new Deck(), extraLights = [];
 const ectx = { lampState, scene, camera, fwd: new THREE.Vector3(), P: null, D: null, sound, emit: null, WIN_U, town, director: null, input: null, extraLights, obstacles: null, caught: false, evilBoost: 0, fearAdd: 0 };
 let shake = 0;
@@ -221,6 +223,9 @@ function frame(now) {
   for (const e of events) if (e.name === 'omen' && e.id > (ectx.seenOmen || 0)) {
     fx.omen(e.data, player, camera);
     // him, in a lit front room up ahead on your side (he's meant to be behind you)
+    // him, peering round a tree up ahead
+    if (e.data.kind === 'peek') { const t = town.trees.find((tr) => tr.s > player.s + 12 && tr.s < player.s + 26 && Math.abs(tr.l) > 6 && Math.abs(tr.l) < 12);
+      if (t) { const b = roadAt(t.s, t.l), dx = b.x - player.x, dz = b.z - player.z, d = Math.hypot(dx, dz); Object.assign(peek, { on: true, t: 0, seen: 0, out: 0.5, side: Math.random() < 0.5 ? -1 : 1, bx: b.x, by: b.y, bz: b.z, fx: dx / d, fz: dz / d }); } }
     if (e.data.kind === 'tallWindow') { let best = null; for (const seg of segs.values()) for (const l of seg.lights) if (l.kind === 'window' && !l.tv && l.pos.y - player.y < 2.6) { const s = -l.pos.z; /* (ground floor: from the street you can't see into an upstairs room) */ if (s > player.s + 10 && s < player.s + 50 && (!best || Math.abs(s - player.s - 18) < Math.abs(-best.pos.z - player.s - 18))) best = l; }
       if (best) { WIN_U.uTallWin.value.set(best.pos.x, best.pos.y, best.pos.z, 1); ectx.tallWin = { x: best.pos.x, z: best.pos.z, t: 0 }; } }
   }
@@ -330,6 +335,21 @@ function frame(now) {
   puppy.root.visible = !dog.hidden; dog.nearEvil = tall.active && !tall.vanished && Math.hypot(tall.x - dog.x, tall.z - dog.z) < 15;
   puppy.update(dog, dt, camera);
   tallView.update(tall, dt, camera);
+  // the peek: he stands behind the trunk, leaning out sideways so his head and a shoulder show; held in
+  // your eyes a moment, he leans back in and he's gone; walked up to, he's gone
+  if (peek.on) {
+    peek.t += dt; const rx = peek.fz * peek.side, rz = -peek.fx * peek.side, R = peekView.root;
+    R.visible = true; R.position.set(peek.bx + peek.fx * 0.45 + rx * peek.out * 0.4, peek.by - 0.05, peek.bz + peek.fz * 0.45 + rz * peek.out * 0.4);
+    R.rotation.set(0, Math.atan2(-(camera.position.x - R.position.x), -(camera.position.z - R.position.z)), 0);
+    peekView.body.rotation.z = -peek.side * (0.18 + peek.out * 0.32); peekView.eyes?.forEach((e2) => e2.lookAt(camera.position));
+    const to = _dv.set(R.position.x - camera.position.x, R.position.y + 2.4 - camera.position.y, R.position.z - camera.position.z), dd = to.length();
+    if (camera.getWorldDirection(_fw).dot(to) / dd > 0.95) peek.seen += dt;
+    if (peek.seen > 0.9) peek.out -= dt * 0.8;
+    // a little light on his face (it catches whatever light there is: you'd see it, pale, on the bark)
+    if (!peek.light) { peek.light = { pos: new THREE.Vector3(), color: [0.75, 0.78, 0.9], power: 0.7, cone: 0, kind: 'peek' }; extraLights.push(peek.light); }
+    peek.light.pos.set(R.position.x - peek.fx * 1.6, R.position.y + 2.5, R.position.z - peek.fz * 1.6);
+    if (peek.out <= 0 || peek.t > 14 || dd < 8) { peek.on = false; R.visible = false; extraLights.splice(extraLights.indexOf(peek.light), 1); peek.light = null; }
+  }
   vm.update(dt, player, dog, puppy, groundAt, fear.v);
   pm('vm', t0); t0 = performance.now();
   if (!Q.has('nolamps') && !window.__wh?.rigOff) rig.update(camera, lightsNow()); else lightsNow();

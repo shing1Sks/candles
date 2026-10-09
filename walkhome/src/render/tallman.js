@@ -11,7 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 // years. A crack from the brow down through the left eye, and a chip gone from the jaw. The mouth: a
 // thin slit pulled far too wide, stitched shut with black thread. When he has you (open = true) the
 // stitches have torn and the mouth hangs open, a tall black hole.
-function faceTexture(open = false) {
+export function faceTexture(open = false) {
   const S = 512, c = document.createElement('canvas'); c.width = S; c.height = S; const g = c.getContext('2d');
   let seed = 31; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const bg = g.createRadialGradient(S / 2, S * 0.42, S * 0.08, S / 2, S / 2, S * 0.62); bg.addColorStop(0, '#e2ddd2'); bg.addColorStop(0.6, '#c2bbae'); bg.addColorStop(1, '#6e675c');
