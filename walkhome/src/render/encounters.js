@@ -37,10 +37,11 @@ export function captionTick(dt) { if (capT > 0) { capT -= dt; if (capT <= 0 && c
 // ---------------------------------------------------------------- little models
 function gnomeModel() {
   const g = new THREE.Group();
-  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 0.28, 12), std(0x2e4f8a)); b.position.y = 0.14; g.add(b);
-  const h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), std(0xe2b898, { roughness: 0.5 })); h.position.y = 0.36; g.add(h);
-  const beard = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.2, 12), std(0xece6dc)); beard.position.set(0, 0.26, -0.05); beard.rotation.x = Math.PI + 0.3; g.add(beard);
-  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.32, 12), std(0xa82820)); hat.position.y = 0.56; hat.rotation.z = 0.2; g.add(hat);
+  // painted plaster, glossy: he catches the lamplight (he's meant to be seen, and to be seen to have moved)
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 0.28, 12), std(0x3a62b0, { roughness: 0.35, emissive: 0x0a1630 })); b.position.y = 0.14; g.add(b);
+  const h = new THREE.Mesh(new THREE.SphereGeometry(0.1, 14, 10), std(0xf0c8a8, { roughness: 0.3, emissive: 0x2a1c14 })); h.position.y = 0.36; g.add(h);
+  const beard = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.2, 12), std(0xf4f0e8, { roughness: 0.4, emissive: 0x302e2a })); beard.position.set(0, 0.26, -0.05); beard.rotation.x = Math.PI + 0.3; g.add(beard);
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.32, 12), std(0xd02a20, { roughness: 0.3, emissive: 0x300806 })); hat.position.y = 0.56; hat.rotation.z = 0.2; g.add(hat);
   for (const s of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), std(0x050505, { roughness: 0.1 })); e.position.set(s * 0.035, 0.38, -0.09); g.add(e); }
   const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), std(0xd88a78)); nose.position.set(0, 0.34, -0.1); g.add(nose);
   return shadowed(g);
@@ -124,7 +125,7 @@ function litLampAhead(c, min, max = 70) { return c.town.lamps.find((L) => L.s > 
 // THE GNOME. Act I. It teaches the rule without anyone getting hurt.
 E.gnome = {
   regions: ['ourStreet'], fixed: true, weight: 0,
-  start(c) { this.g = gnomeModel(); this.g.scale.setScalar(1.25); c.scene.add(this.g); this.stage = 0; const L = litLampAhead(c, 12); this.place(c, L ? L.s + 1.2 : c.P.s + 16, L ? L.side * 4.55 : 5.9); this.t = 0; return true; },
+  start(c) { this.g = gnomeModel(); this.g.scale.setScalar(1.6); c.scene.add(this.g); this.stage = 0; const L = litLampAhead(c, 12); this.place(c, L ? L.s + 1.2 : c.P.s + 16, L ? L.side * 4.55 : 5.9); this.t = 0; return true; },
   place(c, s, l) { const p = roadAt(s, l); this.s = s; this.l = l; this.g.position.set(p.x, groundAt(p.x, p.z), p.z); this.g.rotation.y = faceYaw(p, c.camera.position); this.g.userData.moved = (this.g.userData.moved || 0) + 1; },
   update(dt, c) {
     this.t += dt;
