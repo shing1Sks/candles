@@ -469,3 +469,5 @@ Research in `09_terror_research.md`.
   - **The gnome** (Act I's teacher) is bigger and glossy-painted, because he was invisible in the dark. The cat's eyes catch the light.
   - **A favicon:** the only 404 left in the console was `favicon.ico`.
   - **The peek** is capped at three a night.
+  - **A bench in the park:** E to sit a moment. Biscuit settles at your feet, the music box plays, your breath comes back and the fear eases. But you're sitting still in the open, and if he comes you're up at once.
+  - **The park railings are solid** (they weren't: you and Biscuit could walk straight through them). In and out only by the two gates, one each side of the canal. Gardens are the same now, both ways. The canal stops you at the bank instead of snapping you onto the bridge.

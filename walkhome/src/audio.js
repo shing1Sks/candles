@@ -192,6 +192,7 @@ export class Sound {
     }
     // ---- the town's own life
     this.nextLife -= dt;
+    if (this.nextLife < 0 && (S.director.dogQuiet || 0) > S.director.t) this.nextLife = 4; /* (the night goes quiet with him) */
     if (this.nextLife < 0) { this.life(S); this.nextLife = rand(9, 22) * (S.director.phase === 'peak' ? 4 : 1); }
   }
 

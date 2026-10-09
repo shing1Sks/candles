@@ -62,6 +62,11 @@ SCEN = {
            ("js", "__wh.put(1000, 3.4, -1.57, -0.05)"), ("wait", 1), ("hold", "KeyW", 3.5), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), dl:+(__wh.dog.l||0).toFixed(2), sit:!!__wh.player.sitting})"), ("shot", "b_gate"),
            ("look", 0, -0.05), ("hold", "KeyW", 1.5), ("look", 3.14, -0.05), ("hold", "KeyW", 13), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), dl:+(__wh.dog.l||0).toFixed(2), sit:!!__wh.player.sitting})"), ("look", 1.57, -0.05), ("hold", "KeyW", 2), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), dl:+(__wh.dog.l||0).toFixed(2), sit:!!__wh.player.sitting})"), ("shot", "c_out"),
            ("js", "__wh.put(980.3, 6.9, 1.57, -0.1)"), ("wait", 1), ("js", "__wh.input.edges.add('KeyE')"), ("wait", 4), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), dl:+(__wh.dog.l||0).toFixed(2), sit:!!__wh.player.sitting})"), ("shot", "d_sit"), ("wait", 6), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), dl:+(__wh.dog.l||0).toFixed(2), sit:!!__wh.player.sitting})")],
+  # Biscuit goes quiet: pressed to your leg, silent, shaking; then himself again
+  "quiet": [("js", "__wh.put(300, 3.4, 0, -0.1); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.nextOmen = 99999; __wh.director.glimpse = 'done'"), ("hold", "KeyW", 4),
+            ("js", "__wh.director.dogQuiet = __wh.director.t + 14"), ("hold", "KeyW", 3)]
+           + sum([[("log", "JSON.stringify({t:+__wh.director.t.toFixed(1), hush:__wh.dog.hush, st:__wh.dog.state, ears:+__wh.dog.ears.toFixed(2), wag:+__wh.dog.wag.toFixed(2), d:+Math.hypot(__wh.dog.x-__wh.player.x, __wh.dog.z-__wh.player.z).toFixed(2), sp:+__wh.dog.speed.toFixed(2)})"), ("hold", "KeyW", 2)] for i in range(8)], [])
+           + [("look", 0.6, -0.5), ("wait", 0.3), ("shot", "a_heel")],
   # a slow human-paced walk: stop, look about, walk on. What happens in 4 minutes?
   "human": [("js", "__wh.put(2, 3.4, 0, -0.1)")] + sum([[("hold", "KeyW", 7), ("look", 3.0, -0.05), ("wait", 1.5), ("log", TSTATE), ("look", 0.0, -0.1), ("wait", 2.0), ("log", TSTATE)] for i in range(22)], []),
   # walk up the long street; the director sends him; look back now and then

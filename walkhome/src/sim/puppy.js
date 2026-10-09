@@ -66,7 +66,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   if (petting && D.st > 0.3 && rng.chance(dt * 0.5)) emit('happyHuff', {});
   // ---- the voice: growl, whimper, bark (the bark is noise others can hear). But when it's right
   // there, within a few steps, he goes completely silent: no growl, no panting, just shaking
-  D.hush = !!(th && th.kind === 'tall' && tDist < 5.5);
+  D.hush = !!(th && th.kind === 'tall' && tDist < 5.5) || !!world.quiet;
   if (!D.hush) {
     if (danger > 0.25 && D.growlCd < 0 && D.fear > 0.2) { emit('growl', { level: danger }); D.growlCd = 3 + rng.range(0, 2); }
     if (D.fear > 0.6 && D.whimperCd < 0) { emit('whimper', {}); D.whimperCd = 2.5 + rng.range(0, 2); }
@@ -115,6 +115,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     case 'follow': {
       // you're kneeling with your hand out: he stays right there at your hand
       if (input.pet) { tx = P.x + vfx * 0.68 + vrx * 0.05; tz = P.z + vfz * 0.68 + vrz * 0.05; want = DOG.trot * 0.6; look = { x: P.x, z: P.z }; break; }
+      /* gone quiet: right against your leg, eyes on the dark behind you */
+      if (world.quiet) { tx = P.x + fx * 0.3 + rx * 0.42; tz = P.z + fz * 0.3 + rz * 0.42; want = DOG.trot * 0.8; look = { x: P.x - fx * 20, z: P.z - fz * 20 }; break; }
       // a little ahead and to the right of you; idles beside you when you stop
       tx = P.x + fx * (moving ? 2.15 : 1.6) + rx * 0.5; tz = P.z + fz * (moving ? 2.15 : 1.6) + rz * 0.5;
       // something to sniff nearby?
@@ -223,8 +225,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.belly = ease(D.belly || 0, petting && D.lie > 0.6 ? 1 : 0, petting ? 1.5 : 5, dt);
   if (D.belly > 0.5 && rng.chance(dt * 0.3)) emit('happyHuff', {});
   D.crouch = ease(D.crouch, D.state === 'hide' ? 1 : D.state === 'alert' ? 0.35 : 0, 5, dt);
-  D.ears = ease(D.ears, D.state === 'hide' ? -1 : D.state === 'alert' ? 1 : D.state === 'come' ? 0.3 : 0, 6, dt);
-  D.wag = ease(D.wag, petting || D.state === 'come' || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 1 : D.state === 'alert' || D.state === 'hide' ? 0 : 0.45, 3, dt);
+  D.ears = ease(D.ears, D.state === 'hide' || world.quiet ? -1 : D.state === 'alert' ? 1 : D.state === 'come' ? 0.3 : 0, 6, dt);
+  D.wag = ease(D.wag, world.quiet && !petting ? 0 : petting || D.state === 'come' || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 1 : D.state === 'alert' || D.state === 'hide' ? 0 : 0.45, 3, dt);
   D.tailUp = ease(D.tailUp, D.state === 'alert' || D.stick ? 1 : 0, 4, dt);
   D.scared = D.state === 'hide';
   D.pant = ease(D.pant, D.hush ? 0 : D.speed > 2 || P.running ? 1 : 0, D.hush ? 8 : 1.5, dt);

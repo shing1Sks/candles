@@ -23,11 +23,12 @@ const OMENS = [
   ['echo', 3, null], ['dogStare', 3, null], ['flicker', 2.5, null], ['eyes', 2, ['longStreet', 'parkEdge', 'hill', 'highStreet']],
   ['gate', 2, ['ourStreet', 'longStreet', 'hill']], ['tv', 1.5, ['ourStreet', 'longStreet', 'hill']], ['phoneIn', 1.2, ['longStreet', 'highStreet', 'hill']],
   ['breath', 1.2, ['highStreet', 'parkEdge', 'hill']], ['figure', 2.2, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['whisper', 1.4, ['longStreet', 'parkEdge', 'hill']], ['tallWindow', 1.6, ['longStreet', 'highStreet', 'hill']], ['peek', 2.4, ['parkEdge', 'hill', 'ourStreet', 'longStreet']], ['laugh', 1.4, ['longStreet', 'parkEdge', 'hill']], ['whistleFar', 1.5, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['knock', 1.5, ['ourStreet', 'longStreet', 'highStreet', 'hill']],
+  ['quiet', 1.6, null],
 ];
 function omen(D, ctx, emit) {
   const { P, rng, dog } = ctx, R = regionAt(P.s).id;
   const flickL = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40);
-  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done') && !(k === 'laugh' && (D.omenCount.laugh || 0) >= 2) && !(k === 'peek' && (D.omenCount.peek || 0) >= 3));
+  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !((k === 'dogStare' || k === 'quiet') && (dog.carried || dog.lost)) && !(k === 'quiet' && (D.glimpse !== 'done' || (D.omenCount.quiet || 0) >= 2)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done') && !(k === 'laugh' && (D.omenCount.laugh || 0) >= 2) && !(k === 'peek' && (D.omenCount.peek || 0) >= 3));
   const w = (o) => o[1] / (1 + (D.omenCount[o[0]] || 0) * 0.8); // each one rarer the more it's happened
   let r = rng.range(0, pool.reduce((a, o) => a + w(o), 0)), kind = pool[0][0];
   for (const o of pool) { r -= w(o); if (r <= 0) { kind = o[0]; break; } }
@@ -36,7 +37,10 @@ function omen(D, ctx, emit) {
   if (R === 'longStreet' && !D.foxDone) { kind = 'fox'; D.foxDone = true; }
   D.lastOmen = kind; D.omenCount[kind] = (D.omenCount[kind] || 0) + 1;
   const side = rng.chance(0.5) ? -1 : 1, e = { kind, side };
-  if (kind === 'echo') D.echo = { until: D.t + rng.range(9, 16), back: rng.range(12, 17), steps: 0 };
+  // Biscuit goes quiet: no jingle, no panting, pressed to your leg and shaking, the way he is when
+  // he's right there. And the night goes quiet with him: no owl, no dogs, nothing. You see nothing
+  if (kind === 'quiet') D.dogQuiet = D.t + rng.range(12, 17);
+  else if (kind === 'echo') D.echo = { until: D.t + rng.range(9, 16), back: rng.range(12, 17), steps: 0 };
   else if (kind === 'dogStare') { const p = at(P.s - rng.range(18, 28), side * rng.range(3, 6)); Object.assign(e, { x: p.x, z: p.z }); D.omenPt = { x: p.x, z: p.z, until: D.t + 5.5 }; }
   else if (kind === 'eyes') { const p = at(P.s + rng.range(9, 15), side * rng.range(5.3, 6.4)); Object.assign(e, { x: p.x, y: p.y + rng.range(0.3, 0.55), z: p.z, until: D.t + 14 }); D.omenPt = { x: p.x, z: p.z, until: D.t + 9 }; }
   else if (kind === 'flicker') { flickL.flick = 2.2; e.id = flickL.id; }
@@ -190,6 +194,7 @@ export function stepDirector(D, ctx, dt, emit) {
 
 // you were caught: wake under the last lamp you passed, Biscuit pressed against your legs
 export function respawn(D, P, tall, dog, emit) {
+  D.dogQuiet = 0;
   // the nearest lamp behind you (within reach) is the one you wake under; it's on again
   const back = D.lamps.filter((L) => L.s < P.s && L.s > P.s - 38).sort((a, b) => b.s - a.s)[0];
   if (back) { back.on = 1; back.dying = 0; back.flick = 0.5; D.checkpoint = { s: back.s + 1.5, l: back.side * 2.6 }; }
