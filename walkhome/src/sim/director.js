@@ -101,7 +101,7 @@ export function stepDirector(D, ctx, dt, emit) {
     // watched for a moment, the lamp over him stutters, and in the dark of the stutter he's gone.
     // Looked away from, ignored for long enough, or walked up to: gone too (he stepped out of the light)
     const L = D.glimpseLamp;
-    if (tall.seenFor > 1.1 && !D.glimpseFlick) { D.glimpseFlick = D.t; L.flick = 1.4; emit('lampDying', { id: L.id, stutter: true }); }
+    if (tall.seenFor > 2.0 && !D.glimpseFlick) { D.glimpseFlick = D.t; L.flick = 1.4; emit('lampDying', { id: L.id, stutter: true }); }
     const stuttered = D.glimpseFlick && D.t - D.glimpseFlick > 0.3 && (L.level ?? 1) < 0.5;
     if (stuttered || (tall.everSeen && tall.unseenFor > 0.6) || D.t - D.glimpseT > 16 || P.s > tall.s - 8) { tall.active = false; tall.everSeen = false; D.glimpse = 'done'; D.glimpseDoneT = D.t; D.nextVisit = D.t + 25; emit('glimpseGone', {}); }
   }
