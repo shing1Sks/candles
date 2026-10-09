@@ -209,6 +209,51 @@ export class WindowBatch {
     g.setAttribute('aT', new THREE.BufferAttribute(tA, 3)); g.setAttribute('aB', new THREE.BufferAttribute(bA, 3)); g.setAttribute('aCenter', new THREE.BufferAttribute(cA, 3)); g.setAttribute('aWatch', new THREE.BufferAttribute(wA, 1));
     g.setIndex(idx); g.computeBoundingSphere();
     const m = new THREE.Mesh(g, windowMaterial()); parent.add(m);
+    this.spill(parent);
     return m;
   }
+  // the light a lit window throws: a soft glow on the wall round it (leaning with the house), and a
+  // pale shape of the window lying on the garden in front of it, for the ground-floor ones
+  spill(parent) {
+    const lit = this.q.filter((w) => w.lit > 0.5 && w.shape !== 3); if (!lit.length) return;
+    const pos = [], lean = [], uv = [], col = [], idx = [];
+    const quad = (A, B, C, D, LA, LB, LC, LD, c) => { const b = pos.length / 3; for (const [p, l, u] of [[A, LA, [0, 0]], [B, LB, [1, 0]], [C, LC, [1, 1]], [D, LD, [0, 1]]]) { pos.push(p.x, p.y, p.z); lean.push(l.x, l.y, l.z); uv.push(...u); col.push(...c); } idx.push(b, b + 1, b + 2, b, b + 2, b + 3); };
+    const Z = new THREE.Vector3();
+    for (const w of lit) {
+      const c = w.kind === 1 ? [0.25, 0.35, 0.8] : [1.0, 0.62, 0.3], N = new THREE.Vector3().crossVectors(w.T, w.B).normalize();
+      // on the wall: twice the window's size, a hair off the surface
+      const o = w.center.clone().addScaledVector(N, 0.035), hw = w.T.clone().multiplyScalar(w.wdt * 1.25), hh = w.B.clone().multiplyScalar(w.hgt * 1.15);
+      const Lm = w.L[0].clone().add(w.L[2]).multiplyScalar(0.5);
+      quad(o.clone().sub(hw).sub(hh), o.clone().add(hw).sub(hh), o.clone().add(hw).add(hh), o.clone().sub(hw).add(hh), Lm, Lm, Lm, Lm, c.map((v) => v * 0.5));
+      // on the ground (ground floor only): the window's light stretched out across the garden
+      const gy = w.center.y - w.hgt / 2 - 0.85;
+      if (w.center.y - gy < 2.4) {
+        const out = N.clone().setY(0).normalize(), base = w.center.clone().setY(gy + 0.02), a = w.T.clone().setY(0).normalize().multiplyScalar(w.wdt * 0.7);
+        quad(base.clone().sub(a), base.clone().add(a), base.clone().add(a).addScaledVector(out, 2.4).addScaledVector(a, 0.5), base.clone().sub(a).addScaledVector(out, 2.4).addScaledVector(a, -0.5), Z, Z, Z, Z, c.map((v) => v * 0.35));
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('aLean', new THREE.Float32BufferAttribute(lean, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, spillMaterial()); m.renderOrder = 2; parent.add(m);
+  }
+}
+
+let SPILL = null;
+function spillMaterial() {
+  return SPILL ||= new THREE.ShaderMaterial({
+    uniforms: { uLean: U.uLean, uTime: U.uTime, uBreath: U.uBreath, uLightsOut: WIN_U.uLightsOut }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
+    vertexShader: `attribute vec3 aLean; uniform float uLean, uTime, uBreath; varying vec2 vUv; varying vec3 vC; varying float vZ, vFog;
+      void main(){ vUv = uv; vC = color; vec3 p = position; vZ = p.z;
+        float breath = sin(uTime * 0.55 + p.x * 0.13 + p.z * 0.07) * uBreath; p += aLean * (uLean + breath);
+        vec4 mvPosition = viewMatrix * vec4(p, 1.); gl_Position = projectionMatrix * mvPosition;
+        float fd = 0.024 * -mvPosition.z; vFog = exp(-fd * fd);   // the street's fog swallows it, like everything
+      }`,
+    fragmentShader: `varying vec2 vUv; varying vec3 vC; varying float vZ, vFog; uniform vec4 uLightsOut;
+      void main(){ vec2 d = vUv - 0.5; float a = smoothstep(0.5, 0.0, length(d * vec2(1.0, 1.2)));
+        // the lights-out wave takes the spill with it
+        if (uLightsOut.z > 0.5 && vZ >= min(uLightsOut.x, uLightsOut.y) && vZ <= max(uLightsOut.x, uLightsOut.y)) a = 0.;
+        gl_FragColor = vec4(vC * a * a * 0.5 * vFog, 1.);
+      }`,
+  });
 }

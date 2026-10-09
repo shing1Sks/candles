@@ -237,7 +237,7 @@ export class Fx {
 // material does the highlights; the environment map gives them the sky)
 let PM = null;
 export function puddles(group, s0, s1, rng) {
-  if (!PM) PM = inject(new THREE.MeshStandardMaterial({ envMap: U.env, color: 0x0a0b10, roughness: 0.09, metalness: 0.2, envMapIntensity: 4.0, transparent: true, opacity: 0.78, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), {});
+  if (!PM) PM = inject(new THREE.MeshStandardMaterial({ envMap: U.env, color: 0x050608, roughness: 0.06, metalness: 0.1, envMapIntensity: 1.5, transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 }), {});
   for (let k = 0; k < 3; k++) {
     const s = s0 + rng.range(1, 23), l = rng.chance(0.6) ? (rng.chance(0.5) ? -1 : 1) * rng.range(1.9, 2.7) : rng.range(-1.5, 1.5);
     const p = roadAt(s, l), sh = new THREE.Shape(), n = 14, rx = rng.range(0.4, 1.3), rz = rng.range(0.3, 0.9);

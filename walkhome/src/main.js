@@ -226,7 +226,7 @@ function frame(now) {
     if (dog.tension > 0.95 && dog.state === 'sniff') hint('tug', 'Right mouse to tug the lead.', 4);
     if (tall.active && tall.seen && tall.mode !== 'glimpse') hint('look', "Don't take your eyes off him.", 4);
     if (player.winded > 0) hint('wind', 'Out of breath.', 3);
-    if (dog.lost) hint('lost', 'Biscuit ran. Listen for him. Look for his collar light.', 7);
+    if (dog.lost) hint('lost', 'Biscuit ran. Listen for him, look for his collar light. R squeaks his toy (but it carries).', 8);
   }
   director.fear = Math.min(1, director.fear + (ectx.fearAdd || 0) * dt * 0.5);
   fear.v = fear.force ?? (Q.has('fear') ? Number(Q.get('fear')) : director.fear);
