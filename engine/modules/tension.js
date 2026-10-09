@@ -14,6 +14,7 @@ import { headmaster } from './headmaster.js';
 const BUMPS = {
   hmSee: 15, followerAppears: 15, seenMoving: 8, strike: 8, apparition: 6, falseScare: 6, hmLightDie: 1.5, edgeThing: 2, lockedIn: 6, exitFail: 10, theyTurn: 14,
   loneChildSpeaks: 6, sceneEnter: 2, ambient: 2.5, anomalyNear: 4, pa: 3, hallDoor: 4, hmArrive: 6, apparitionGone: 3,
+  rare: 4, processionLooks: 10, drillRush: 8, registerLine: 0.9,
 };
 const ESCAPES = new Set(['hmLose', 'lessonSuccess', 'hmStoop', 'hmPinStar', 'runAlong']);
 
@@ -35,6 +36,7 @@ export const tension = {
     if (st?.state === 'running') rate += 0.5;
     if (S.tick % 30 === 0) D.dark = !litNear(S, ctx.layout, P.floor, P.x, P.z);
     if (D.dark && !P.room) rate += R.darkRate;
+    if (S.rare?.inside) rate = -R.decay * 2; // the lit corridor with the radio: the one place to breathe
     let bump = 0, escaped = false;
     for (const e of S.events) { bump += BUMPS[e.type] || 0; if (ESCAPES.has(e.type)) escaped = true; }
     // silence builds: after a while with nothing happening, the quiet itself starts to press

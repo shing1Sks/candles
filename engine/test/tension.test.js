@@ -100,6 +100,7 @@ test('the ledger spaces big scares at least 180 s apart', () => {
 
 test('lights: about 30% dead at the start of the night, about 60% by 3:00', () => {
   const w = createWorld({ seed: 11 });
+  w.S.opening.phase = 'night'; w.S.director.canonical = null; // after the last bell, away from the start
   const lights = [];
   for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) { const c = w.layout.chunk(0, i, j); for (const l of c.lights) lights.push([c, l]); }
   const dead = (m) => { w.S.clock.minutes = m; return lights.filter(([c, l]) => lightLevel(w.S, c, l).I === 0).length / lights.length; };

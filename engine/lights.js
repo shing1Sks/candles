@@ -5,18 +5,35 @@
 //   - in patchy corridors, ~30% of tubes are dead at 1:00, rising to ~60% by 3:00
 //   - the Headmaster's kills (S.lights) dim on top
 import { hash32 } from './rng.js';
+import { sanctuaryLit, drillOn } from './modules/rare.js';
 
 export const actOf = (minutes) => (minutes < 90 ? 1 : minutes < 135 ? 2 : minutes < 180 ? 3 : 4);
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 export function chunkLightState(S, c) {
+  if (dayLit(S, c) || sanctuaryLit(S, c)) return 'full';
+  if (drillOn(S)) return 'emergency';
   if (S.clock.bell) return 'flicker';
   const h = hash32(S.seed, 'lightstate', c.key, c.epoch) % 100, act = actOf(S.clock.minutes);
-  if (S.director?.canonical?.[c.key]) return 'full'; // the opening's baseline corridors
+  if (S.director?.canonical?.[c.key]) {
+    // the opening's baseline corridor: its tubes go out last, stay out a moment, then stutter back on
+    const O = S.opening, back = O && O.phase !== 'day' ? S.t - (O.bellAt + O.sweep) : 99;
+    return back < 1.1 ? 'dead' : back < 1.9 ? 'flicker' : 'full';
+  }
   if (act === 1) return h < 15 ? 'full' : 'patchy';
   if (act === 2) return h < 12 ? 'dead' : 'patchy';
   if (act === 3) return h < 18 ? 'dead' : h < 26 ? 'emergency' : 'patchy';
   return h < 20 ? 'dead' : h < 30 ? 'emergency' : 'patchy';
+}
+
+// the opening (modules/opening.js): before the last bell every corridor is lit; after it the lights
+// go out from the far end toward where you stood when it rang
+export function dayLit(S, c) {
+  const O = S.opening;
+  if (!O || O.phase === 'night') return false;
+  if (O.phase === 'day') return true;
+  const d = Math.hypot(c.x0 + 12 - O.from.x, c.z0 + 12 - O.from.z) + Math.abs(c.floor - O.from.floor) * 20; // from the chunk's centre
+  return S.t < O.bellAt + O.sweep * (1 - Math.min(1, d / 48));
 }
 
 // { I: 0..1.2, flicker, state } for one tube of chunk c

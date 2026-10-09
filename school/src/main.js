@@ -4,7 +4,7 @@
 //   title -> a night (play / detention) -> expelled or home time -> title -> the next night
 import * as THREE from 'three';
 import { createWorld, stepWorld, NO_INPUT } from '../../engine/world.js';
-import { TRUE_ENDING } from '../../engine/story.js';
+import { TRUE_ENDING, openingCard } from '../../engine/story.js';
 import { RULES } from '../../engine/rules.js';
 import { paintTextures, friezeCanvas, pageCanvas, rugCanvas } from './art/textures.js';
 import { headmaster as paintHeadmaster, teacher as paintTeacher, hallPass as paintHallPass } from './art/school.js';
@@ -16,6 +16,7 @@ import { ChunkView } from './render/chunks.js';
 import { RoomView } from './render/rooms.js';
 import { EntranceView } from './render/entrance.js';
 import { HallView } from './render/hall.js';
+import { RareView } from './render/rare.js';
 import { DetentionView } from './render/detention.js';
 import { People, paintCard } from './render/people.js';
 import { Hands } from './render/hands.js';
@@ -101,9 +102,12 @@ function newNight(seed = Math.floor(Math.random() * 1e9)) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000);
   bootMark('night: start');
-  const world = createWorld({ seed, pagesFound: savedPages(), seenAnomalies: JSON.parse(localStorage.getItem('homeTime.seenAnomalies') || '[]') });
+  // which night this is: nights you actually began, plus this one
+  const night = Number(localStorage.getItem('homeTime.nights') || 0) + 1;
+  const world = createWorld({ seed, night, pagesFound: savedPages(), seenAnomalies: JSON.parse(localStorage.getItem('homeTime.seenAnomalies') || '[]'),
+    seenRare: JSON.parse(localStorage.getItem('homeTime.seenRare') || '[]'), forceRare: params.get('rare') });
   bootMark('night: world');
-  N = { seed, world, scene, view: new ChunkView(scene, T, world.layout, RULES), rooms: new RoomView(scene, T, cards, RULES), people: new People(scene, cards, RULES.layout.floorH), entrance: new EntranceView(scene, T), hall: new HallView(scene, T), over: false };
+  N = { seed, night, world, scene, view: new ChunkView(scene, T, world.layout, RULES), rooms: new RoomView(scene, T, cards, RULES), people: new People(scene, cards, RULES.layout.floorH), entrance: new EntranceView(scene, T), hall: new HallView(scene, T), rare: new RareView(scene, cards, RULES.layout.floorH), over: false };
   bootMark('night: views');
   fx.blackA = 0; fx.blackTarget = 0; fx.clearCard();
   window.__night = N;
@@ -181,6 +185,19 @@ onEvent((e) => {
     case 'anomalyNear': { const seen = JSON.parse(localStorage.getItem('homeTime.seenAnomalies') || '[]').filter((k) => k !== e.kind); seen.push(e.kind); localStorage.setItem('homeTime.seenAnomalies', JSON.stringify(seen.slice(-5))); break; }
     case 'hallDoor': say(e.text, 5); fx.dread = Math.max(fx.dread, 0.5); break;
     case 'loneChildSpeaks': say(`“${e.text}”`, 6); break;
+    // the rare nights
+    case 'rare': {
+      const seen = JSON.parse(localStorage.getItem('homeTime.seenRare') || '[]').filter((k) => k !== e.kind); seen.push(e.kind);
+      localStorage.setItem('homeTime.seenRare', JSON.stringify(seen.slice(-3)));
+      if (e.kind === 'fireDrill') say('The fire bell.', 3);
+      if (e.kind === 'procession' && !N.world.S.rare.line.across) N.blinkUntil = performance.now() + 380; // the lights blink: and there they are
+      break;
+    }
+    case 'drillRush': fx.dread = Math.max(fx.dread, 0.6); break;
+    case 'registerLine': say(`the PA:  “${e.text}”`, 3.8); break;
+    case 'processionLooks': fx.dread = Math.max(fx.dread, 0.6); break;
+    case 'sanctuaryEnter': say('Every light is on in here. Someone has left a radio playing.', 4.5); break;
+    case 'rareEnd': if (e.text) say(e.text, 5); else if (e.left) say('Behind you, the lights went out.', 3.5); break;
     case 'theyTurn': fx.dread = 1; say('They all turned round.', 3); break;
     case 'sceneEnter': if (e.scene === 'facingWall') say('Nobody moves.', 2.5); break;
     case 'starEarned': say(e.why === 'drawer' ? 'A gold star, from her drawer.' : 'A gold star, stamped on the back of his hand.', 2.5); break;
@@ -259,7 +276,8 @@ document.addEventListener('pointerlockchange', () => {
   if (locked && !N.started) {
     N.started = true; N.introUntil = performance.now() + 3800;
     fx.blackA = 1; fx.blackTarget = 1;
-    fx.card(['Friday', 'the last day of term. You came in late.'], 3.4);
+    localStorage.setItem('homeTime.nights', String(N.night));
+    fx.card(openingCard(N.night, N.world.S.held.pages.length, !!localStorage.getItem('homeTime.trueEnding')), 3.4);
     setTimeout(() => fx.fadeIn(2.6), 3200);
   }
   if (!N.over) $('go').textContent = 'click to keep going';
@@ -323,8 +341,14 @@ function frame(now) {
     lights.push(...N.entrance.sync(S, world.layout));
     lights.push(...N.hall.sync(S, world.layout));
     lights.push(...N.people.update(S, camera, dt));
+    lights.push(...N.rare.update(S, camera, dt));
   }
   setLights(lights, camera.position);
+  // the opening: the school lit like a school, until the last bell; then the dark closes in
+  const O = S.opening, dayK = S.phase !== 'play' || !O ? 0 : O.phase === 'day' ? 1 : O.phase === 'sweep' ? Math.max(0, 1 - (S.t - O.bellAt) / O.sweep) : 0;
+  LIGHT.uExposure.value = N.blinkUntil > now ? 0.03 : 1;
+  LIGHT.uAmb.value = 0.012 + 0.2 * dayK; LIGHT.uFogNear.value = 3 + 5 * dayK; LIGHT.uFogFar.value = 17 + 28 * dayK;
+  if (O?.phase === 'day' && !N.dayHeard && sound.ctx) { N.dayHeard = true; sound.schoolDay(N.night); }
   LIGHT.uTime.value = now / 1000; LIGHT.uRes.value.set(renderer.domElement.width, renderer.domElement.height);
   useFlash = Math.max(0, useFlash - dt);
   if (lineT > 0) { lineT -= dt; if (lineT <= 0) $('line').classList.remove('on'); }

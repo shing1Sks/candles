@@ -63,7 +63,7 @@ export const director = {
       if (S.t >= D.firstGlimpseAt && this.mayScare(S, 'glimpse') && headmaster.arrive(S, ctx, 'glimpse')) { D.firstGlimpse = true; this.log(S, 'glimpse', 'headmaster'); }
     }
     // the Headmaster's visits
-    if (absent && D.phase !== 'aftermath' && D.act >= 2) {
+    if (absent && D.phase !== 'aftermath' && D.act >= 2 && !S.rare?.inside) {
       D.nextPatrol -= DT * (D.act >= 3 ? 1.4 : 1);
       if (D.nextPatrol <= 0 && this.mayScare(S, 'visit')) {
         const mode = D.act === 2 && D.glimpses < DR.glimpsesBeforePatrol ? 'glimpse' : 'patrol';

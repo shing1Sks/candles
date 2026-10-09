@@ -233,3 +233,22 @@ All the story's words now live in one file. Two versions run side by side.
 ### The true ending (was deferred)
 With all five pages, the Hall doors are no longer chained. It goes black, then four cards: "The chain is gone." / "Every chair in the Hall is taken but one." / "The register is read to the end. Your name is the last." / "Everyone is here. Everyone can go home." Then the doors flood with daylight, over the hymn and one ring of the bell. HOME TIME: everyone went home. It is marked in localStorage (`homeTime.trueEnding`). The front-door escape is still the other way out: alone, with stars. Tested in `story.test.js`.
 - Boot experiment: removing the light loop's dynamic break did not change the ~3 s first-upload wait, so it is the GPU/driver warm-up, not shader complexity. Reverted.
+
+### Phase 8: the last bell, and rare nights (after the v2 commit)
+**The opening (`engine/modules/opening.js`).** Wrongness needs a baseline, and the night used to start already dark. Now every night opens on an ordinary school:
+- The card varies by night (`openingCard` in `engine/story.js`): "the last day of term. You came in late." on the first night, "Again." on the second, then other lines. With pages held it says "Everyone else is already in the Hall." or "Someone has kept your seat."; after the true ending, "You went home. You came back anyway." Nights you actually began are counted in localStorage.
+- **Day (first 7 s):** every corridor is lit end to end, the fog is pushed back, and children are heard through the walls (the playground recording, low-passed; quieter on later nights).
+- **The last bell:** the children stop dead under the bell. The lights go out bank by bank from the far end toward you (`dayLit` in `engine/lights.js`, 3.5 s), with a clunk for each bank.
+- **Then black and silence.** The tubes over you die last and stutter back on about a second later, and only those. The PA speaks into that quiet.
+- The corridor you start in is *canonical* until Act II: fully lit, with no anomalies. This was meant to exist already; the flag was read but never set.
+
+**Rare nights (`engine/modules/rare.js`).** About one night in three (34%), once, 200–560 s in, at the first quiet moment: you're not in a room, on the stairs or hiding, he's absent, and the phase is calm to dread. The last three kinds you've had are held back (`homeTime.seenRare`).
+- **Procession:** a crocodile of children, two by two, crosses the next junction ahead in silence, under a pool of light. If there's no junction, the lights blink and they're standing in your own corridor a few metres away, then walk off into the dark. The last child stops and looks at you. Walk toward them and they're gone. The only sound is small feet.
+- **Fire drill:** 20 s of the fire bell and emergency lighting everywhere. Your noise is zero while it rings, so it's the one safe time to run. Five seconds in, a whole school's worth of small feet runs from behind you, through you, and on ahead. It ends with "Everyone went out. Nobody came back in."
+- **The register:** the PA calls a class. The answers stop partway ("Michael Hart." … "Michael Hart."). It ends "Everybody is in the Hall." … "Everybody but one."
+- **Sanctuary:** the next corridor ahead has every light on, a cleaner's bucket and mop, and a radio playing the music-box choir. Inside it, tension falls fast and no visit can start. Leave and its lights go out behind you, and the radio stops. If you never walk in, it's gone after 90 s.
+- Tension bumps: rare 4, the procession's look 10, the rush 8, each register line 0.9.
+
+**Checks:** 119/119 engine tests, with new `opening.test.js` and `rare.test.js`. Scenes `opening` and `rare` (`scenes.py rare rare=<kind>`) were looked at frame by frame. They forced two fixes:
+- The day frame first read as identical to night (the ambient raised too little), and the start corridor stayed lit through the sweep, so the dark never reached you.
+- The procession was first in single file straight away from you (only the nearest child visible), at 16 m (specks in the dark), turning only once it was in the dark.

@@ -95,6 +95,13 @@ HALL_USE = """(() => { const S = __gn.S, k = Object.keys(S.layout.hallDoors)[0];
   GN.put(d.x - o[0] * 1.6, d.z - o[1] * 1.6, 0); GN.face(d.x, d.z); S.player.target = { kind: 'hallDoor', id: k + ':hall' }; __gn.input.useEdge = true; })()"""
 
 SCENES = {
+    # the last bell: lit and ordinary, the sweep, then the night
+    "opening": [("js", CORRIDOR), ("until", "__gn.S.t > 3"), ("shot", "open_1_day"), ("until", "__gn.S.t > __gn.S.opening.bellAt + 1.6"), ("shot", "open_2_sweep"),
+                ("until", "__gn.S.opening.phase === 'night'"), ("wait", 1.0), ("shot", "open_3_night"), ("js", EAST), ("wait", 0.6), ("shot", "open_4_night_east")],
+    # rare nights (run with rare=<kind>): wait for it to start, then look at it
+    "rare": [("js", CORRIDOR), ("until", "__gn.S.rare && __gn.S.rare.phase !== 'wait'"), ("wait", 2.5), ("shot", "rare_1"),
+             ("js", "(() => { const X = __gn.S.rare; if (X.zone) { __gn.S.player.x = X.zone.cx - 1.5; __gn.S.player.z = X.zone.cz - 1.5; GN.face(X.zone.cx + 1.1, X.zone.cz + 1.1); } })()"),
+             ("wait", 3.5), ("shot", "rare_2"), ("wait", 4), ("shot", "rare_3")],
     "corridor": [("js", CORRIDOR), ("wait", 1.5), ("shot", "corridor_north"), ("js", EAST), ("wait", 1.0), ("shot", "corridor_east")],
     "door": [("js", DOOR_OPEN), ("wait", 2.0), ("shot", "door_open")],
     "stairs": [("js", STAIR_IN), ("wait", 1.5), ("shot", "stair_door"), ("js", STAIR_UP), ("wait", 1.5), ("shot", "stair_flight")],
@@ -152,13 +159,14 @@ def dyn(name):
 with sync_playwright() as pw:
     b = pw.chromium.launch(headless=False, args=["--window-position=-2400,0", "--disable-renderer-backgrounding", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows"])
     seed = next((a.split("=", 1)[1] for a in sys.argv[2:] if a.startswith("seed=")), "11")
-    names = [a for a in sys.argv[2:] if not a.startswith("seed=")] or list(SCENES)
+    names = [a for a in sys.argv[2:] if not a.startswith(("seed=", "rare="))] or [n for n in SCENES if n != "rare"]
     for name in names:
         pg = b.new_page(viewport={"width": 1280, "height": 760})
         errs = []
         pg.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
         pg.on("console", lambda m: m.type == "error" and "404" not in m.text and errs.append(m.text))
-        pg.goto(f"http://localhost:5182/?auto&seed={seed}")
+        rare = next((a.split("=", 1)[1] for a in sys.argv[2:] if a.startswith("rare=")), None)
+        pg.goto(f"http://localhost:5182/?auto&seed={seed}" + (f"&rare={rare}" if rare else ""))
         pg.wait_for_function("window.__gn && window.__fps", timeout=240000)
         pg.evaluate(PRE)
         for kind, arg in (SCENES[name] if name in SCENES else dyn(name)):

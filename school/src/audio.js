@@ -75,6 +75,8 @@ export class Sound {
     L('room_tone', this.bedBus, { as: 'roomTone' });
     L('sfx_snore_loop', this.bedBus, { as: 'snore', wet: 0.2 });
     L('sfx_bell_school_loop', this.bedBus, { as: 'bell', wet: 0.4 });
+    L('sfx_bell_school_loop', this.bedBus, { as: 'drill', wet: 0.5, rate: 1.3 });
+    L('music_memory_music_box_choir', this.bedBus, { as: 'radio' });
     L('sfx_heartbeat_slow', this.bedBus, { as: 'heart' });
     L('sfx_chalk_writing_loop', this.bedBus, { as: 'chalk', wet: 0.15 });
     for (let i = 0; i < 4; i++) L('sfx_pencils_writing_loop', this.bedBus, { as: `pencil${i}`, rate: rnd(0.9, 1.12), wet: 0.1 });
@@ -202,6 +204,15 @@ export class Sound {
     this.voice('stinger_rush', { vol: 0.8 * vol });
   }
 
+  // the opening: the building full of children, heard through the walls, until the last bell
+  schoolDay(night) {
+    if (!this.ctx) return;
+    const v = this.stream('amb_ending_playground_loop', { lp: 650, bus: this.bedBus });
+    v.el.play().catch(() => {});
+    v.g.gain.setTargetAtTime(night <= 1 ? 0.32 : night === 2 ? 0.2 : 0.11, this.ctx.currentTime + 0.5, 0.8);
+    this.day = v;
+  }
+
   // ---- the hymn and the story: the lessons' clocks, kept in time with the engine ----
   hymnTo(secondsLeft, playing, slow) {
     const ac = this.ctx;
@@ -270,6 +281,17 @@ export class Sound {
     this.level('heart', play && (P.hidden || d > 0.78) ? 0.32 : 0, 1);
     this.level('snore', det && S.detention.snore ? 0.6 : 0, 4);
     this.level('bell', bell && play ? 0.42 : 0, 3);
+    // the rare nights: the fire bell; the radio in the lit corridor; small feet crossing ahead
+    const X = S.rare, on = X?.phase === 'on' && play;
+    this.level('drill', on && X.kind === 'fireDrill' ? 0.7 : 0, on ? 8 : Infinity);
+    const rd = on && X.kind === 'sanctuary' && X.zone.floor === P.floor ? Math.hypot(X.zone.cx + 1.9 - P.x, X.zone.cz + 1.3 - P.z) : 99;
+    this.level('radio', 0.3 * clamp01((15 - rd) / 11), rd < 99 ? 1 : Infinity);
+    const reg = !!(on && X.kind === 'register');
+    if (reg !== !!this.regHum) { this.regHum = reg; this.paHum.gain.setTargetAtTime(reg ? 0.014 : 0, ac.currentTime, 0.3); }
+    if (on && X.kind === 'procession' && X.line.floor === P.floor) {
+      this.patT = (this.patT ?? 0) - 1 / 60;
+      if (this.patT <= 0) { this.patT = rnd(0.12, 0.3); this.synth({ f: rnd(700, 1100), noise: true, q: 3, dur: 0.06, vol: 0.05, at: { x: X.line.x, y: P.floor * FLOOR_H + 0.1, z: X.line.z } }); }
+    }
 
     // a lesson: chalk while she writes, every pencil scratching; all of it cut dead the moment she turns
     const chalking = lesson === 'handin' && (Lz.phase === 'chalk' || Lz.phase === 'slow');
@@ -385,7 +407,37 @@ export class Sound {
       case 'theyTurn': this.silence(0.4); setTimeout(() => { this.voice('crack_chorus', { vol: 1 }); this.sting(0.9); }, 380); break;
       case 'loneChildSpeaks': this.voice('sfx_whispers', { offset: rnd(0, 26), dur: 1.2, vol: 0.12, lp: 1800 }); break;
       case 'sceneEnter': if (e.scene === 'loneChild') this.excerpt('music_this_old_man_dark', { offset: 0, dur: 14, vol: 0.3, lp: 3000, fadeIn: 2, bus: this.scoreBus }); break;
+      case 'lastBell': {
+        // the bell; the children stop dead under it; then the banks of tubes go off, far to near
+        const t = this.ctx.currentTime, d = this.day;
+        this.voice('sfx_bell_school_ring', { vol: 0.75, wet: 0.5 });
+        if (d) { d.g.gain.cancelScheduledValues(t); d.g.gain.setValueAtTime(d.g.gain.value, t + 0.15); d.g.gain.linearRampToValueAtTime(0, t + 0.19); setTimeout(() => { d.el.pause(); d.g.disconnect(); }, 800); this.day = null; }
+        const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+        [26, 19, 12, 7, 2].forEach((r, k) => { const s = k % 2 ? -1 : 1; this.voice('light_clunk', { vol: 0.3 + k * 0.13, at: here(P.x + fx * r * s, P.z + fz * r * s, P.floor, 2.6), wet: 0.45, delay: 0.9 + k * 0.62 }); });
+        break;
+      }
+      case 'lightsDown':
+        // dark, and quiet; then the tubes overhead stutter back on, and only those
+        this.silence(2.6); this.synth({ f: 110, f2: 36, dur: 1.8, vol: 0.16, lp: 400 });
+        this.voice('light_clunk', { vol: 0.9, delay: 1.1 }); this.voice('sfx_light_flicker', { vol: 0.55, wet: 0.2, delay: 1.15 });
+        break;
       case 'pa': this.ambient({ kind: 'paClick' }); break;
+      case 'rare': if (e.kind === 'register') this.ambient({ kind: 'paClick' }); if (e.kind === 'procession') { this.silence(1.5); this.voice('sfx_light_flicker', { vol: 0.5, wet: 0.2 }); } break;
+      case 'processionLooks': this.silence(2); this.voice('sfx_whispers', { offset: rnd(0, 26), dur: 1.4, vol: 0.18, lp: 1600, at: here(e.x, e.z, P.floor, 1.2), hrtf: true }); break;
+      case 'drillRush': {
+        // a whole school's worth of small feet, running from behind you, through you, and on ahead
+        const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw);
+        for (let k = 0; k < 34; k++) {
+          const s = -7 + k * 0.45, side = rnd(-1.2, 1.2);
+          this.voice('sfx_footsteps_stairs_stone', { offset: rnd(0, 22), dur: 0.22, rate: rnd(1.3, 1.6), vol: 0.5, at: here(P.x + fx * s - fz * side, P.z + fz * s + fx * side, P.floor, 0.1), hrtf: true, wet: 0.3, delay: k * 0.085 });
+        }
+        break;
+      }
+      case 'rareEnd':
+        if (e.kind === 'fireDrill') { this.level('drill', 0, Infinity); this.silence(2.5); }
+        if (e.kind === 'register') this.ambient({ kind: 'paClick' });
+        if (e.kind === 'sanctuary' && e.left) { this.level('radio', 0, Infinity); this.voice('light_clunk', { vol: 0.7, wet: 0.4 }); this.voice('light_clunk', { vol: 0.5, wet: 0.4, delay: 0.5 }); }
+        break;
       case 'ambient': this.ambient(e); break;
       case 'falseScare': this.falseScare(e); break;
       case 'phase': if (e.phase === 'peak') this.silence(1.2); break;

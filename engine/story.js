@@ -39,3 +39,19 @@ export const STORY_LATE = {
   end: [['…and then she caught him.'], ['…and then the doors were locked.'], ['…and nobody got out. Except one.']],
 };
 export const storyTier = (pages) => (pages >= 4 ? 2 : pages >= 2 ? 1 : 0);
+
+// the card a night opens on: the same Friday, told a little differently each time you come back
+export const OPENING_CARDS = {
+  first: 'the last day of term. You came in late.',
+  again: 'the last day of term. Again.',
+  later: ['You came in late. You always come in late.', 'The corridors are longer than you remember.', 'Your coat peg still has your name on it.'],
+  pages2: 'Everyone else is already in the Hall.',
+  pages4: 'Someone has kept your seat.',
+  home: 'You went home. You came back anyway.',
+};
+export function openingCard(night, pages, wentHome = false) {
+  const C = OPENING_CARDS;
+  const line = wentHome ? C.home : night <= 1 ? C.first : night === 2 ? C.again
+    : pages >= 4 ? C.pages4 : pages >= 2 && night % 2 === 1 ? C.pages2 : C.later[night % C.later.length];
+  return ['Friday', line];
+}

@@ -53,6 +53,17 @@ export const RULES = {
     firstApparition: 60, apparitionPerSecond: 1 / 90,
   },
 
+  // the last bell: the school is ordinary for this many seconds, then the lights go out across this many
+  opening: { bellAt: 7, sweep: 3.5 },
+
+  // rare nights (modules/rare.js): the chance a night has one, and when (seconds into the night, at the first quiet moment after)
+  rare: {
+    chance: 0.34, window: [200, 560],
+    procession: { n: 10, gap: 0.9, speed: 0.9, span: 6, look: 2.2, lookAfter: 3, vanish: 4 }, // metres, m/s, seconds
+    fireDrill: { secs: 20 },
+    sanctuary: { wait: 90 }, // gone if you haven't walked into it by then
+  },
+
   stars: { max: 12 },
 
   // the night's clock, in minutes: 60 is 1:00, 210 is 3:30 (home time, the final bell)
