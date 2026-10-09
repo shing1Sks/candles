@@ -184,7 +184,10 @@ E.alley = {
     const seen = looking(c.camera, c.fwd, head, 0.86);
     M.seen = seen; if (seen) { this.seenFor += dt; if (!this.wasSeen) { this.wasSeen = true; c.emit('glimpseSeen', {}); } }
     this.v.update(M, dt, c.camera);
-    // gone the moment you look away (having seen him), or when you get close, or if you never notice
+    // hold him with your eyes and the light behind him stutters; in the dark of it he's gone.
+    // Gone, too, the moment you look away (having seen him), or when you get close, or if you never notice
+    if (this.seenFor > 2.2 && !this.stutter) { this.stutter = this.t; c.emit('lampDying', { id: -1, stutter: true }); }
+    if (this.stutter) { const k = this.t - this.stutter, on = k < 0.9 && Math.sin(k * 41) > 0.2; this.light.power = on ? 1.5 : 0.05; this.glowS.visible = on; if (k > 0.35 && !on) { M.vanished = true; if (k > 0.9) return true; return false; } }
     const d = Math.hypot(c.P.x - M.x, c.P.z - M.z);
     return (this.wasSeen && !seen && this.seenFor > 0.4) || d < 7 || c.P.s > this.s + 4 || this.t > 50;
   },
@@ -310,7 +313,13 @@ E.neighbour = {
 // Then the headlights come on behind you, and it follows.
 E.van = {
   regions: ['highStreet'], phases: ['calm', 'unease', 'dread'], weight: 5,
-  start(c) { this.g = vanModel(); this.s = c.P.s + 50; this.l = -1.9; const p = roadAt(this.s, this.l); this.g.position.set(p.x, groundAt(p.x, p.z), p.z); this.g.rotation.y = faceYaw(p, roadAt(this.s - 5, this.l)) + Math.PI; c.scene.add(this.g); this.t = 0; this.state = 'parked'; this.chime = null; return true; },
+  start(c) {
+    // pulled in at the kerb where there's room; if there isn't, double-parked out in the road
+    const cars = (c.obstacles || []).filter((o) => o.car).map((o) => toRoad(o.x, o.z));
+    this.s = c.P.s + 50; this.l = -1.9;
+    for (let s = c.P.s + 44; s < c.P.s + 70; s += 1.5) if (!cars.some((k) => k.l < 0 && Math.abs(k.s - s) < 5.2)) { this.s = s; break; }
+    if (cars.some((k) => k.l < 0 && Math.abs(k.s - this.s) < 5.2)) this.l = -0.2;
+    this.g = vanModel(); const p = roadAt(this.s, this.l); this.g.position.set(p.x, groundAt(p.x, p.z), p.z); this.g.rotation.y = faceYaw(p, roadAt(this.s - 5, this.l)) + Math.PI; c.scene.add(this.g); this.t = 0; this.state = 'parked'; this.chime = null; return true; },
   update(dt, c) {
     this.t += dt; const g = this.g, d = Math.hypot(c.P.x - g.position.x, c.P.z - g.position.z);
     if (this.state === 'parked') {
@@ -321,7 +330,7 @@ E.van = {
       if (this.t > 3) { this.state = 'follow'; this.t = 0; g.userData.lights.forEach((h) => h.material.color.setHex(0xfff2d0)); this.light = { pos: V3(), color: [1, 0.95, 0.8], power: 2.2, cone: 0, kind: 'van' }; c.extraLights.push(this.light); this.engine = c.sound?.loop('vanEngine', 'car_idle', { pos: P3(g.position), gain: 0.5, bus: 'sfx', verb: 0.2, ref: 3 }); g.rotation.y += Math.PI; }
     } else if (this.state === 'follow') {
       // it creeps along behind you, never quite catching up
-      const want = roadAt(c.P.s - 9, -1.2), dx = want.x - g.position.x, dz = want.z - g.position.z, dd = Math.hypot(dx, dz);
+      const want = roadAt(c.P.s - 9, 0), dx = want.x - g.position.x, dz = want.z - g.position.z, dd = Math.hypot(dx, dz);
       if (dd > 0.5) { g.position.x += dx / dd * Math.min(2.2, dd) * dt; g.position.z += dz / dd * Math.min(2.2, dd) * dt; g.rotation.y = Math.atan2(-dx, -dz) + Math.PI; }
       g.position.y = groundAt(g.position.x, g.position.z);
       this.light.pos.copy(g.position).add(V3(0, 0.9, 0)).addScaledVector(V3(-Math.sin(g.rotation.y - Math.PI), 0, -Math.cos(g.rotation.y - Math.PI)), 2.8);
@@ -371,7 +380,7 @@ E.bigDog = {
 // A CAR comes up the road toward you, slows right down beside you, then goes on
 E.car = {
   regions: ['ourStreet', 'longStreet', 'highStreet', 'hill'], phases: ['calm', 'unease'], weight: 2,
-  start(c) { this.g = carModel([0x5a2a2a, 0x2a3a4a, 0x3a4a3a, 0x6a6a6a][Math.floor(Math.random() * 4)]); this.s = c.P.s + 90; this.l = 1.4; c.scene.add(this.g); this.t = 0; this.light = { pos: V3(), color: [1, 0.95, 0.85], power: 3, cone: 0, kind: 'car' }; c.extraLights.push(this.light); this.eng = c.sound?.loop('carEngine', 'car_idle', { pos: V3(), gain: 0.6, bus: 'sfx', verb: 0.3, ref: 4 }); return true; },
+  start(c) { this.g = carModel([0x5a2a2a, 0x2a3a4a, 0x3a4a3a, 0x6a6a6a][Math.floor(Math.random() * 4)]); this.s = c.P.s + 90; this.l = 0; /* down the middle: there are cars parked both sides */ c.scene.add(this.g); this.t = 0; this.light = { pos: V3(), color: [1, 0.95, 0.85], power: 3, cone: 0, kind: 'car' }; c.extraLights.push(this.light); this.eng = c.sound?.loop('carEngine', 'car_idle', { pos: V3(), gain: 0.6, bus: 'sfx', verb: 0.3, ref: 4 }); return true; },
   update(dt, c) {
     this.t += dt; const near = Math.abs(this.s - c.P.s);
     const speed = near < 6 ? 1.2 : near < 20 ? 4 : 9; this.s -= speed * dt;

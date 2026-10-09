@@ -6,12 +6,35 @@ import * as THREE from 'three';
 import { makeRng } from '../../../engine/rng.js';
 import { ROAD, at as roadAt, N as roadN, C as roadC } from '../sim/road.js';
 import { Kit, box, cyl, cone, sphere, tube, limb, xf, V3 } from './kit.js';
-import { U } from './materials.js';
+import { U, lampify } from './materials.js';
 import { buildHouse, houseFrame } from './house.js';
 import { WindowBatch } from './windows.js';
 import { beamMaterial } from './lamps.js';
 import { regionContent, homeSpec, shopWindow } from './regions.js';
 import { puddles } from './fx.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// the loose one-off meshes in a segment (posters, doll heads, signs, numbers...) that share a
+// material become one mesh each: hundreds of draw calls down to a handful. Anything that moves is
+// marked userData.dynamic and left alone
+function mergeStatic(group) {
+  const sets = new Map();
+  for (const o of group.children) {
+    if (!o.isMesh || o.isInstancedMesh || o.children.length || o.userData.dynamic || !o.visible) continue;
+    const g = o.geometry, key = o.material.uuid + '|' + Object.keys(g.attributes).sort().join(',') + '|' + (g.index ? 'i' : 'n') + '|' + o.renderOrder;
+    (sets.get(key) || sets.set(key, []).get(key)).push(o);
+  }
+  for (const list of sets.values()) {
+    if (list.length < 2) continue;
+    const geos = list.map((o) => { o.updateMatrix(); return o.geometry.clone().applyMatrix4(o.matrix); });
+    const merged = mergeGeometries(geos, false); if (!merged) continue;
+    const m = new THREE.Mesh(merged, list[0].material); m.customDepthMaterial = list[0].customDepthMaterial; m.renderOrder = list[0].renderOrder;
+    m.castShadow = list.some((o) => o.castShadow) && list.length < 20; m.receiveShadow = list.some((o) => o.receiveShadow);
+    for (const o of list) { group.remove(o); o.geometry.dispose(); }
+    geos.forEach((g) => g.dispose());
+    group.add(m);
+  }
+}
 import { details } from './details.js';
 
 // the road's cross-section, from the centre line outward: [l, y, material of the strip from the previous point]
@@ -247,6 +270,8 @@ export function buildSegment(M, town, i, scene) {
   for (const L of lamps) lamp(kit, L, group);
   kit.build(group);
   wins.build(group);
+  mergeStatic(group);
+  lampify(group); // before its first draw, so its shaders compile once, with the lamps in
   scene.add(group);
   return { i, group, lamps, lights, anim, chimneys, obstacles: dt2.obstacles };
 }

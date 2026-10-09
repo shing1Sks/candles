@@ -153,25 +153,30 @@ export class Puppy {
     const sp = Math.min(1, P.speed / 1.6), ph = P.phase;
     // body: bob with the trot, lower when crouched/scared, tilt back when sitting
     // sitting: the rump goes down and back, the chest stays up on straight front legs
-    this.body.position.y = 0.2 - P.crouch * 0.07 - P.sit * 0.035 + Math.abs(Math.sin(ph * Math.PI * 2)) * 0.012 * sp;
-    this.body.position.z = P.sit * 0.06;
-    this.body.rotation.x = P.sit * 0.62 - P.sniff * 0.08 + P.crouch * -0.05;
+    // gait by speed: a walk (one foot at a time) when he's ambling, a trot beside you, a bounding
+    // gallop when he runs (front feet together, back feet together, the back arching)
+    const gait = P.speed < 1.15 ? 'walk' : P.speed < 2.6 ? 'trot' : 'gallop';
+    const lie = P.lie || 0, gal = gait === 'gallop' ? 1 : 0;
+    this.body.position.y = 0.2 - P.crouch * 0.07 - P.sit * 0.035 - lie * 0.11 + Math.abs(Math.sin(ph * Math.PI * 2)) * (gal ? 0.03 : 0.012) * sp;
+    this.body.position.z = P.sit * 0.06 * (1 - lie);
+    this.body.rotation.x = P.sit * 0.62 * (1 - lie) - P.sniff * 0.08 + P.crouch * -0.05 + gal * Math.sin(ph * Math.PI * 2) * 0.12;
     const breath = 1 + Math.sin(this.t * (P.pant > 0.3 ? 11 : 3.2)) * (P.pant > 0.3 ? 0.025 : 0.012);
     this.torso.scale.set(breath, breath, 1);
     // legs: a trot (diagonal pairs) at speed; tucked when crouched; folded when sitting
     for (const L of this.legs) {
-      const off = (L.front ? 0 : 0.5) + (L.x > 0 ? 0.5 : 0);
-      const a = Math.sin((ph + off) * Math.PI * 2) * 0.55 * sp;
+      const off = gait === 'walk' ? (L.front ? 0.25 : 0) + (L.x > 0 ? 0.5 : 0) : gait === 'trot' ? (L.front ? 0 : 0.5) + (L.x > 0 ? 0.5 : 0) : (L.front ? 0 : 0.5) + (L.x > 0 ? 0.08 : 0);
+      const a = Math.sin((ph + off) * Math.PI * 2) * (gait === 'walk' ? 0.42 : gait === 'trot' ? 0.55 : 0.85) * sp;
       let hip = a, knee = Math.max(0, -Math.cos((ph + off) * Math.PI * 2)) * 0.7 * sp;
       if (!L.front && P.sit > 0) { hip = -1.35 * P.sit; knee = 2.3 * P.sit; }
       if (L.front && P.sit > 0) { hip = hip * (1 - P.sit) - 0.62 * P.sit; knee *= 1 - P.sit; }
       if (P.carried) { hip = L.front ? -0.4 : 0.5; knee = L.front ? 0.3 : 0.2; }
+      if (lie > 0) { hip = hip * (1 - lie) + (L.front ? -1.45 : -1.25) * lie; knee = knee * (1 - lie) + (L.front ? 0.15 : 2.4) * lie; }
       hip += P.crouch * (L.front ? -0.25 : 0.35);
       L.hip.rotation.x += (hip - L.hip.rotation.x) * Math.min(1, dt * 18);
       L.knee.rotation.x += (knee - L.knee.rotation.x) * Math.min(1, dt * 18);
     }
     // head: look where the sim says, nose to the ground when sniffing, a twitch when he sniffs
-    const hy = P.headYaw, hp = P.headPitch - P.sniff * 0.75 + Math.sin(ph * Math.PI * 4) * 0.03 * sp;
+    const hy = P.headYaw * (1 - lie * 0.6), hp = P.headPitch - P.sniff * 0.75 + Math.sin(ph * Math.PI * 4) * 0.03 * sp - lie * 0.5 + (P.petting ? 0.25 : 0);
     this.neck.rotation.y += (hy * 0.4 - this.neck.rotation.y) * Math.min(1, dt * 8);
     this.head.rotation.y += (hy * 0.6 - this.head.rotation.y) * Math.min(1, dt * 8);
     this.neck.rotation.x += (hp * 0.5 - this.neck.rotation.x) * Math.min(1, dt * 6);
@@ -203,9 +208,12 @@ export class Puppy {
     // blinking
     this.blink -= dt; const closed = this.blink < 0.12 && this.blink > 0;
     if (this.blink < 0) this.blink = 2 + Math.random() * 4;
-    for (const e of this.eyes) e.scale.y = closed ? 0.15 : 1;
+    // stroked, he half-closes his eyes; lying down, now and then they close for a while
+    const content = P.petting ? 0.35 : lie > 0.8 && Math.sin(this.t * 0.31) > 0.4 ? 0.12 : 1;
+    for (const e of this.eyes) e.scale.y += ((closed ? 0.15 : content) - e.scale.y) * Math.min(1, dt * 12);
     // the collar light blinks
-    this.led.visible = Math.floor(this.t * 1.2) % 2 === 0 || P.scared;
+    // ...and stutters when something is very near (cheap electronics, or not)
+    this.led.visible = (Math.floor(this.t * 1.2) % 2 === 0 || P.scared) && !(P.nearEvil && Math.random() < 0.45);
     this.led.material.color.setHex(P.scared ? 0xff5040 : 0x66ff88);
     this.ledGlow.material.color.copy(this.led.material.color); this.ledGlow.scale.setScalar(P.lost ? 0.5 : 0.08); this.ledGlow.visible = this.led.visible;
     // fur trails motion (world velocity -> drag), gravity in world

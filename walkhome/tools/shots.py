@@ -4,6 +4,7 @@ python tools/shots.py <outdir> [view ...]     (npm run dev on :5184)
 A view is  name:s:l:yaw:pitch[:fear][:wait]   e.g.  start:2:3.6:0:0   back:40:2:3.14:0:0.8
 With no views, a default tour of the road.
 """
+import os as _os; PORT = _os.environ.get("WH_PORT", "5184")
 import base64, sys, json, time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -19,7 +20,7 @@ with sync_playwright() as pw:
     errs = []
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e)))
     pg.on("console", lambda m: errs.append(m.type + ": " + m.text) if m.type in ("error", "warning") else None)
-    pg.goto(f"http://localhost:5184/?{q}")
+    pg.goto(f"http://localhost:{PORT}/?{q}")
     pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
     time.sleep(2)
     for v in views:

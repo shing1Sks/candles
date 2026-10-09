@@ -11,13 +11,49 @@ import { placeTall } from './tallman.js';
 
 export const DIR = {
   baseFear: { ourStreet: 0.0, longStreet: 0.12, highStreet: 0.18, parkEdge: 0.28, hill: 0.32 },
-  firstGlimpseS: 150, firstVisitS: 270, visitGap: [55, 95], after: [40, 55], peakDist: 7, leftBehind: 70,
+  // the walk paces him, but so does the clock: dawdle, and the night comes to you anyway
+  firstGlimpseS: 150, firstGlimpseT: 80, firstVisitS: 270, firstVisitT: 55, visitGap: [40, 70], after: [28, 40], peakDist: 7, leftBehind: 70,
+  omenGap: [13, 28], maxHold: 30,
 };
+
+// OMENS: between his visits there is always something at the edge (05 P1: dread is anticipation).
+// Small, deniable, never explained; most of them are heard, not seen, and Biscuit hears them first.
+const OMENS = [
+  // kind, weight, the regions it suits (null: anywhere)
+  ['echo', 3, null], ['dogStare', 3, null], ['flicker', 2.5, null], ['eyes', 2, ['longStreet', 'parkEdge', 'hill', 'highStreet']],
+  ['gate', 2, ['ourStreet', 'longStreet', 'hill']], ['tv', 1.5, ['ourStreet', 'longStreet', 'hill']], ['phoneIn', 1.2, ['longStreet', 'highStreet', 'hill']],
+  ['breath', 1.2, ['highStreet', 'parkEdge', 'hill']], ['figure', 2.2, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['whistleFar', 1.5, ['longStreet', 'highStreet', 'parkEdge', 'hill']], ['knock', 1.5, ['ourStreet', 'longStreet', 'highStreet', 'hill']],
+];
+function omen(D, ctx, emit) {
+  const { P, rng, dog } = ctx, R = regionAt(P.s).id;
+  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3));
+  const w = (o) => o[1] / (1 + (D.omenCount[o[0]] || 0) * 0.8); // each one rarer the more it's happened
+  let r = rng.range(0, pool.reduce((a, o) => a + w(o), 0)), kind = pool[0][0];
+  for (const o of pool) { r -= w(o); if (r <= 0) { kind = o[0]; break; } }
+  // the first omen on the long street is always the fox: a scream over the gardens, loud and close
+  // enough to stop you dead, and Biscuit barks at it. It's only a fox. (Next time, will you be sure?)
+  if (R === 'longStreet' && !D.foxDone) { kind = 'fox'; D.foxDone = true; }
+  D.lastOmen = kind; D.omenCount[kind] = (D.omenCount[kind] || 0) + 1;
+  const side = rng.chance(0.5) ? -1 : 1, e = { kind, side };
+  if (kind === 'echo') D.echo = { until: D.t + rng.range(9, 16), back: rng.range(12, 17), steps: 0 };
+  else if (kind === 'dogStare') { const p = at(P.s - rng.range(18, 28), side * rng.range(3, 6)); Object.assign(e, { x: p.x, z: p.z }); D.omenPt = { x: p.x, z: p.z, until: D.t + 5.5 }; }
+  else if (kind === 'eyes') { const p = at(P.s + rng.range(9, 15), side * rng.range(5.3, 6.4)); Object.assign(e, { x: p.x, y: p.y + rng.range(0.3, 0.55), z: p.z, until: D.t + 14 }); D.omenPt = { x: p.x, z: p.z, until: D.t + 9 }; }
+  else if (kind === 'flicker') { const L = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40); if (!L) return; L.flick = 2.2; e.id = L.id; }
+  else if (kind === 'fox') { const p = at(P.s + rng.range(-6, 14), side * rng.range(16, 24)); Object.assign(e, { x: p.x, y: p.y + 1, z: p.z }); D.omenPt = { x: p.x, z: p.z, until: D.t + 4 }; emit('omen', e); emit('bark', { x: dog.x, z: dog.z, loud: 0.4, at: 0.9 }); emit('startle', { amount: 0.25 }); D.ledger.push([+D.t.toFixed(1), 'omen fox']); return; }
+  else if (kind === 'figure') { /* placed by the renderer, at the edge of your eye */ }
+  else if (kind === 'whistleFar') { const p = at(P.s + (rng.chance(0.6) ? -1 : 1) * rng.range(50, 80), side * 3); emit('whistle', { x: p.x, z: p.z }); D.ledger.push([+D.t.toFixed(1), 'omen whistleFar']); return; }
+  else {
+    const behind = kind === 'gate' || kind === 'breath', p = at(P.s + (behind ? -rng.range(6, 9) : rng.range(2, 8)), side * (kind === 'breath' ? 1.2 : 7.6));
+    Object.assign(e, { x: p.x, y: p.y + (kind === 'breath' ? 1.3 : 1.4), z: p.z });
+    if (behind) D.omenPt = { x: p.x, z: p.z, until: D.t + 3 };
+  }
+  emit('omen', e); D.ledger.push([+D.t.toFixed(1), 'omen ' + kind]);
+}
 
 export function makeDirector(lamps) {
   return {
     fear: 0, phase: 'calm', pt: 0, t: 0, visits: 0, nextVisit: 0, glimpse: 'pending', afterUntil: 0,
-    checkpoint: { s: 2, l: 3.6 }, lamps, ledger: [], caughtAt: -99, relight: [],
+    checkpoint: { s: 2, l: 3.6 }, lamps, ledger: [], caughtAt: -99, relight: [], nextOmen: 24, omenCount: {}, echo: null, omenPt: null, holdT: 0, glimpseDoneT: 0,
   };
 }
 
@@ -54,17 +90,34 @@ export function stepDirector(D, ctx, dt, emit) {
 
   // ---- the walk's acts
   // Act I: our street. Nothing at all, then (near its end) one glimpse far ahead under a lamp
-  if (D.glimpse === 'pending' && P.s > DIR.firstGlimpseS) {
-    const L = D.lamps.find((l) => l.on && l.s > P.s + 38 && l.s < P.s + 70);
-    if (L) { placeTall(tall, L.s + 1, L.side * 1.2); tall.mode = 'glimpse'; tall.knows = 0; D.glimpse = 'on'; D.glimpseT = D.t; emit('glimpse', { s: L.s }); D.ledger.push([+D.t.toFixed(1), 'glimpse']); }
+  if (D.glimpse === 'pending' && (P.s > DIR.firstGlimpseS || (D.t > DIR.firstGlimpseT && P.s > 50))) {
+    const L = D.lamps.find((l) => l.on && l.s > P.s + 34 && l.s < P.s + 70);
+    if (L) { placeTall(tall, L.s + 1, L.side * 1.2); tall.mode = 'glimpse'; tall.knows = 0; D.glimpse = 'on'; D.glimpseT = D.t; D.glimpseLamp = L; D.glimpseFlick = 0; emit('glimpse', { s: L.s }); D.ledger.push([+D.t.toFixed(1), 'glimpse']); }
   }
   if (D.glimpse === 'on') {
     tall.knows = 0;
-    // seen once and then looked away from, or ignored for long enough: he's gone (he stepped out of the light)
-    if ((tall.everSeen && tall.unseenFor > 0.6) || D.t - D.glimpseT > 14 || P.s > tall.s - 8) { tall.active = false; tall.everSeen = false; D.glimpse = 'done'; D.nextVisit = D.t + 25; emit('glimpseGone', {}); }
+    // watched for a moment, the lamp over him stutters, and in the dark of the stutter he's gone.
+    // Looked away from, ignored for long enough, or walked up to: gone too (he stepped out of the light)
+    const L = D.glimpseLamp;
+    if (tall.seenFor > 1.1 && !D.glimpseFlick) { D.glimpseFlick = D.t; L.flick = 1.4; emit('lampDying', { id: L.id, stutter: true }); }
+    const stuttered = D.glimpseFlick && D.t - D.glimpseFlick > 0.3 && (L.level ?? 1) < 0.5;
+    if (stuttered || (tall.everSeen && tall.unseenFor > 0.6) || D.t - D.glimpseT > 16 || P.s > tall.s - 8) { tall.active = false; tall.everSeen = false; D.glimpse = 'done'; D.glimpseDoneT = D.t; D.nextVisit = D.t + 25; emit('glimpseGone', {}); }
   }
-  // Act II on: he comes. Visits are spaced; each visit builds to a peak, then he withdraws
-  const canVisit = P.s > DIR.firstVisitS && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !D.hold && !dog.lost;
+  // between his visits, the edge: omens
+  if (D.echo && (D.t > D.echo.until || ctx.lookingBack)) { if (ctx.lookingBack) emit('echoStop', {}); D.echo = null; }
+  if (D.omenPt && D.t > D.omenPt.until) D.omenPt = null;
+  const quiet = !tall.active || tall.mode === 'glimpse';
+  if (quiet && D.t > D.nextOmen && D.phase !== 'peak' && !dog.lost && !ctx.caught) {
+    omen(D, ctx, emit);
+    const k = region === 'ourStreet' ? 1.4 : region === 'hill' ? 0.75 : 1;
+    D.nextOmen = D.t + rng.range(DIR.omenGap[0], DIR.omenGap[1]) * k * (D.phase === 'after' ? 1.6 : 1);
+  }
+  // Act II on: he comes. Visits are spaced; each visit builds to a peak, then he withdraws.
+  // Someone you've met on the way holds him off, but not for ever
+  D.holdT = D.hold ? D.holdT + dt : 0;
+  const held = D.hold && D.holdT < DIR.maxHold;
+  const reached = P.s > DIR.firstVisitS || (D.glimpse === 'done' && D.t > D.glimpseDoneT + DIR.firstVisitT && P.s > 110) || D.visits > 0;
+  const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost;
   if (canVisit) {
     // behind you, in the dark between lamps
     const back = rng.range(30, 42);
@@ -89,8 +142,8 @@ export function stepDirector(D, ctx, dt, emit) {
       if (D.visitT > 38 && tall.mode === 'stalk') { tall.mode = 'hunt'; emit('hunt', {}); }
       const escaped = d > DIR.leftBehind || (D.phase === 'peak' && D.pt > 10) || D.visitT > 95;
       if (escaped) { tall.mode = 'withdraw'; emit('withdraw', {}); }
-    } else if (!tall.seen && (d > 34 || tall.unseenFor > 6)) {
-      tall.active = false; setPhase(D, 'after', emit);
+    } else if (tall.vanished || (!tall.seen && (d > 34 || tall.unseenFor > 6))) {
+      tall.active = false; tall.vanished = false; setPhase(D, 'after', emit);
       D.afterUntil = D.t + rng.range(DIR.after[0], DIR.after[1]);
       D.nextVisit = D.afterUntil + rng.range(DIR.visitGap[0], DIR.visitGap[1]) * (region === 'parkEdge' || region === 'hill' ? 0.6 : 1);
       // the lamps he put out come back, nearest you first, one by one

@@ -121,11 +121,14 @@ export class TallManView {
   }
 
   update(M, dt, camera) {
-    this.root.visible = M.active;
+    this.root.visible = M.active && !M.vanished;
     if (!M.active) return;
     if (M.catching) return;
     this.root.position.set(M.x, M.y, M.z); this.root.rotation.y = M.yaw;
-    if (M.seen) return; // caught mid-stride: nothing moves while you look. Nothing.
+    // caught mid-stride: nothing moves while you look. Nothing. Except, once, if you hold him long
+    // enough: the head goes over a little further, as if he's curious about you
+    if (M.seen) { if (M.seenFor > 3.2 && !this.twitched) { this.twitched = true; this.head.rotation.z -= 0.16; this.neck.rotation.y += this.neck.rotation.y > 0 ? -0.1 : 0.1; } return; }
+    this.twitched = false;
     this.t += dt;
     const ph = M.phase * Math.PI * 2, moving = M.speed > 0.05;
     // the stride: long, the knee lifting too high, the body dipping

@@ -30,6 +30,9 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     const L = D.lost; D.x = L.x; D.z = L.z; D.y = groundAt(L.x, L.z); D.speed = 0; D.vx = D.vz = 0;
     D.state = 'hide'; D.crouch = 1; D.scared = true; D.ears = -1; D.wag = 0; D.sit = 0; D.sniff = 0; D.tailUp = 0;
     D.headYaw = ease(D.headYaw, Math.sin(D.st * 0.7) * 0.6, 2, dt); D.headPitch = -0.1; P.pull = null; D.tension = 0; D.carried = false; P.carrying = false;
+    // call him (R) and he answers: a yip, from wherever he's hiding (but you've shouted, at night)
+    if (input.call) { D.whimperCd = Math.min(D.whimperCd, 0.5); D.answer = 0.6; }
+    if (D.answer > 0 && (D.answer -= dt) <= 0) emit('bark', { x: D.x, z: D.z, loud: 0.6, lost: true });
     if (D.whimperCd < 0) { emit('whimper', { lost: true }); D.whimperCd = 2.0 + rng.range(0, 1.6); }
     if (Math.hypot(P.x - D.x, P.z - D.z) < 1.9) { D.lost = null; D.state = 'come'; D.st = 0; D.fear = 0.35; D.calm = 0.6; emit('found', {}); }
     return D;
@@ -68,8 +71,14 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   }
 
   // ---- where does he want to be?
-  const hand = world.hand, fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw), rx = Math.cos(P.yaw), rz = -Math.sin(P.yaw);
+  // he walks with you, not with your eyes: his idea of "ahead" is the way you're going (looking
+  // back over your shoulder doesn't send him round behind you). Standing still, it's the last way
   const moving = P.speed > 0.4;
+  if (D.hd === undefined) D.hd = P.yaw;
+  if (P.speed > 0.35) { const want = Math.atan2(-P.vx, -P.vz); D.hd = turnTo(D.hd, want, dt * 3); }
+  const hand = world.hand, fx = -Math.sin(D.hd), fz = -Math.cos(D.hd), rx = Math.cos(D.hd), rz = -Math.sin(D.hd);
+  const vfx = -Math.sin(P.yaw), vfz = -Math.cos(P.yaw), vrx = Math.cos(P.yaw), vrz = -Math.sin(P.yaw);
+  D.still = moving ? 0 : (D.still || 0) + dt;
   let tx, tz, want = DOG.trot, look = null;
   // states
   if (input.tug) { D.state = 'come'; D.st = 0; emit('tug', {}); D.lured = null; }
@@ -99,6 +108,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
       }
       // every so often, look back at you (he checks you're there)
       if (world.time > D.lookBackAt) { D.lookBackUntil = world.time + 1.1; D.lookBackAt = world.time + rng.range(7, 16); }
+      // you look at him, he looks back at you (and his tail goes)
+      if (world.watched && world.calm && D.fear < 0.3 && world.time > (D.lookBackUntil || 0) && world.time > (D.eyeCd || 0)) { D.lookBackUntil = world.time + 1.6; D.eyeCd = world.time + 4; }
       if (world.time < (D.lookBackUntil || 0)) look = { x: P.x, z: P.z };
       break;
     }
@@ -113,7 +124,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     case 'sneeze': tx = D.x; tz = D.z; if (D.st > 0.9) { D.state = 'follow'; D.st = 0; } break;
     case 'intro': tx = D.x; tz = D.z; look = { x: P.x, z: P.z }; if (D.st > 4.5 || P.speed > 0.6) { D.state = 'follow'; D.st = 0; } break;
     case 'pee': tx = D.x; tz = D.z; if (D.st > 2.4) { D.state = 'follow'; D.st = 0; } break;
-    case 'come': tx = P.x + fx * (input.pet ? 0.68 : 0.7) + rx * (input.pet ? 0.05 : 0.35); tz = P.z + fz * (input.pet ? 0.68 : 0.7) + rz * (input.pet ? 0.05 : 0.35); want = DOG.run * 0.8; look = { x: P.x, z: P.z }; if (D.st > 1.6 && Math.hypot(tx - D.x, tz - D.z) < 0.5) { D.state = 'follow'; D.st = 0; } break;
+    case 'come': tx = P.x + vfx * (input.pet ? 0.68 : 0.7) + vrx * (input.pet ? 0.05 : 0.35); tz = P.z + vfz * (input.pet ? 0.68 : 0.7) + vrz * (input.pet ? 0.05 : 0.35); want = DOG.run * 0.8; look = { x: P.x, z: P.z }; if (D.st > 1.6 && Math.hypot(tx - D.x, tz - D.z) < 0.5) { D.state = 'follow'; D.st = 0; } break;
     case 'alert': tx = D.x; tz = D.z; look = th ? { x: th.x, z: th.z } : null; if (D.st > 0.6) { tx = P.x + rx * 0.45 + fx * 0.4; tz = P.z + rz * 0.45 + fz * 0.4; want = DOG.trot * 0.7; } break;
     case 'hide': {
       // behind your legs, away from it
@@ -125,6 +136,14 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     default: tx = D.x; tz = D.z;
   }
 
+  // ---- the target is the other side of a garden wall: go round by the gate
+  if (world.blocked && world.gateAt && D.l !== undefined) {
+    const tr = toRoad(tx, tz), EDGE = 4.82, inD = Math.abs(D.l) > EDGE, inT = Math.abs(tr.l) > EDGE;
+    if (inD !== inT) {
+      const side = inD ? Math.sign(D.l) : Math.sign(tr.l), g = world.gateAt(inD ? D.s : tr.s, side);
+      if (g !== null && world.blocked(D.s, side)) { const q = at(g, side * (inD ? EDGE + 0.4 : EDGE - 0.4)); tx = q.x; tz = q.z; }
+    }
+  }
   // ---- move toward the target
   let dx = tx - D.x, dz = tz - D.z; const dist = Math.hypot(dx, dz);
   const sp = dist > 0.15 ? Math.min(want * (dist > 2.5 ? 1.6 : 1), dist * 3.2) : 0;
@@ -145,11 +164,24 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   }
   // stay out of the houses
   const rc = toRoad(nx, nz), lim = ROAD.front - 0.3;
-  if (Math.abs(rc.l) > lim) { const c = at(rc.s, Math.sign(rc.l) * lim); nx = c.x; nz = c.z; }
+  if (Math.abs(rc.l) > lim) { const c = at(rc.s, Math.sign(rc.l) * lim); nx = c.x; nz = c.z; rc.l = Math.sign(rc.l) * lim; }
+  // garden walls and fences are solid for him too: in and out only by the gate
+  if (world.blocked) {
+    const was = D.l ?? 0, EDGE = 4.82, side = Math.sign(rc.l) || Math.sign(was);
+    const crossing = (Math.abs(was) <= EDGE) !== (Math.abs(rc.l) <= EDGE);
+    if (crossing && world.blocked(rc.s, side)) { const c = at(rc.s, side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16)); nx = c.x; nz = c.z; rc.l = side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16); }
+  }
+  // round things (lamp posts, bins, parked cars): he goes round them
+  if (world.obstacles) for (const o of world.obstacles) {
+    const ox = nx - o.x, oz = nz - o.z, r = o.r + 0.16, d2 = ox * ox + oz * oz;
+    if (d2 < r * r && d2 > 1e-6) { const d = Math.sqrt(d2); nx = o.x + ox / d * r; nz = o.z + oz / d * r; }
+  }
+  D.l = toRoad(nx, nz).l; D.s = rc.s;
   const moved = Math.hypot(nx - D.x, nz - D.z);
   D.speed = moved / Math.max(dt, 1e-4); D.x = nx; D.z = nz; D.y = groundAt(nx, nz);
-  D.phase += moved / DOG.stride;
-  if (D.speed > 0.15) D.yaw = turnTo(D.yaw, Math.atan2(-D.vx, -D.vz), dt * 7);
+  D.phase += moved / (DOG.stride * (D.speed > 2.6 ? 1.9 : D.speed > 1.15 ? 1.2 : 1));
+  // he turns along his path (a body has to swing round, not spin on the spot)
+  if (D.speed > 0.15) D.yaw = turnTo(D.yaw, Math.atan2(-D.vx, -D.vz), dt * (D.speed > 1 ? 6 : 3.5));
   else if (look) D.yaw = turnTo(D.yaw, Math.atan2(-(look.x - D.x), -(look.z - D.z)), dt * 2);
 
   // ---- face and body
@@ -158,6 +190,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.headYaw = ease(D.headYaw, hy, 6, dt); D.headPitch = ease(D.headPitch, hp, 6, dt);
   D.sniff = ease(D.sniff, D.state === 'sniff' ? 1 : 0, 5, dt);
   D.sit = ease(D.sit, (D.state === 'follow' && !moving && D.speed < 0.1 && D.st > 3) || D.state === 'intro' || D.state === 'scratch' || D.state === 'yawn' ? 1 : D.state === 'pee' ? 0.6 : 0, 3, dt);
+  // stood still a long while, nothing about: he lies down, chin on his paws (and gets straight up when you go)
+  D.lie = ease(D.lie || 0, D.state === 'follow' && D.still > 14 && world.calm && D.fear < 0.2 ? 1 : 0, D.still > 14 ? 1.2 : 6, dt);
   D.crouch = ease(D.crouch, D.state === 'hide' ? 1 : D.state === 'alert' ? 0.35 : 0, 5, dt);
   D.ears = ease(D.ears, D.state === 'hide' ? -1 : D.state === 'alert' ? 1 : D.state === 'come' ? 0.3 : 0, 6, dt);
   D.wag = ease(D.wag, petting || D.state === 'come' || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 1 : D.state === 'alert' || D.state === 'hide' ? 0 : 0.45, 3, dt);

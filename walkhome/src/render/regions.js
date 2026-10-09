@@ -170,7 +170,7 @@ function shopWindow(group, kit, F, sf, o, anim) {
       A(xf(box(0.6, 0.8, 0.62), x0 - 0.55, y0 + 0.42, zz), 'paint', 0xe0e4e0);
       const door = new THREE.Mesh(new THREE.CircleGeometry(0.2, 20), new THREE.MeshStandardMaterial({ color: 0x223040, roughness: 0.1, emissive: k === 1 ? 0x2a3a40 : 0x060808 }));
       door.position.copy(P(x0 - 0.24, y0 + 0.48, zz)); door.rotation.y = F.rotY + Math.PI / 2; group.add(door);
-      if (k === 1) { const drum = new THREE.Mesh(new THREE.CircleGeometry(0.17, 6), new THREE.MeshBasicMaterial({ color: 0x8090a0 })); drum.position.copy(P(x0 - 0.26, y0 + 0.48, zz)); drum.rotation.y = F.rotY + Math.PI / 2; group.add(drum); anim.push((t) => { drum.rotation.z = t * 5; }); }
+      if (k === 1) { const drum = new THREE.Mesh(new THREE.CircleGeometry(0.17, 6), new THREE.MeshBasicMaterial({ color: 0x8090a0 })); drum.position.copy(P(x0 - 0.26, y0 + 0.48, zz)); drum.rotation.y = F.rotY + Math.PI / 2; drum.userData.dynamic = true; group.add(drum); anim.push((t) => { drum.rotation.z = t * 5; }); }
     }
   } else if (name === 'NEWSAGENT') {
     // the board outside on the pavement: today's headline

@@ -3,6 +3,7 @@ every few seconds, logging the boy, Biscuit, the director and the frame rate.
 
 python tools/walk.py <outdir> [seconds_between] [count] [extra query] [js to run first]
 """
+import os as _os; PORT = _os.environ.get("WH_PORT", "5184")
 import base64, sys, json, time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -18,7 +19,7 @@ with sync_playwright() as pw:
     errs = []
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e) + " | " + str(getattr(e, "stack", ""))[:600]))
     pg.on("console", lambda m: errs.append(m.type + ": " + m.text[:200]) if m.type == "error" and "404" not in m.text else None)
-    pg.goto(f"http://localhost:5184/?go&shots&stats&auto{('&' + extra) if extra else ''}")
+    pg.goto(f"http://localhost:{PORT}/?go&shots&stats&auto{('&' + extra) if extra else ''}")
     pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
     if pre: pg.evaluate(pre)
     for i in range(count):

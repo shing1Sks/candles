@@ -1,5 +1,6 @@
 """Play a whole night with the bot and print its timeline.
 python tools/night.py [timescale] [maxminutes] [seed] [outdir]"""
+import os as _os; PORT = _os.environ.get("WH_PORT", "5184")
 import sys, time, json, base64
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -12,7 +13,7 @@ with sync_playwright() as pw:
     b = pw.chromium.launch(headless=False, args=["--window-position=-2400,0"]); pg = b.new_page(viewport={"width": 1280, "height": 720})
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:200] + " | " + str(getattr(e, "stack", ""))[:300]))
-    pg.goto(f"http://localhost:5184/?go&shots&stats&bot&ts={ts}&seed={seed}" + (f"&s={sys.argv[5]}" if len(sys.argv) > 5 else ""))
+    pg.goto(f"http://localhost:{PORT}/?go&shots&stats&bot&ts={ts}&seed={seed}" + (f"&s={sys.argv[5]}" if len(sys.argv) > 5 else ""))
     pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
     t0 = time.time(); k = 0; shot = 0
     while time.time() - t0 < maxm * 60:

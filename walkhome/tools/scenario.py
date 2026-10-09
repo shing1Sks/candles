@@ -3,13 +3,30 @@ python tools/scenario.py <outdir> <scenario>       (npm run dev on :5184)
 Steps: ("js", code) | ("wait", s) | ("shot", name) | ("hold", keys, s)  (hold keys like "KeyW,ShiftLeft" for s seconds)
        ("look", yaw, pitch) sets the view | ("log", js) prints a value
 """
+import os as _os; PORT = _os.environ.get("WH_PORT", "5184")
 import base64, sys, json, time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 OUT = Path(sys.argv[1]); OUT.mkdir(parents=True, exist_ok=True)
 STATE = "JSON.stringify({s:+__wh.player.s.toFixed(1), l:+__wh.player.l.toFixed(1), dog:__wh.dog.state, dfear:+__wh.dog.fear.toFixed(2), tall: __wh.tall.active ? [__wh.tall.mode, +__wh.tall.s.toFixed(1), +__wh.tall.l.toFixed(1), __wh.tall.seen] : null, dir:[__wh.director.phase, +__wh.director.fear.toFixed(2)], fps:+__wh.fps().toFixed(0), ev: __wh.events.splice(0).map(e=>e.name).filter(n=>!/sniff|pee|tug|call|happy/.test(n)).join(',')})"
+TRACK = "window.__track = setInterval(() => { const T = __wh.tall, P = __wh.player, c = __wh.camera.position; if (!T.active) return; P.yaw = Math.atan2(-(T.x - P.x), -(T.z - P.z)); P.pitch = Math.atan2(T.y + 2.3 - c.y, Math.hypot(T.x - P.x, T.z - P.z)); }, 30)"
+TSTATE = "JSON.stringify({t:+__wh.director.t.toFixed(1), d:+Math.hypot(__wh.tall.x-__wh.player.x, __wh.tall.z-__wh.player.z).toFixed(1), act:__wh.tall.active, mode:__wh.tall.mode, seen:__wh.tall.seen, lit:__wh.tall.lit, heavy:+__wh.tall.heavy.toFixed(2), lid:+__wh.post.U.uLid.value.toFixed(2), dying:__wh.lampState.filter(L=>L.dying>0).map(L=>L.id), ph:__wh.director.phase, ev:__wh.events.splice(0).map(e=>e.name).filter(n=>!/sniff|pee|tug|call|happy|step/.test(n)).join(',')})"
 SCEN = {
+  # he comes; you turn and hold him with your eyes. Do the lamps, the blink and the flicker move him?
+  "stare": [
+    ("js", "__wh.put(420, 3.2, 0, -0.1); __wh.director.glimpse = 'done'; __wh.director.nextVisit = 0; __wh.director.visits = 1;"),
+    ("wait", 1.5), ("log", TSTATE), ("js", TRACK), ("wait", 0.5), ("shot", "a_first"),
+  ] + sum([[("wait", 1.0), ("log", TSTATE)] + ([("shot", f"b_{i:02d}")] if i % 3 == 0 else []) for i in range(26)], []),
+  # the hands and Biscuit, close: walking, looking down, stroking, running, carrying, pulling
+  "hands": [("js", "__wh.put(20, 3.4, 0, -0.1)"), ("wait", 2), ("hold", "KeyW", 3), ("shot", "a_walk"), ("look", 0, -0.45), ("wait", 1.5), ("shot", "b_down"),
+            ("hold", "KeyF", 3.5), ("js", "__wh.input.keys.add('KeyF')"), ("wait", 0.5), ("shot", "c_pet"), ("wait", 0.6), ("shot", "c_pet2"), ("js", "__wh.input.keys.delete('KeyF')"),
+            ("look", 0, -0.1), ("hold", "KeyW,ShiftLeft", 2.2), ("js", "__wh.input.keys.add('KeyW'); __wh.input.keys.add('ShiftLeft')"), ("wait", 0.3), ("shot", "d_run"), ("js", "__wh.input.keys.clear()"),
+            ("wait", 2), ("js", "__wh.dog.x = __wh.player.x + 0.3; __wh.dog.z = __wh.player.z - 0.6; __wh.input.edges.add('KeyE')"), ("wait", 1.0), ("shot", "e_carry"), ("js", "__wh.input.edges.add('KeyE')"),
+            ("wait", 1.0), ("js", "__wh.dog.state = 'lured'; __wh.dog.lured = {x: __wh.player.x - 6, z: __wh.player.z - 4}"), ("wait", 2.5), ("shot", "f_pull"), ("js", "__wh.dog.lured = null"),
+            ("look", 1.2, -0.2), ("wait", 1.0), ("shot", "g_side"), ("look", 3.14, -0.1), ("wait", 1.0), ("shot", "h_lookback")],
+  # a slow human-paced walk: stop, look about, walk on. What happens in 4 minutes?
+  "human": [("js", "__wh.put(2, 3.4, 0, -0.1)")] + sum([[("hold", "KeyW", 7), ("look", 3.0, -0.05), ("wait", 1.5), ("log", TSTATE), ("look", 0.0, -0.1), ("wait", 2.0), ("log", TSTATE)] for i in range(22)], []),
   # walk up the long street; the director sends him; look back now and then
   "visit": [
     ("js", "__wh.put(300, 3, 0, -0.1); __wh.director.glimpse = 'done'; __wh.director.nextVisit = 0;"),
@@ -91,7 +108,7 @@ with sync_playwright() as pw:
     pg = b.new_page(viewport={"width": 1280, "height": 720})
     errs = []
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e) + " | " + str(getattr(e, "stack", ""))[:600]))
-    pg.goto("http://localhost:5184/?go&shots&stats")
+    pg.goto(f"http://localhost:{PORT}/?go&shots&stats")
     pg.wait_for_function("window.__wh && __wh.segs.size > 3", timeout=120000)
     pg.evaluate("__wh.input.enabled = true")
     for st in steps:

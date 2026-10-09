@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { at as roadAt, toRoad, groundAt, regionAt, N as roadN } from '../sim/road.js';
 import { U, inject } from './materials.js';
+const _fw = new THREE.Vector3(), _to = new THREE.Vector3();
 
 function softTex() {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
@@ -87,11 +88,52 @@ export class Fx {
     // ---- chimney smoke
     this.smokeC = new Cards(scene, 70, mt, 0x6a6670, 4);
     this.smoke = Array.from({ length: 70 }, () => ({ life: 0 }));
+    // ---- eyes in a garden: two points of shine, low down, that blink and are gone when you come close
+    { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.4, 1.2), fog: true }), g = new THREE.SphereGeometry(0.02, 8, 6);
+      this.eyes = new THREE.Group(); this.eyes.visible = false; scene.add(this.eyes);
+      for (const x of [-0.05, 0.05]) { const e = new THREE.Mesh(g, m); e.position.x = x; this.eyes.add(e); } this.eyesM = m; }
+    // ---- someone at the edge of your eye: a tall dark shape in a garden, a pale smudge of a face.
+    // It's only ever there while you're not quite looking; turn to it and the garden is empty
+    { const dark = new THREE.MeshStandardMaterial({ color: 0x07070a, roughness: 1 }), pale = new THREE.MeshStandardMaterial({ color: 0xb8b2a4, roughness: 0.6, emissive: 0x16140f });
+      const f = this.figure = new THREE.Group(); f.visible = false; scene.add(f);
+      const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.34, 2.05, 10), dark); coat.position.y = 1.08; f.add(coat);
+      const sh = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 8), dark); sh.scale.set(1.3, 0.6, 0.8); sh.position.y = 2.08; f.add(sh);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), pale); head.scale.set(0.85, 1.15, 0.9); head.position.set(0.05, 2.36, 0); head.rotation.z = -0.4; f.add(head);
+      const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.34, 12), dark); hat.position.set(0.1, 2.62, 0); hat.rotation.z = -0.4; f.add(hat);
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.02, 14), dark); brim.position.set(0.07, 2.47, 0); brim.rotation.z = -0.4; f.add(brim);
+      for (const s of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 1.25, 6), dark); arm.position.set(s * 0.27, 1.45, 0); arm.rotation.z = s * 0.06; f.add(arm); }
+      f.traverse((o) => { if (o.isMesh) o.castShadow = false; }); }
+  }
+
+  // an omen you can see (the director's; the sound is in audio.js)
+  omen(e, P, camera) {
+    if (e.kind === 'figure' && camera) {
+      // off to the side, where you'd only catch it out of the corner of your eye
+      const fw = new THREE.Vector3(); camera.getWorldDirection(fw); fw.y = 0; fw.normalize();
+      const side = Math.random() < 0.5 ? -1 : 1, ang = side * (1.05 + Math.random() * 0.25), d = 9 + Math.random() * 5;
+      const dir = fw.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), ang), x = P.x + dir.x * d, z = P.z + dir.z * d;
+      const rc = toRoad(x, z), l = Math.sign(rc.l || side) * Math.min(6.6, Math.max(5.2, Math.abs(rc.l))), p = roadAt(rc.s, l);
+      this.figure.position.set(p.x, groundAt(p.x, p.z), p.z); this.figure.lookAt(P.x, this.figure.position.y, P.z); this.figure.visible = true; this.figT = 0;
+    }
+    if (e.kind === 'eyes') { this.eyes.position.set(e.x, e.y, e.z); this.eyes.visible = true; this.eyesT = 0; this.eyesUntil = 14; this.eyesBlink = 1.5 + Math.random() * 2; this.eyes.scale.set(1, 1, 1); this.eyesM.color.setRGB(Math.random() < 0.5 ? 2.6 : 1.4, 2.4, Math.random() < 0.5 ? 1.2 : 2.2); }
   }
 
   // P: player; lamps: lit bulbs near [{x,y,z}]; chimneys: [{x,y,z}] near; fear 0..1; running
   update(dt, P, camera, lamps, chimneys, fear) {
     this.t += dt;
+    if (this.figure.visible) {
+      // look at it (inside ~26 degrees), or leave it long enough, and it's gone
+      this.figT += dt; const fw = _fw; camera.getWorldDirection(fw); const to = _to.copy(this.figure.position).setY(camera.position.y + 0.6).sub(camera.position).normalize();
+      if (fw.dot(to) > 0.9 || this.figT > 7) { this.figure.visible = false; this.figGone = (this.figGone || 0) + 1; }
+    }
+    if (this.eyes.visible) {
+      // they watch you (facing you), blink now and then, and go out when you get close or look too long
+      this.eyesT += dt; this.eyes.lookAt(camera.position.x, this.eyes.position.y, camera.position.z);
+      this.eyesBlink -= dt; const b = this.eyesBlink < 0 ? Math.max(0.05, 1 - Math.abs(this.eyesBlink + 0.08) * 12) : 1; if (this.eyesBlink < -0.16) this.eyesBlink = 1.5 + Math.random() * 3;
+      this.eyes.scale.y = b;
+      const d = Math.hypot(this.eyes.position.x - P.x, this.eyes.position.z - P.z);
+      if (d < 5.5 || this.eyesT > this.eyesUntil) this.eyes.visible = false;
+    }
     const reg = regionAt(P.s).id;
     // the weather turns as you go: dry until the park, a drizzle in it, rain up the hill
     const rainWant = P.s < 1000 ? 0 : P.s < 1250 ? Math.min(0.45, (P.s - 1000) / 120) : Math.min(1, 0.45 + (P.s - 1250) / 150);

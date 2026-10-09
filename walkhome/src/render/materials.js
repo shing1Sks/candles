@@ -68,20 +68,43 @@ const LAMP_FRAG = /* glsl */`
   }
 `;
 
-export function inject(mat, { lean = false, wind = false, lamps = true } = {}) {
+// WEATHER: old walls aren't clean. Rain has run down them for a hundred years: dark vertical streaks
+// under everything, uneven, thicker in places; and soot. Cheap (two value noises), world-space
+const WEATHER_PARS = /* glsl */`
+  varying vec3 vWPos;
+  float wh(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float wn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f); return mix(mix(wh(i), wh(i + vec2(1, 0)), f.x), mix(wh(i + vec2(0, 1)), wh(i + 1.), f.x), f.y); }
+`;
+const WEATHER_FRAG = /* glsl */`
+  {
+    float u = vWPos.x * 0.83 + vWPos.z * 0.57;
+    float streak = wn(vec2(u * 5.0, vWPos.y * 0.4)) * 0.7 + wn(vec2(u * 17.0, vWPos.y * 1.3)) * 0.3;
+    float blotch = wn(vWPos.xz * 0.35 + vWPos.y * 0.2);
+    diffuseColor.rgb *= 1.0 - smoothstep(0.5, 0.9, streak) * 0.28 - smoothstep(0.55, 0.95, blotch) * 0.12;
+  }
+`;
+
+export function inject(mat, { lean = false, wind = false, lamps = true, weather = false } = {}) {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     if (lean) sh.defines = { ...(sh.defines || {}), HAS_LEAN: '' };
     if (wind) sh.defines = { ...(sh.defines || {}), HAS_WIND: '' };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + LEAN_VERT_PARS)
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + LEAN_VERT);
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
+` + LEAN_VERT_PARS + (weather ? `
+varying vec3 vWPos;` : ''))
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+` + LEAN_VERT + (weather ? `
+vWPos = (modelMatrix * vec4(position, 1.0)).xyz;` : ''));
+    if (weather) sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+` + WEATHER_PARS).replace('#include <color_fragment>', `#include <color_fragment>
+` + WEATHER_FRAG);
     if (lamps) {
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + LAMP_FRAG_PARS)
         .replace('#include <lights_fragment_maps>', LAMP_FRAG + '\n#include <lights_fragment_maps>');
     }
   };
-  mat.customProgramCacheKey = () => `town:${lean}:${wind}:${lamps}`;
-  mat.userData.flags = { lean, wind };
+  mat.customProgramCacheKey = () => `town:${lean}:${wind}:${lamps}:${weather}`;
+  mat.userData.flags = { lean, wind, weather };
   return mat;
 }
 
@@ -125,17 +148,17 @@ export const TEX_METERS = { brick: 1.3, siding: 1.6, render: 2.2, slate: 1.3, co
 
 export function makeMaterials(T, envMap) {
   // the sky's reflection only where it shows (wet stone, glass, metal): it costs several texture reads a pixel
-  const std = (o, flags) => inject(new THREE.MeshStandardMaterial({ ...o, envMap: o.env ? envMap : null, envMapIntensity: o.envMapIntensity ?? 0.6 }), flags);
+  const std = ({ env, ...o }, flags) => inject(new THREE.MeshStandardMaterial({ ...o, envMap: env ? envMap : null, envMapIntensity: o.envMapIntensity ?? 0.6 }), flags);
   const tex = (k, o = {}, flags = { lean: true }) => { const m = std({ map: T[k].map, normalMap: T[k].normalMap, roughnessMap: T[k].roughnessMap, roughness: 1, vertexColors: true, ...o }, flags); m.userData.texMeters = TEX_METERS[k]; return m; };
   const M = {
     // houses (lean)
-    brick: tex('brick', { normalScale: new THREE.Vector2(1.2, 1.2) }),
-    siding: tex('siding'),
-    render: tex('render'),
+    brick: tex('brick', { normalScale: new THREE.Vector2(1.2, 1.2) }, { lean: true, weather: true }),
+    siding: tex('siding', {}, { lean: true, weather: true }),
+    render: tex('render', {}, { lean: true, weather: true }),
     slate: tex('slate', { roughness: 0.9, envMapIntensity: 0.9, normalScale: new THREE.Vector2(1.4, 1.4) }),
     trim: std({ color: 0xffffff, roughness: 0.62, vertexColors: true, normalMap: T.siding.normalMap, normalScale: new THREE.Vector2(0.25, 0.25) }, { lean: true }),
     paintL: std({ color: 0xffffff, roughness: 0.6, vertexColors: true }, { lean: true }),
-    stone: tex('slab', { roughness: 1 }),
+    stone: tex('slab', { roughness: 1 }, { lean: true, weather: true }),
     door: tex('wood', { roughness: 0.6 }),
     gutter: std({ color: 0x1c1c22, roughness: 0.45, metalness: 0.6, vertexColors: true, env: true }, { lean: true }),
     // the street (no lean)

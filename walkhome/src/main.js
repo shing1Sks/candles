@@ -9,7 +9,7 @@ import { makeTextures } from './render/textures.js';
 import { makeMaterials, U, lampify } from './render/materials.js';
 import { buildSegment, buildSegmentLOD, disposeSegment } from './render/street.js';
 import { LightRig, FarLamps, SODIUM } from './render/lamps.js';
-import { makeSky, bakeEnv, SKY_U } from './render/sky.js';
+import { makeSky, bakeEnv, SKY_U, makeSkyline } from './render/sky.js';
 import { WIN_U } from './render/windows.js';
 import { Post } from './render/post.js';
 import { Input } from './input.js';
@@ -47,6 +47,7 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); ca
 
 // sky, fog, moonlight
 const sky = makeSky(); scene.add(sky);
+const skyline = makeSkyline(); scene.add(skyline);
 const env = bakeEnv(renderer);
 scene.fog = new THREE.FogExp2(SKY_U.uHorizon.value.clone().multiplyScalar(0.9), 0.024);
 const hemi = new THREE.HemisphereLight(0x2a3456, 0x08070a, 0.14); scene.add(hemi);
@@ -79,7 +80,7 @@ function lampObstacles() {
 }
 
 // stream segments: everything from 1 behind to AHEAD in front is built, one new segment a frame
-const AHEAD = 5, FAR = 13;
+const AHEAD = 4, FAR = 13;
 const lods = new Map();
 function stream(force = false) {
   const cur = Math.floor(Math.max(0, player.s) / ROAD.segment);
@@ -141,8 +142,12 @@ let last = performance.now(), fpsAcc = 0, fpsN = 0, fps = 60, bob = 0;
 const stats = document.getElementById('stats'); if (Q.has('stats')) stats.style.display = 'block';
 const fear = { v: Number(Q.get('fear') || 0) };
 
+const airLamps = [];
+// are you looking at Biscuit? (near the middle of your view)
+const _dv = new THREE.Vector3(), _fw = new THREE.Vector3();
+function dogWatched() { camera.getWorldDirection(_fw); _dv.set(dog.x - camera.position.x, dog.y + 0.3 - camera.position.y, dog.z - camera.position.z); const d = _dv.length(); return d < 6 && _fw.dot(_dv) / d > 0.95; }
 function lightsNow() {
-  const out = [];
+  const out = []; airLamps.length = 0;
   for (const seg of segs.values()) {
     for (const L of seg.lamps) {
       const st = lampState[L.id];
@@ -150,7 +155,7 @@ function lightsNow() {
       if (st.flick > 0 && st.on && !st.dying) st.flick = Math.max(0, st.flick - 0.016);
       const lv = st.on * st.level;
       if (L.bulbMesh) { L.bulbMesh.material.color.setRGB(1.0 * lv + 0.05, 0.85 * lv + 0.05, 0.6 * lv + 0.06); L.beam.visible = lv > 0.02; L.beam.userData.mat.uniforms.uI.value = lv; }
-      if (lv > 0.01 && L.bulb) out.push({ pos: L.bulb, color: SODIUM, power: lv, cone: 1, kind: 'lamp' });
+      if (lv > 0.01 && L.bulb) { out.push({ pos: L.bulb, color: SODIUM, power: lv, cone: 1, kind: 'lamp' }); const d = L.bulb.distanceTo(camera.position); if (d < 75) airLamps.push({ pos: L.bulb, ground: L.ground ??= groundAt(L.bulb.x, L.bulb.z), color: SODIUM, level: lv, d }); }
     }
     for (const l of seg.lights) { if (l.tv) { const t = U.uTime.value; l.power = l.base * (0.45 + 0.35 * Math.sin(t * 7.3 + l.seed) * Math.sin(t * 2.1 + l.seed * 3) + 0.25 * (Math.sin(t * 23 + l.seed) > 0.7 ? 1 : 0)); }
       if (l.kind === 'window' && WIN_U.uLightsOut.value.z > 0.5) { const w = WIN_U.uLightsOut.value; if (l.pos.z >= Math.min(w.x, w.y) && l.pos.z <= Math.max(w.x, w.y)) continue; } out.push(l); }
@@ -166,7 +171,7 @@ function frame(now) {
   const realDt = Math.max(0, Math.min(0.1, (now - last) / 1000)), dt = Math.min(0.05, realDt) * TS; last = now;
   if (dt === 0) { requestAnimationFrame(frame); return; }
   U.uTime.value += dt;
-  const inp = input.sample();
+  const inp = input.sample(); var inpCall = inp.call;
   if (bot && ending.state === 'waiting') bot.drive(inp, window.__wh, dt);
   if (intro.t >= 0 && intro.t < 5.5) {
     intro.t += realDt;
@@ -184,26 +189,31 @@ function frame(now) {
   stepPlayer(player, inp, dt, obstacles);
   // Biscuit
   const hand = vm.hold.getWorldPosition(new THREE.Vector3());
-  const threats = tall.active && tall.mode !== 'glimpse' ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z), seen: tall.seen, kind: 'tall' }] : tall.active ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z) + 12, seen: tall.seen, kind: 'tall' }] : [];
-  stepDog(dog, player, inp, dt, { pois, threats, hand: { x: hand.x, z: hand.z }, time: U.uTime.value, calm: director.phase === 'calm' || director.phase === 'after', wet: fx.rainLevel || 0 }, emit, dogRng);
+  const om = director.omenPt, omenT = om ? [{ x: om.x, z: om.z, d: 19, seen: true, kind: 'omen' }] : [];
+  const threats = omenT.length && !tall.active ? omenT : tall.active && tall.mode !== 'glimpse' ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z), seen: tall.seen, kind: 'tall' }] : tall.active ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z) + 12, seen: tall.seen, kind: 'tall' }] : [];
+  stepDog(dog, player, inp, dt, { pois, threats, hand: { x: hand.x, z: hand.z }, time: U.uTime.value, calm: director.phase === 'calm' || director.phase === 'after', wet: fx.rainLevel || 0, watched: dogWatched(), blocked: town.blocked, gateAt: town.gateAt, obstacles }, emit, dogRng);
   }
   // noise he can hear: barking, running
   noise.length = 0;
   for (const e of events) if (e.name === 'bark' && e.id > seenNoise) noise.push({ x: e.data.x, z: e.data.z, loud: 1 });
   seenNoise = evId;
   if (player.running) noise.push({ x: player.x, z: player.z, loud: 0.5 });
+  if (inpCall) noise.push({ x: player.x, z: player.z, loud: 0.8 }); // you called his name out loud
   const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
   const hidden = player.crouch > 0.6 && dog.fear < 0.8 && obstacles.some((o) => Math.hypot(o.x - player.x, o.z - player.z) < 1.4);
   hiddenNow = hidden;
   if (!home) {
-  if (!tall.catching) stepTall(tall, player, { x: camera.position.x, y: camera.position.y, z: camera.position.z, fx: fwd.x, fy: fwd.y, fz: fwd.z }, dt, lampState, { hidden, noise }, emit);
+  if (!tall.catching) stepTall(tall, player, { x: camera.position.x, y: camera.position.y, z: camera.position.z, fx: fwd.x, fy: fwd.y, fz: fwd.z }, dt, lampState, { hidden, noise, fear: director.fear }, emit);
   director.hold = !!(deck.active && !deck.active.ambient);
-  stepDirector(director, { P: player, dog, tall, rng: dirRng }, dt, emit);
+  stepDirector(director, { P: player, dog, tall, rng: dirRng, caught: caughtT >= 0, lookingBack: fwd.z > 0.45 }, dt, emit);
+  // the omens you can see
+  for (const e of events) if (e.name === 'omen' && e.id > (ectx.seenOmen || 0)) fx.omen(e.data, player, camera);
+  ectx.seenOmen = evId;
   }
   // the things on the way
   Object.assign(ectx, { P: player, D: dog, tall, emit, director, input: inp, obstacles, caught: caughtT >= 0 }); camera.getWorldDirection(ectx.fwd);
   if (!home) deck.update(dt, ectx);
-  for (const e of events) if (e.name === 'startle' && e.id > (ectx.seenStartle || 0)) { director.fear = Math.min(1, director.fear + e.data.amount); shake = Math.max(shake, e.data.amount); }
+  for (const e of events) if (e.name === 'startle' && e.id > (ectx.seenStartle || 0)) { director.fear = Math.min(1, director.fear + e.data.amount); shake = Math.max(shake, e.data.amount); dog.fear = Math.min(1, dog.fear + e.data.amount * 0.9); }
   ectx.seenStartle = evId;
   if (!Q.has('go') || Q.has('hints')) {
     if (dog.fear > 0.4 && !dog.carried) hint('pet', "He's frightened. Hold F to kneel and stroke him, or E to pick him up.");
@@ -234,6 +244,8 @@ function frame(now) {
     if (caughtT > 1.0 && ectx.catchLight) { extraLights.splice(extraLights.indexOf(ectx.catchLight), 1); ectx.catchLight = null; tall.catching = false; tallView.stoop(0); } if (caughtT > 2.6 && caughtT - dt <= 2.6) respawn(director, player, tall, dog, emit); if (caughtT > 2.6) black = Math.max(0, 1 - (caughtT - 2.6) / 2.5); if (caughtT > 5.1) caughtT = -1; }
   if (!(intro.t >= 0 && intro.t < 2.2)) post.U.uBlack.value = black;
   post.U.uHide.value += ((hiddenNow ? 1 : 0) - post.U.uHide.value) * Math.min(1, dt * 3);
+  // your eyes: heavy when you've held him too long, then a blink (and he's nearer)
+  { const want = tall.active && tall.blink > 0 ? 1 : tall.active ? tall.heavy * 0.42 : 0, cur = post.U.uLid.value; post.U.uLid.value = cur + (want - cur) * Math.min(1, dt * (want > cur ? 38 : 9)); }
   pm('sim', t0); t0 = performance.now();
   stream();
   pm('stream', t0);
@@ -247,8 +259,15 @@ function frame(now) {
   camera.rotation.set(player.pitch + (Math.random() - 0.5) * jolt, player.yaw + (Math.random() - 0.5) * jolt, Math.sin(player.phase * Math.PI * 0.5) * 0.006 * sp, 'YXZ');
   camera.updateMatrixWorld();
   // sky and moon follow
-  sky.position.copy(camera.position);
-  const md = SKY_U.uMoonDir.value; moon.position.set(player.x + md.x * 80, player.y + md.y * 80, player.z + md.z * 80); moon.target.position.set(player.x - Math.sin(player.yaw) * 14, player.y, player.z - Math.cos(player.yaw) * 14);
+  sky.position.copy(camera.position); skyline.position.set(camera.position.x, Math.min(camera.position.y, 2), camera.position.z); // the town is down there: from the hill you look down on it
+  // the moon's shadows: a fixed box round you (not swung round with your eyes, or the shadows swim)
+  const md = SKY_U.uMoonDir.value; moon.target.position.set(player.x, player.y, player.z - 5); moon.position.copy(moon.target.position).addScaledVector(md, 80);
+  // the sky changes as you go: more stars where it's dark (the park), fewer in the high street's
+  // glare; the cloud thickens toward the hill; before the rain, a ring round the moon
+  { const R = regionAt(player.s).id, k = Math.min(1, dt * 0.2), S = SKY_U;
+    const lim = R === 'parkEdge' ? 5.4 : R === 'highStreet' ? 3.3 : R === 'hill' ? 3.8 : 4.3, cl = R === 'hill' ? 0.82 : R === 'parkEdge' ? 0.68 : R === 'highStreet' ? 0.58 : 0.5;
+    S.uStarLimit.value += (lim + (1 - lampState.filter((L) => Math.abs(L.s - player.s) < 40 && L.on).length / 4) * 0.4 - S.uStarLimit.value) * k;
+    S.uCloud.value += (cl - S.uCloud.value) * k; S.uHalo22.value += ((player.s > 820 && player.s < 1150 ? 1 : 0) - S.uHalo22.value) * k; }
   // lights
   // footsteps, by what's underfoot
   if (player.stepped) { const al = Math.abs(player.l); emit('step', { surface: al > 4.8 ? (Math.random() < 0.4 ? 'leaves' : 'grass') : al < 2.9 ? 'stone' : 'stone', run: player.running, crouch: player.crouch > 0.5 }); }
@@ -272,12 +291,15 @@ function frame(now) {
     M.cobble.roughness = 1 - fx.rainLevel * 0.3; M.slab.roughness = 1 - fx.rainLevel * 0.35;
   }
   pm('fx', t0); t0 = performance.now();
-  puppy.root.visible = !dog.hidden;
+  puppy.root.visible = !dog.hidden; dog.nearEvil = tall.active && !tall.vanished && Math.hypot(tall.x - dog.x, tall.z - dog.z) < 15;
   puppy.update(dog, dt, camera);
   tallView.update(tall, dt, camera);
   vm.update(dt, player, dog, puppy, groundAt);
   pm('vm', t0); t0 = performance.now();
-  if (!Q.has('nolamps')) rig.update(camera, lightsNow()); else lightsNow();
+  if (!Q.has('nolamps') && !window.__wh?.rigOff) rig.update(camera, lightsNow()); else lightsNow();
+  // the air and the wet road: the nearest lamps' glow in the mist and their streaks on the cobbles
+  airLamps.sort((a, b) => a.d - b.d); post.setLamps(post.noAir ? [] : airLamps, camera);
+  { const R = regionAt(player.s).id, rain = fx.rainLevel || 0; post.U.uMist.value = (R === 'parkEdge' ? 0.05 : R === 'hill' ? 0.045 : 0.032) + rain * 0.03 + fear.v * 0.01; post.U.uWet.value = 0.2 + rain * 0.5; }
   pm('rig', t0);
   WIN_U.uPlayer.value.set(player.x, player.y + 1, player.z);
   U.uLean.value = 1 + fear.v * 0.9;
@@ -285,7 +307,7 @@ function frame(now) {
   post.U.uFear.value = fear.v * 0.6;
   post.U.uTime.value = U.uTime.value;
   renderer.info.reset();
-  if (frameNo % 30 === 0) lampify(scene); // anything new picks up the street lamps
+  if (frameNo % 30 === 0) { lampify(scene); far.setStates(lampState.map((L) => L.on)); } // anything new picks up the street lamps; dead lamps are dark far off too
   if (++frameNo % 2 === 0) renderer.shadowMap.needsUpdate = true; // the moon's shadows barely move: every other frame
   t0 = performance.now();
   if (ending.stillScene) { vm.rig.visible = false; post.render(ending.stillScene, ending.stillCam, dt); } else post.render(scene, camera, dt);

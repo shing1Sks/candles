@@ -115,7 +115,9 @@ export function buildTown(seed) {
   const edges = { '-1': [], '1': [] };
   for (const o of houses) if (o.boundary !== 'none' && !o.shop) edges[o.side].push({ a: o.s - o.w / 2 - 0.6, b: o.s + o.w / 2 + 0.6, gate: o.s + o.side * o.doorZ });
   const blocked = (s, side) => { for (const e of edges[side]) if (s > e.a && s < e.b) return Math.abs(s - e.gate) > 0.55; return false; };
-  return { houses, lamps, props, trees, poles, park, blocked, signposts };
+  // the gate in the boundary at s (for Biscuit, who has to go round by it like you do)
+  const gateAt = (s, side) => { for (const e of edges[side]) if (s > e.a - 1 && s < e.b + 1) return e.gate; return null; };
+  return { houses, lamps, props, trees, poles, park, blocked, gateAt, signposts };
 }
 
 // everything in [s0, s1)
