@@ -182,3 +182,17 @@ for k in range(26):
     s = int(rng.uniform(0.25, 2.4) * SR); m = int(0.05 * SR); u = np.arange(m) / SR; f = rng.uniform(300, 900)
     bub[s:s + m] += np.sin(2 * np.pi * f * (1 + u * 6) * u) * np.exp(-u * 70) * rng.uniform(0.1, 0.35)
 save('syn_splash', reverb(hit + bub, 1.8, 0.4), peak=0.85)
+
+# ---- Biscuit's tag on his collar: two little brass clinks (played as he trots)
+N = int(SR * 0.25); y = np.zeros(N)
+for t0, f in [(0.0, 5200), (0.045, 6100)]:
+    s = int(t0 * SR); m = int(0.12 * SR); u = np.arange(m) / SR
+    y[s:s + m] += sum(g * np.sin(2 * np.pi * f * k * u) * np.exp(-u * (60 + 40 * k)) for k, g in [(1, 1), (2.7, 0.4), (5.1, 0.15)])
+save('syn_jingle', y, peak=0.5)
+
+# ---- a wet footstep: the slap of a small shoe in a skin of water
+N = int(SR * 0.3); t = np.arange(N) / SR
+y = bp(rng.standard_normal(N), 900, 6000) * np.exp(-t * 28) + lp(rng.standard_normal(N), 400) * np.exp(-t * 40) * 0.6
+for k in range(5):
+    s = int(rng.uniform(0.02, 0.12) * SR); m = 400; u = np.arange(m) / SR; y[s:s + m] += np.sin(2 * np.pi * rng.uniform(1500, 3000) * u) * np.exp(-u * 300) * 0.2
+save('syn_wetstep', y, peak=0.7)

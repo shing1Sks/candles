@@ -27,7 +27,7 @@ export class Sound {
     // a street's echo: a short convolver reverb for positional things
     this.verb = C.createConvolver(); this.verb.buffer = this.impulse(1.6, 2.6); const vg = C.createGain(); vg.gain.value = 0.32; this.verb.connect(vg); vg.connect(this.master);
     this.slices = await fetch(W + 'slices.json').then((r) => r.json()).catch(() => ({}));
-    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick', 'syn_whisper_biscuit', 'syn_splash'];
+    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick', 'syn_whisper_biscuit', 'syn_splash', 'syn_jingle', 'syn_wetstep'];
     // the beds start at once (they stream); the rest of the sounds load in the background
     this.ok = true; this.startBeds();
     pre.forEach((n) => this.load(n));
@@ -164,6 +164,9 @@ export class Sound {
     // ---- you: your own breath, when you've been running (a child's, quick and high), and held when you hide
     const br = this.loop('breath', 'breath_run', { gain: 0, bus: 'body', verb: 0, rate: 1.3 });
     if (br) { const Pl = S.player, want = Pl.crouch > 0.6 && S.fear > 0.4 ? 0.04 : Math.max(0, 0.85 - Pl.stamina) * 0.5 + (Pl.winded > 0 ? 0.18 : 0); br.set(want, want > br.lastWant ? 0.3 : 1.2); br.lastWant = want; br.src.playbackRate.value = 1.2 + (1 - Pl.stamina) * 0.2; }
+    // ---- his tag jingles as he trots (and goes quiet when he does)
+    { const D2 = S.dog, ph = Math.floor((D2.phase || 0) * 2);
+      if (!D2.carried && !D2.hush && D2.speed > 0.7 && ph !== this.tagStep) { this.tagStep = ph; if (Math.random() < 0.55) this.one('syn_jingle', { pos: { x: D2.x, y: D2.y + 0.3, z: D2.z }, gain: 0.08 + Math.min(0.12, D2.speed * 0.04), rate: 0.9 + Math.random() * 0.25, slice: false, verb: 0.05, ref: 1, bus: 'dog' }); } }
     // ---- Biscuit: panting when hot, positioned on him
     const D = S.dog, dp = { x: D.x, y: D.y + 0.3, z: D.z };
     if (D.carried) { dp.x = p.x; dp.y = p.y - 0.4; dp.z = p.z; }
@@ -263,6 +266,7 @@ export class Sound {
         const surf = e.data.surface, rate = rand(1.25, 1.42);
         const name = e.data.run ? 'run_concrete' : surf === 'grass' ? 'step_grass' : surf === 'leaves' ? 'step_leaves' : 'step_concrete';
         this.one(name, { gain: (e.data.run ? 0.5 : 0.32) * (e.data.crouch ? 0.4 : 1), rate, verb: 0.12, pos: null });
+        if (S.rain > 0.3 && surf === 'stone') this.one('syn_wetstep', { gain: (0.12 + S.rain * 0.18) * (e.data.run ? 1.4 : 1), rate: rand(0.9, 1.15), slice: false, verb: 0.05 }); // (in the rain, the pavement's wet)
         this.lastStep = this.t;
         // the echo omen: someone a little way behind, matching your steps (a beat late, a little heavier)
         const E = S.director.echo; if (E && !e.data.run) { E.steps++; this.echoStep(S, E, 0.3, 1.1); }
