@@ -27,7 +27,7 @@ export class Sound {
     // a street's echo: a short convolver reverb for positional things
     this.verb = C.createConvolver(); this.verb.buffer = this.impulse(1.6, 2.6); const vg = C.createGain(); vg.gain.value = 0.32; this.verb.connect(vg); vg.connect(this.master);
     this.slices = await fetch(W + 'slices.json').then((r) => r.json()).catch(() => ({}));
-    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick', 'syn_whisper_biscuit', 'syn_splash', 'syn_jingle', 'syn_wetstep', 'child_laugh'];
+    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick', 'syn_whisper_biscuit', 'syn_splash', 'syn_jingle', 'syn_wetstep', 'child_laugh', 'syn_thunder'];
     // the beds start at once (they stream); the rest of the sounds load in the background
     this.ok = true; this.startBeds();
     pre.forEach((n) => this.load(n));
@@ -260,6 +260,7 @@ export class Sound {
         break;
       }
       case 'lure': this.one('syn_whisper_biscuit', { pos: { x: e.data.x, y: 2.4, z: e.data.z }, gain: 0.9, slice: false, verb: 0.55, ref: 5, roll: 0.7, bus: 'him' }); this.one('../licensed/sfx_whispers', { pos: { x: e.data.x, y: 2.4, z: e.data.z }, gain: 0.25, rate: 0.8, verb: 0.6, ref: 5, bus: 'him' }); break;
+      case 'lightning': this.one('syn_thunder', { gain: 0.9, slice: false, verb: 0.2, at: 1.2 + Math.random() * 2.5 }); this.shock = Math.max(this.shock || 0, 0.2); break;
       case 'finale': this.one('../licensed/sfx_stinger_dark', { gain: 0.6, slice: false, verb: 0 }); this.shock = Math.max(this.shock || 0, 0.4); break;
       case 'blink': this.one('syn_sub', { gain: 0.35 + Math.max(0, 1 - e.data.d / 12) * 0.5, slice: false, verb: 0, at: 0.18 }); break;
       case 'respawn': this.one('syn_ring', { gain: 0.25, slice: false, verb: 0 }); break;

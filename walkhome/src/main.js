@@ -192,6 +192,11 @@ function frame(now) {
   if (caughtT >= 0) { inp.move.x = inp.move.z = 0; inp.look.yaw = inp.look.pitch = 0; inp.run = false; inp.carry = false; }
   if (auto) { auto.t += dt; const stop = Math.sin(auto.t * 0.21) > 0.85; inp.move.z = stop ? 0 : -1; const wantL = 2.6 + Math.sin(auto.t * 0.13) * 1.4; inp.look.yaw = (-(wantL - player.l) * 0.02 - player.yaw * 0.05) ; }
   let t0 = performance.now();
+  // lightning, up the hill in the rain: the whole street white for an instant (and if he's in view, you
+  // see him, wherever he is), then dark, then the thunder rolling down the valley
+  { const L = ectx.light2 ||= { next: 25 + Math.random() * 30, t: -1 };
+    if ((fx.rainLevel || 0) > 0.6 && caughtT < 0 && !ending.stillScene) { L.next -= dt; if (L.next < 0 && L.t < 0) { L.t = 0; L.next = 35 + Math.random() * 45; emit('lightning', {}); } }
+    if (L.t >= 0) { L.t += dt; const k = L.t < 0.08 ? 1 : L.t < 0.16 ? 0.15 : L.t < 0.24 ? 0.7 : Math.max(0, 1 - (L.t - 0.24) * 4); if (ending.state === 'waiting') post.U.uFlash.value = k * 0.32; tall.flashLit = k > 0.5; if (L.t > 0.6) { L.t = -1; tall.flashLit = false; } } }
   // the night, counted (for the last words on the credits)
   { const ns = nightStats, fz = camera.getWorldDirection(_fw).z; if (fz > 0.5 && !ns.wasBack && caughtT < 0) { ns.looks++; ns.wasBack = true; } else if (fz < 0.4) ns.wasBack = false; ns.time = director.t;
     for (const e of events) if (e.id > (ns.seen || 0)) { if (e.name === 'blink') ns.blinks++; if (e.name === 'respawn') ns.caught++; if (e.name === 'lostDog') ns.lost = true; } ns.seen = evId; }

@@ -196,3 +196,9 @@ y = bp(rng.standard_normal(N), 900, 6000) * np.exp(-t * 28) + lp(rng.standard_no
 for k in range(5):
     s = int(rng.uniform(0.02, 0.12) * SR); m = 400; u = np.arange(m) / SR; y[s:s + m] += np.sin(2 * np.pi * rng.uniform(1500, 3000) * u) * np.exp(-u * 300) * 0.2
 save('syn_wetstep', y, peak=0.7)
+
+# ---- thunder: a crack, then the long rolling rumble down the valley
+N = int(SR * 7.0); t = np.arange(N) / SR
+crack = bp(rng.standard_normal(N), 200, 3000) * np.exp(-t * 9) * 0.7
+roll = lp(rng.standard_normal(N), 160) * (np.exp(-((t - 1.2) ** 2) / 1.2) + 0.6 * np.exp(-((t - 2.8) ** 2) / 2.0)) * (1 + 0.5 * lp(rng.standard_normal(N), 3))
+save('syn_thunder', reverb(crack + roll * 2.2, 3.0, 0.4), peak=0.9)

@@ -36,7 +36,7 @@ export function stepTall(M, P, cam, dt, lamps, ctx, emit) {
   // and can you actually see him: is there light on him (a lamp, flickering or not), or is he close?
   let light = 0, under = null;
   for (const L of lamps) if (L.on) { const ld = Math.hypot(L.x - M.x, L.z - M.z); if (ld < TALL.litR) { const lv = L.level ?? 1; if (lv > light || !under) { light = Math.max(light, lv); under = L; } } }
-  M.lit = light > 0.5;
+  M.lit = light > 0.5 || !!M.flashLit; // (lightning lights him too)
   // you blink: for a moment you can't see anything at all
   if (M.blink > 0) M.blink -= dt;
   const blinking = M.blink > 0;
