@@ -121,6 +121,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
       if (world.quiet) { const a = moving ? 0.85 : 0.25; tx = P.x + fx * a + rx * 0.42; tz = P.z + fz * a + rz * 0.42; want = Math.max(DOG.trot * 0.8, P.speed * 1.2); look = { x: P.x - fx * 20, z: P.z - fz * 20 }; break; }
       // a little ahead and to the right of you; idles beside you when you stop
       tx = P.x + fx * (moving ? 2.15 : 1.6) + rx * 0.5; tz = P.z + fz * (moving ? 2.15 : 1.6) + rz * 0.5;
+      /* left behind (a sniff, a stop), he trots on faster to get back out in front of you */
+      { const lag = Math.hypot(tx - D.x, tz - D.z); if (moving && lag > 0.8) want = Math.max(want, P.speed + Math.min(1.1, lag * 0.55)); }
       // something to sniff nearby?
       if (D.st > 1.5) for (const p of D.poiExtra ? [...world.pois, D.poiExtra] : world.pois) {
         const last = D.sniffed.get(p.id) ?? -999;
