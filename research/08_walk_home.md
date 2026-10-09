@@ -483,3 +483,14 @@ Research in `09_terror_research.md`.
     - lured, Biscuit flipped between pulling and alert every frame;
     - a catch fired `caught` about 30 times, because he kept stepping through the blackout.
   - **Perf:** the finest two generations of twigs are drawn only within ~50 m. That's 60% of each tree's triangles, and the mist hides them further off anyway. At 1080p with a fixed render scale it went from 15.7 to 18.7 fps.
+  - **Stroking Biscuit, redone.** The user said the hands looked weird, and the old pose showed why: kneeling, the arm was a flat black plank that crossed his face. Now:
+    - he stands side-on to you, as a dog does when it leans into your hand, with his head turned to you;
+    - your mitten runs from behind his ears down his neck and along his back;
+    - the arm bends at the elbow and the upper arm runs off the bottom of the screen;
+    - the sleeve is shaded round (darker toward its edges) and always reaches back to the shoulder.
+  - **Wet-road reflections** widen as they come toward you and break into glints on the stones (they were a hairline streak down the middle of the screen).
+  - **A fifth review, fixed:**
+    - the sleeve shading shared a shader program with the cuff;
+    - the lead arm's sleeve was being stretched;
+    - glint noise lost precision far down the road;
+    - a lured Biscuit gave no warning when he came.
