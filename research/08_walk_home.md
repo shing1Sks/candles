@@ -358,3 +358,46 @@ Research in `09_terror_research.md`.
   - 4 full segments ahead instead of 5 (the fog hides the 5th);
   - the lead is a tube rewritten in place.
   - Bot night: 41 fps average, 28 minimum.
+
+### Pass 6 (2026-10-09, afternoon): things to do, people, the last run, finish
+
+- **The last run (finale).** From 125 m out from home:
+  - every lamp behind you dies in a chain coming toward you;
+  - he arrives 55 m back and never withdraws;
+  - he's faster than you walk and slower than you run, and adrenaline lets you run longer (stamina drain ×0.55);
+  - look back to hold him while you run, but don't stare (you'll blink);
+  - caught: you're back before the stretch, and Biscuit stays with you this time.
+  - Tuning: the first version was unwinnable (he ran 3.9 m/s against your 3.3). Now the bot makes it on its first try with him close behind.
+- **He calls Biscuit by name.** Once a visit, from the dark, a whispered "Biscuit..." (formant synthesis plus a real CC0 whisper).
+  - Biscuit goes to the voice whatever his fear and drags you toward the dark (about 0.5 m/s) until you haul him back (Q / right mouse).
+- **The man from the bus stop** (encounter `stranger`; real people, not him):
+  - he follows at your pace, about 10 m back, and runs if you run;
+  - he looks at the pavement when you look at him, and says "Evening.";
+  - stop, and he walks right up to you, says "Nice dog.", and goes on past and away.
+- **Doorbells**, plus a panelled front door at home.
+- **Window vignettes:** someone standing facing the far wall (all night, a few rooms); later, a family at a table with every face turned to the window.
+- **Chalk on the pavement:** children's drawings of a tall man in a hat: "DONT LOOK AWAY", "HE WAITS", the last at your own gate. The hopscotch reads the right way up now.
+- **Biscuit:**
+  - lies down chin on paws if you stand still; stroke him and he flops down;
+  - keep stroking and he rolls over for his belly;
+  - he licks your mitten (the hand flinches);
+  - within about 5 m of the Tall Man he goes completely silent and shakes.
+- **Sound:**
+  - a Shepard tone under the hunt;
+  - a beating low drone that swells as he nears;
+  - whispers in gardens; a lick; a doorbell; a whispered "Biscuit".
+- **Things you see:**
+  - proper 1970s cars and an ice-cream van, rounded and two-tone, with a glasshouse, chrome and plates;
+  - window light spilling onto walls and gardens;
+  - walls darken and gloss in the rain; softer splash rings;
+  - the last picture redone: damask paper, floorboards, a pleated lamp, his bobble hat on the hook, Biscuit's empty bowl.
+- **Settings on the pause screen:** volume, mouse speed, film grain and colour fringe.
+- **Fixes from an independent code review:**
+  - lamp streaks and mist were painted onto the ending picture;
+  - Biscuit could pop through walls after being put down or after a respawn;
+  - his return on his own was a teleport;
+  - the withdrawal blink stopped working after an earlier blink;
+  - Tall Man state leaked between visits;
+  - the eyelids darkened the screen corners even when open;
+  - a "flicker" omen could fire with no lamp to flicker;
+  - R made no squeak while Biscuit was lost.
