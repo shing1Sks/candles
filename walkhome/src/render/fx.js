@@ -95,6 +95,15 @@ export class Fx {
     const c = new THREE.Color(); for (let i = 0; i < N; i++) this.leaves.setColorAt(i, c.setHex(cols[i % cols.length]));
     scene.add(this.leaves);
     this.gust = 0; this.gustT = 3;
+    // ---- newspaper: a few loose sheets of the local paper, tumbling down the street in the gusts
+    { const c = document.createElement('canvas'); c.width = 256; c.height = 320; const g = c.getContext('2d');
+      g.fillStyle = '#d8d2c0'; g.fillRect(0, 0, 256, 320); g.fillStyle = '#1a1a1a'; g.font = 'bold 22px Georgia'; g.fillText('THE EVENING POST', 14, 30); g.fillRect(10, 38, 236, 2);
+      g.font = 'bold 26px Georgia'; g.fillText('SEARCH FOR BOY', 14, 78); g.fillText('GOES ON', 14, 108); g.fillStyle = '#4a4a4a'; g.fillRect(14, 120, 110, 120);
+      g.fillStyle = '#e8c0a0'; g.beginPath(); g.arc(69, 165, 22, 0, 7); g.fill(); g.fillStyle = '#b8302a'; g.beginPath(); g.arc(69, 158, 23, Math.PI, 0); g.fill();
+      g.fillStyle = '#3a3a3a'; for (let y = 124; y < 310; y += 9) { if (y < 245) g.fillRect(134, y, 108, 3); else g.fillRect(14, y, 228, 3); }
+      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+      const m = inject(new THREE.MeshStandardMaterial({ map: tex, side: THREE.DoubleSide, roughness: 0.95 }), {});
+      this.papers = Array.from({ length: 3 }, () => { const mesh = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.52, 3, 3), m); mesh.receiveShadow = true; scene.add(mesh); return { mesh, init: false, vx: 0, vy: 0, vz: 0, spin: 0, rest: true }; }); }
     // ---- mist: big soft cards lying low, facing the camera on Y only
     const mt = softTex();
     this.mistC = new Cards(scene, 22, mt, 0x5e5878, 3);
@@ -198,6 +207,17 @@ export class Fx {
       if (L.dirty) { e.set(L.rx, L.ry, L.rz); q.setFromEuler(e); pos.set(L.x, L.y, L.z); m4.compose(pos, q, sc); this.leaves.setMatrixAt(i, m4); L.dirty = false; dirty = true; }
     }
     if (dirty) this.leaves.instanceMatrix.needsUpdate = true;
+    // the newspapers: lie flat in the gutter, lift and tumble when a gust takes them, flap as they go
+    for (const N of this.papers) {
+      const m = N.mesh;
+      if (!N.init || (m.position.x - P.x) ** 2 + (m.position.z - P.z) ** 2 > 45 * 45) { const p = roadAt(P.s + 10 + Math.random() * 30, (Math.random() < 0.5 ? -1 : 1) * (2.2 + Math.random() * 2.2)); m.position.set(p.x, groundAt(p.x, p.z) + 0.02, p.z); m.rotation.set(-Math.PI / 2, 0, Math.random() * 6); N.rest = true; N.init = true; N.gy = m.position.y; }
+      if (N.rest && Math.random() < dt * this.gust * 0.5) { N.rest = false; N.vy = 0.8 + Math.random() * 0.8; N.vx = wdx * wind * 0.8; N.vz = -wdz * wind * 0.3; N.spin = (Math.random() - 0.5) * 4; }
+      if (!N.rest) {
+        N.vx += (wdx * wind * 0.9 - N.vx) * dt * 1.2; N.vz += (-wdz * wind * 0.35 - N.vz) * dt * 1.2; N.vy -= dt * 0.9; N.vy *= 0.97;
+        m.position.x += N.vx * dt; m.position.y += N.vy * dt; m.position.z += N.vz * dt; m.rotation.x += N.spin * dt; m.rotation.z += N.spin * 0.6 * dt; m.rotation.y = Math.sin(this.t * 7 + m.position.x) * 0.4;
+        N.gy = groundAt(m.position.x, m.position.z) + 0.02; if (m.position.y <= N.gy) { m.position.y = N.gy; if (this.gust < 0.3) { N.rest = true; m.rotation.set(-Math.PI / 2, 0, m.rotation.z); } else N.vy = Math.abs(N.vy) * 0.4; }
+      }
+    }
     // ---- mist: thicker in the park, on the bridge and the hill, and when it's bad
     const thick = (reg === 'parkEdge' ? 0.5 : reg === 'hill' ? 0.55 : reg === 'longStreet' ? 0.25 : 0.15) + fear * 0.25;
     this.mistC.mat.uniforms.uOpacity.value = thick * 0.28;
