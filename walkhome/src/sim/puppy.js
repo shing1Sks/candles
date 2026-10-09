@@ -198,6 +198,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     const crossing = (Math.abs(was) <= EDGE) !== (Math.abs(rc.l) <= EDGE);
     if (crossing && world.blocked(rc.s, side)) { const c = at(rc.s, side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16)); nx = c.x; nz = c.z; rc.l = side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16); }
   }
+  if (world.wallAcross && Math.abs(D.l ?? 0) > 4.82 && Math.abs(rc.l) > 4.82 && D.s !== undefined && world.wallAcross(D.s, rc.s, Math.sign(rc.l)) !== null) { nx = D.x; nz = D.z; rc.s = D.s; rc.l = D.l; } /* (the park's ends) */
   if (rc.s > BRIDGE.from - 1 && rc.s < BRIDGE.to + 1 && Math.abs(rc.l) > 4.55) { const c = at(rc.s, Math.sign(rc.l) * 4.55); nx = c.x; nz = c.z; rc.l = Math.sign(rc.l) * 4.55; } // (the bridge parapet)
   // round things (lamp posts, bins, parked cars): he goes round them
   if (world.obstacles) for (const o of world.obstacles) {

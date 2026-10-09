@@ -81,6 +81,8 @@ export function buildTown(seed) {
     }
   }
 
+  // the last shop before the park mustn't stand inside its railings (dropped after the fact, so the rest of the town is unchanged)
+  for (let i = houses.length - 1; i >= 0; i--) { const o = houses[i]; if (o.side > 0 && o.s - o.w / 2 < 950 && o.s + o.w / 2 > 950) { houses.splice(i, 1); for (let j = props.length - 1; j >= 0; j--) if (props[j].house === o.id) props.splice(j, 1); } }
   // ON THE HILL, OUR STREET AGAIN (05 P8/P9). A run of houses half way up the hill are the very
   // houses you started beside: same shapes, colours, gardens. Taller now, leaning harder.
   const ours = houses.filter((o) => o.region === 'ourStreet' && o.s < 70);
@@ -115,11 +117,14 @@ export function buildTown(seed) {
   const edges = { '-1': [], '1': [] };
   for (const o of houses) if (o.boundary !== 'none' && !o.shop) edges[o.side].push({ a: o.s - o.w / 2 - 0.6, b: o.s + o.w / 2 + 0.6, gate: o.s + o.side * o.doorZ });
   // and the park's railings are solid too, except at its two gates (one each side of the canal)
-  edges['1'].push({ a: 950, b: BRIDGE.from - 7, gate: park.gate.s, gw: 1.4 }, { a: BRIDGE.to + 7, b: 1250, gate: park.gate2.s, gw: 1.4 });
+  edges['1'].push({ a: 950, b: BRIDGE.from - 7, gate: park.gate.s, gw: 1.1 }, { a: BRIDGE.to + 7, b: 1250, gate: park.gate2.s, gw: 1.1 });
+  const ends = { '1': [950, BRIDGE.from - 7, BRIDGE.to + 7, 1250], '-1': [] };
+  // inside the railing line, moving along the road from s0 to s1: is there an end wall in between?
+  const wallAcross = (s0, s1, side) => { for (const b of ends[side] || []) if ((s0 - b) * (s1 - b) < 0) return b; return null; };
   const blocked = (s, side) => { for (const e of edges[side]) if (s > e.a && s < e.b) return Math.abs(s - e.gate) > (e.gw || 0.55); return false; };
   // the gate in the boundary at s (for Biscuit, who has to go round by it like you do)
   const gateAt = (s, side) => { for (const e of edges[side]) if (s > e.a - 1 && s < e.b + 1) return e.gate; return null; };
-  return { houses, lamps, props, trees, poles, park, blocked, gateAt, signposts };
+  return { houses, lamps, props, trees, poles, park, blocked, gateAt, wallAcross, signposts };
 }
 
 // everything in [s0, s1)

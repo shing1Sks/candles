@@ -103,7 +103,7 @@ function stream(force = false) {
 // ---------------------------------------------------------------- the player
 const input = new Input();
 const player = makePlayer(Number(Q.get('s') || 0), Number(Q.get('l') || 3.3));
-player.blocked = town.blocked;
+player.blocked = town.blocked; player.wallAcross = town.wallAcross;
 renderer.info.autoReset = false;
 if (Q.has('yaw')) player.yaw = Number(Q.get('yaw'));
 if (Q.has('pitch')) player.pitch = Number(Q.get('pitch'));
@@ -195,7 +195,8 @@ function frame(now) {
   // lightning, up the hill in the rain: the whole street white for an instant (and if he's in view, you
   // see him, wherever he is), then dark, then the thunder rolling down the valley
   { const L = ectx.light2 ||= { next: 25 + Math.random() * 30, t: -1 };
-    if ((fx.rainLevel || 0) > 0.6 && caughtT < 0 && !ending.stillScene) { L.next -= dt; if (L.next < 0 && L.t < 0) { L.t = 0; L.next = 35 + Math.random() * 45; emit('lightning', {}); } }
+    if (ending.state !== 'waiting' && L.t >= 0) { L.t = -1; tall.flashLit = false; post.U.uFlash.value = 0; }
+    if ((fx.rainLevel || 0) > 0.6 && caughtT < 0 && ending.state === 'waiting') { L.next -= dt; if (L.next < 0 && L.t < 0) { L.t = 0; L.next = 35 + Math.random() * 45; emit('lightning', {}); } }
     if (L.t >= 0) { L.t += dt; const k = L.t < 0.08 ? 1 : L.t < 0.16 ? 0.15 : L.t < 0.24 ? 0.7 : Math.max(0, 1 - (L.t - 0.24) * 4); if (ending.state === 'waiting') post.U.uFlash.value = k * 0.32; tall.flashLit = k > 0.5; if (L.t > 0.6) { L.t = -1; tall.flashLit = false; } } }
   // the night, counted (for the last words on the credits)
   { const ns = nightStats, fz = camera.getWorldDirection(_fw).z; if (fz > 0.5 && !ns.wasBack && caughtT < 0) { ns.looks++; ns.wasBack = true; } else if (fz < 0.4) ns.wasBack = false; ns.time = director.t;
@@ -210,7 +211,7 @@ function frame(now) {
     if (player.sitting) {
       inp.carry && (inp.carry = false, player.sitting = false);
       if (inp.move.x || inp.move.z || (tall.active && tall.mode !== 'glimpse')) player.sitting = false;
-      if (player.sitting) { inp.move.x = inp.move.z = 0; inp.run = false; director.fear *= 1 - dt * 0.12; player.stamina = Math.min(1, player.stamina + dt * 0.15); if (sound.ok) { sound.mbOn = true; sound.mbT = Math.max(sound.mbT || 0, 5); } }
+      if (player.sitting) { inp.move.x = inp.move.z = 0; inp.run = false; player.pull = null; player.vx = player.vz = 0; director.fear *= 1 - dt * 0.12; player.stamina = Math.min(1, player.stamina + dt * 0.15); if (sound.ok) { sound.mbOn = true; sound.mbT = Math.max(sound.mbT || 0, 5); } }
     } else if (B && !(tall.active && tall.mode !== 'glimpse')) {
       if (!Q.has('go') || Q.has('hints')) hint('bench', 'E to sit on the bench a moment.', 4);
       if (inp.carry && !dog.carried) { inp.carry = false; player.sitting = true; const p = roadAt(B.s, B.l - 0.15); player.x = p.x; player.z = p.z; player.vx = player.vz = 0; }
@@ -225,7 +226,7 @@ function frame(now) {
   const hand = vm.hold.getWorldPosition(new THREE.Vector3());
   const om = director.omenPt, omenT = om ? [{ x: om.x, z: om.z, d: 19, seen: true, kind: 'omen' }] : [];
   const threats = omenT.length && !tall.active ? omenT : tall.active && tall.mode !== 'glimpse' ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z), seen: tall.seen, kind: 'tall' }] : tall.active ? [{ x: tall.x, z: tall.z, d: Math.hypot(tall.x - player.x, tall.z - player.z) + 12, seen: tall.seen, kind: 'tall' }] : [];
-  stepDog(dog, player, inp, dt, { pois, threats, hand: { x: hand.x, z: hand.z }, time: U.uTime.value, calm: director.phase === 'calm' || director.phase === 'after', wet: fx.rainLevel || 0, watched: dogWatched(), quiet: (director.dogQuiet || 0) > director.t && !tall.active, park: regionAt(player.s).id === 'parkEdge', blocked: town.blocked, gateAt: town.gateAt, obstacles }, emit, dogRng);
+  stepDog(dog, player, inp, dt, { pois, threats, hand: { x: hand.x, z: hand.z }, time: U.uTime.value, calm: director.phase === 'calm' || director.phase === 'after', wet: fx.rainLevel || 0, watched: dogWatched(), quiet: (director.dogQuiet || 0) > director.t && !tall.active, park: regionAt(player.s).id === 'parkEdge', blocked: town.blocked, gateAt: town.gateAt, wallAcross: town.wallAcross, obstacles }, emit, dogRng);
   }
   // noise he can hear: barking, running
   noise.length = 0;

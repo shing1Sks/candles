@@ -225,6 +225,11 @@ function park(kit, group, town, s0, s1, anim) {
     kit.add(xf(cyl(0.012, 0.012, 1.3, 5), b.x, b.y + 0.65, b.z), 'metal', 0x16181a);
     kit.add(xf(cone(0.028, 0.1, 5), b.x, b.y + 1.33, b.z), 'metal', 0x16181a);
   }
+  // and across each end of the park, railings from the line back to the house fronts (it's closed)
+  for (const e of [950, BRIDGE.from - 7, BRIDGE.to + 7, 1250]) if (e >= s0 && e < s1) {
+    for (let l = 4.95; l < 24; l += 0.14) { const b = roadAt(e, l); kit.add(xf(cyl(0.012, 0.012, 1.3, 5), b.x, b.y + 0.65, b.z), 'metal', 0x16181a); kit.add(xf(cone(0.028, 0.1, 5), b.x, b.y + 1.33, b.z), 'metal', 0x16181a); }
+    const b = roadAt(e, 4.95); kit.add(xf(box(0.42, 1.5, 0.42), b.x, b.y + 0.75, b.z), 'slab', 0xa8a49c); kit.add(xf(sphere(0.2, 10, 8), b.x, b.y + 1.65, b.z), 'slab', 0xa8a49c);
+  }
   for (const G of [P.gate, P.gate2]) if (G.s >= s0 && G.s < s1) {
     // the gate: an iron arch, the gates standing open
     const a = roadAt(G.s - 1.6, 4.95), b = roadAt(G.s + 1.6, 4.95);

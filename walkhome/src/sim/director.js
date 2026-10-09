@@ -194,7 +194,7 @@ export function stepDirector(D, ctx, dt, emit) {
 
 // you were caught: wake under the last lamp you passed, Biscuit pressed against your legs
 export function respawn(D, P, tall, dog, emit) {
-  D.dogQuiet = 0;
+  D.dogQuiet = 0; P.sitting = false;
   // the nearest lamp behind you (within reach) is the one you wake under; it's on again
   const back = D.lamps.filter((L) => L.s < P.s && L.s > P.s - 38).sort((a, b) => b.s - a.s)[0];
   if (back) { back.on = 1; back.dying = 0; back.flick = 0.5; D.checkpoint = { s: back.s + 1.5, l: back.side * 2.6 }; }
