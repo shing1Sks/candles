@@ -14,6 +14,7 @@ import { ROAD, at as roadAt, N as roadN, T as roadT, C as roadC, height } from '
 import { BRIDGE, HOME, POSTERS } from '../sim/town.js';
 import { box, cyl, cone, sphere, tube, limb, xf, V3 } from './kit.js';
 import { U, inject, depthFor } from './materials.js';
+import { WIN_U } from './windows.js';
 
 // a mesh that belongs to a leaning house: built in the house's frame, given the house's lean
 function leanMesh(geo, mat, F, x, y, z, ry = 0) {
@@ -146,15 +147,17 @@ function shopWindow(group, kit, F, sf, o, anim) {
   AL(xf(box(d, 0.06, W), x0 - d / 2, y0 + H, z), 'paintL', 0x2a2420);
   // what's in it
   if (name === 'TOYS & GAMES') {
-    const face = new THREE.MeshStandardMaterial({ map: dollFaceTex(), roughness: 0.35 });
+    const face = new THREE.MeshStandardMaterial({ map: dollFaceTex(), roughness: 0.35 }), dolls = [];
+    // once the night has turned, their heads follow you as you go past (all but the one facing the wall)
+    anim.push((t, dt) => { const evil = WIN_U.uEvil.value, pl = WIN_U.uPlayer.value; for (const d of dolls) { const h = d.head, want = evil > 0.3 && Math.hypot(pl.x - h.position.x, pl.z - h.position.z) < 18 ? Math.atan2(-(pl.z - h.position.z), pl.x - h.position.x) : d.rest; /* (the face is the head's local +x) */ let df = want - h.rotation.y; while (df > Math.PI) df -= Math.PI * 2; while (df < -Math.PI) df += Math.PI * 2; h.rotation.y += df * Math.min(1, (dt || 0.016) * 1.2); } });
     for (let row = 0; row < 3; row++) {
       A(xf(box(0.3, 0.03, W - 0.1), x0 - 0.5, y0 + 0.35 + row * 0.5, z), 'wood', 0x5a4030);
       for (let k = 0; k < Math.floor(W / 0.32); k++) {
         const zz = z - W / 2 + 0.2 + k * 0.32, yy = y0 + 0.37 + row * 0.5, dress = r.pick([0xb04050, 0x4060a0, 0xe0d0b0, 0x60a070, 0x8a4ab0]);
         A(xf(cone(0.08, 0.24, 10), x0 - 0.5, yy + 0.12, zz), 'cloth', dress);
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.065, 14, 10), face);
-        const hp = P(x0 - 0.5, yy + 0.3, zz); head.position.copy(hp); head.rotation.y = F.rotY + (row === 1 && k === 2 ? Math.PI : 0); // one of them faces the wrong way
-        head.castShadow = true; group.add(head);
+        const hp = P(x0 - 0.5, yy + 0.3, zz); head.position.copy(hp); const wrong = row === 1 && k === 2; head.rotation.y = F.rotY + (wrong ? Math.PI : 0); // one of them faces the wrong way
+        head.castShadow = false; head.userData.dynamic = true; group.add(head); if (!wrong) dolls.push({ head, rest: head.rotation.y });
         A(xf(sphere(0.07, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), x0 - 0.5, yy + 0.31, zz), 'cloth', r.pick([0x3a2418, 0xd8b060, 0x1a1a1a, 0x8a3a20]));
       }
     }
