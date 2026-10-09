@@ -138,7 +138,7 @@ export class Sound {
     // the hunt: a tone that rises and rises and never arrives; and under everything while he's
     // about, a slow beating in the floor of the sound, stronger the nearer he is
     const shep = this.loop('shep', 'syn_shepard', { gain: 0, bus: 'music', verb: 0.3, offset: 0 });
-    if (shep) shep.set(S.director.phase === 'hunt' && !pre ? 0.22 : 0, S.director.phase === 'hunt' ? 2 : 0.6);
+    if (shep) shep.set(S.director.phase === 'hunt' && !pre ? 0.12 : 0, S.director.phase === 'hunt' ? 2 : 0.6);
     const dr = this.loop('dread', 'syn_dread', { gain: 0, bus: 'music', verb: 0 });
     if (dr) { const T = S.tall, dd = T.active && !T.vanished ? Math.hypot(T.x - S.player.x, T.z - S.player.z) : 99; dr.set(Math.max(0, 1 - dd / 32) * 0.55, 1.2); }
     // the music box: Biscuit's tune, in the quiet. Fear slows it and bends it out of tune; when he

@@ -460,7 +460,7 @@ E.towpath = {
       // he turns his face to follow you across the bridge
       g.rotation.y = Math.atan2(-(c.camera.position.x - g.position.x), -(c.camera.position.z - g.position.z));
       if (this.seenFor > 1.0 && !seen) { this.state = 'gone'; this.t = 0; g.visible = false; this.light.power = 0.15;
-        c.sound?.one('syn_splash', { pos: { x: g.position.x, y: g.position.y, z: g.position.z }, gain: 0.9, slice: false, verb: 0.6, ref: 6, at: 0.35 }); }
+        c.sound?.one('syn_splash', { pos: { x: g.position.x, y: g.position.y, z: g.position.z }, gain: 1.0, slice: false, verb: 0.6, ref: 12, roll: 0.6, at: 0.35 }); }
       return c.P.s > BRIDGE.to + 25 || this.t > 70;
     }
     return this.t > 8;
