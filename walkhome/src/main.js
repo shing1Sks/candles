@@ -148,6 +148,8 @@ const stats = document.getElementById('stats'); if (Q.has('stats')) stats.style.
 const fear = { v: Number(Q.get('fear') || 0) };
 
 const airLamps = [];
+// the same test the window shader makes for a room that's gone dark for the night
+const lateDark = (seed) => { const f = (seed * 0.618034) % 1; return f < WIN_U.uLate.value * 0.65; };
 // are you looking at Biscuit? (near the middle of your view)
 const _dv = new THREE.Vector3(), _fw = new THREE.Vector3();
 function dogWatched() { camera.getWorldDirection(_fw); _dv.set(dog.x - camera.position.x, dog.y + 0.3 - camera.position.y, dog.z - camera.position.z); const d = _dv.length(); return d < 6 && _fw.dot(_dv) / d > 0.95; }
@@ -160,10 +162,11 @@ function lightsNow() {
       if (st.flick > 0 && st.on && !st.dying) st.flick = Math.max(0, st.flick - 0.016);
       const lv = st.on * st.level;
       const col = L.col ??= lampColour(L.region);
-      if (L.bulbMesh) { L.bulbMesh.material.color.setRGB(col[0] * lv + 0.05, (0.3 + col[1] * 0.85) * lv + 0.05, (0.2 + col[2] * 0.8) * lv + 0.06); L.beam.visible = lv > 0.02; const bu = L.beam.userData.mat.uniforms; bu.uI.value = lv; if (!L.colSet) { L.colSet = true; bu.uColor.value.setRGB(col[0], col[1] * 1.03, col[2] * 1.1); } }
+      if (L.bulbMesh) { L.bulbMesh.material.color.setRGB(col[0] * lv + 0.05, (0.3 + col[1] * 0.85) * lv + 0.05, (0.2 + col[2] * 0.8) * lv + 0.06); L.beam.visible = lv > 0.02; const bu = L.beam.userData.mat.uniforms; bu.uI.value = lv; if (L.colBeam !== L.beam) { L.colBeam = L.beam; bu.uColor.value.setRGB(col[0], col[1] * 1.03, col[2] * 1.1); } }
       if (lv > 0.01 && L.bulb) { out.push({ pos: L.bulb, color: col, power: lv, cone: 1, kind: 'lamp' }); const d = L.bulb.distanceTo(camera.position); if (d < 75) airLamps.push({ pos: L.bulb, ground: L.ground ??= groundAt(L.bulb.x, L.bulb.z), color: col, level: lv, d }); }
     }
     for (const l of seg.lights) { if (l.tv) { const t = U.uTime.value; l.power = l.base * (0.45 + 0.35 * Math.sin(t * 7.3 + l.seed) * Math.sin(t * 2.1 + l.seed * 3) + 0.25 * (Math.sin(t * 23 + l.seed) > 0.7 ? 1 : 0)); }
+      if (l.kind === 'window' && l.seed !== undefined && lateDark(l.seed)) continue; // (gone to bed)
       if (l.kind === 'window' && WIN_U.uLightsOut.value.z > 0.5) { const w = WIN_U.uLightsOut.value; if (l.pos.z >= Math.min(w.x, w.y) && l.pos.z <= Math.max(w.x, w.y)) continue; } out.push(l); }
   }
   for (const l of extraLights) { l.prio = 6; out.push(l); }
@@ -190,7 +193,7 @@ function frame(now) {
   if (auto) { auto.t += dt; const stop = Math.sin(auto.t * 0.21) > 0.85; inp.move.z = stop ? 0 : -1; const wantL = 2.6 + Math.sin(auto.t * 0.13) * 1.4; inp.look.yaw = (-(wantL - player.l) * 0.02 - player.yaw * 0.05) ; }
   let t0 = performance.now();
   // the night, counted (for the last words on the credits)
-  { const ns = nightStats, back = camera.getWorldDirection(_fw).z > 0.45; if (back && !ns.wasBack) ns.looks++; ns.wasBack = back; ns.time = director.t;
+  { const ns = nightStats, fz = camera.getWorldDirection(_fw).z; if (fz > 0.5 && !ns.wasBack && caughtT < 0) { ns.looks++; ns.wasBack = true; } else if (fz < 0.4) ns.wasBack = false; ns.time = director.t;
     for (const e of events) if (e.id > (ns.seen || 0)) { if (e.name === 'blink') ns.blinks++; if (e.name === 'respawn') ns.caught++; if (e.name === 'lostDog') ns.lost = true; } ns.seen = evId; }
   const home = ending.update(dt, { P: player, D: dog, tall, director, extraLights, post, sound: sound.ok ? sound : null, caught: false, stats: nightStats });
   if (home && !ending.musicOn && sound.ok) { ending.musicOn = true; for (const k of ['mus_1', 'mus_2', 'mus_3', 'bed_whistle', 'bed_creak']) sound.loops.get(k)?.set(0, 1); sound.stream('end', '/audio/licensed/music_memory_music_box_choir.ogg', { gain: 0.6, bus: 'music' }); }
@@ -226,7 +229,7 @@ function frame(now) {
     // him, peering round a tree up ahead
     if (e.data.kind === 'peek') { const t = town.trees.find((tr) => tr.s > player.s + 12 && tr.s < player.s + 26 && Math.abs(tr.l) > 6 && Math.abs(tr.l) < 12);
       if (t) { const b = roadAt(t.s, t.l), dx = b.x - player.x, dz = b.z - player.z, d = Math.hypot(dx, dz); Object.assign(peek, { on: true, t: 0, seen: 0, out: 0.5, side: Math.random() < 0.5 ? -1 : 1, bx: b.x, by: b.y, bz: b.z, fx: dx / d, fz: dz / d }); } }
-    if (e.data.kind === 'tallWindow') { let best = null; for (const seg of segs.values()) for (const l of seg.lights) if (l.kind === 'window' && !l.tv && l.pos.y - player.y < 2.6) { const s = -l.pos.z; /* (ground floor: from the street you can't see into an upstairs room) */ if (s > player.s + 10 && s < player.s + 50 && (!best || Math.abs(s - player.s - 18) < Math.abs(-best.pos.z - player.s - 18))) best = l; }
+    if (e.data.kind === 'tallWindow') { let best = null; for (const seg of segs.values()) for (const l of seg.lights) if (l.kind === 'window' && !l.tv && l.pos.y - player.y < 2.6 && !lateDark(l.seed)) { const s = -l.pos.z; /* (ground floor: from the street you can't see into an upstairs room) */ if (s > player.s + 10 && s < player.s + 50 && (!best || Math.abs(s - player.s - 18) < Math.abs(-best.pos.z - player.s - 18))) best = l; }
       if (best) { WIN_U.uTallWin.value.set(best.pos.x, best.pos.y, best.pos.z, 1); ectx.tallWin = { x: best.pos.x, z: best.pos.z, t: 0 }; } }
   }
   if (ectx.tallWin) { const w = ectx.tallWin; w.t += dt; if (w.t > 16 || Math.hypot(w.x - player.x, w.z - player.z) < 5) { WIN_U.uTallWin.value.w = 0; ectx.tallWin = null; } }
@@ -340,6 +343,7 @@ function frame(now) {
   tallView.update(tall, dt, camera);
   // the peek: he stands behind the trunk, leaning out sideways so his head and a shoulder show; held in
   // your eyes a moment, he leans back in and he's gone; walked up to, he's gone
+  if (peek.on && tall.active && tall.mode !== 'glimpse') peek.t = 99;
   if (peek.on) {
     peek.t += dt; const rx = peek.fz * peek.side, rz = -peek.fx * peek.side, R = peekView.root;
     R.visible = true; R.position.set(peek.bx + peek.fx * 0.45 + rx * peek.out * 0.4, peek.by - 0.05, peek.bz + peek.fz * 0.45 + rz * peek.out * 0.4);

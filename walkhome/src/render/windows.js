@@ -52,7 +52,7 @@ const FRAG = /* glsl */`
   vec3 pal(float t) { return vec3(0.5) + vec3(0.35, 0.3, 0.3) * cos(6.283 * (vec3(0.9, 0.8, 0.7) * t + vec3(0.0, 0.15, 0.3))); }
 
   void main() {
-    float seed = vRoom.x, lit = vRoom.y * (1.0 - inWave(uLightsOut, vCenter.z)) * max(step(uLate * 0.65, fract(sin(seed * 41.3) * 43758.5)), step(1.0005, vRoom.y)), kind = vRoom.z, /* (home's windows stay lit) */ curtain = max(vRoom.w, inWave(uCurtainWave, vCenter.z));
+    float seed = vRoom.x, lit = vRoom.y * (1.0 - inWave(uLightsOut, vCenter.z)) * max(step(uLate * 0.65, fract(seed * 0.618034)), step(1.0005, vRoom.y)), kind = vRoom.z, /* (home's windows stay lit) */ curtain = max(vRoom.w, inWave(uCurtainWave, vCenter.z));
     float W = vSize.x, H = vSize.y, D = vSize.z, shape = vSize.w;
     vec2 q = vUv - 0.5;
     // the opening's shape

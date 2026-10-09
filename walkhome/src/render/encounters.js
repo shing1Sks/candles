@@ -446,7 +446,7 @@ E.towpath = {
   start(c) {
     if (c.P.s > 1098) return false;
     const w = roadAt(BRIDGE.water, 0), wy = height(BRIDGE.water) - 4.4, side = Math.random() < 0.5 ? -1 : 1, bank = Math.random() < 0.5 ? -1 : 1;
-    this.g = strangerModel(); this.g.position.set(w.x + side * (16 + Math.random() * 8), wy + 0.65, w.z + bank * (BRIDGE.width / 2 - 1.15));
+    this.g = strangerModel(); this.g.position.set(w.x + side * (16 + Math.random() * 8), wy + 0.65, w.z + bank * (BRIDGE.width / 2 - 0.05));
     this.g.userData.head.rotation.x = -0.55;                        // looking up
     this.g.rotation.y = Math.atan2(-(w.x - this.g.position.x), -(w.z - this.g.position.z)); c.scene.add(this.g);
     this.light = { pos: V3(this.g.position.x + side * 1.5, wy + 2.6, this.g.position.z), color: [1.0, 0.75, 0.45], power: 0.9, cone: 0, kind: 'boat' }; c.extraLights.push(this.light);
@@ -491,6 +491,7 @@ export class Deck {
     let id = null;
     if (!this.ran.has('gnome') && c.P.s > 25 && c.P.s < 160) id = 'gnome';
     else if (!this.ran.has('towpath') && c.P.s > 1072 && c.P.s < 1096 && !c.tall?.active) id = 'towpath'; // (the bridge has its own)
+    else if (bridgeTime && c.P.s < this.nextS) return;
     else {
       const R = regionAt(c.P.s).id, ph = c.director.phase;
       const busy = c.tall?.active; // while he's about, only the quiet wrongness, not people

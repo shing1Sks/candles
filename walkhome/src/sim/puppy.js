@@ -8,6 +8,7 @@
 // Stroking him (F) or carrying him (E) calms him. The lead is 2.4 m: when he wants to go further
 // he pulls you; tug it (right mouse) and he comes.
 import { ROAD, toRoad, at, groundAt } from './road.js';
+import { BRIDGE } from './town.js';
 
 export const DOG = { lead: 2.4, trot: 1.6, run: 3.4, accel: 6, stride: 0.36, sniffMin: 2.5, sniffMax: 5.5, poiCooldown: 40 };
 
@@ -195,6 +196,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
     const crossing = (Math.abs(was) <= EDGE) !== (Math.abs(rc.l) <= EDGE);
     if (crossing && world.blocked(rc.s, side)) { const c = at(rc.s, side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16)); nx = c.x; nz = c.z; rc.l = side * (Math.abs(was) <= EDGE ? EDGE - 0.16 : EDGE + 0.16); }
   }
+  if (rc.s > BRIDGE.from - 1 && rc.s < BRIDGE.to + 1 && Math.abs(rc.l) > 4.55) { const c = at(rc.s, Math.sign(rc.l) * 4.55); nx = c.x; nz = c.z; rc.l = Math.sign(rc.l) * 4.55; } // (the bridge parapet)
   // round things (lamp posts, bins, parked cars): he goes round them
   if (world.obstacles) for (const o of world.obstacles) {
     const ox = nx - o.x, oz = nz - o.z, r = o.r + 0.16, d2 = ox * ox + oz * oz;

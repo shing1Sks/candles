@@ -88,7 +88,7 @@ const FRAG = /* glsl */`
     // a shooting star: a short bright streak sliding along a great circle, fading at both ends
     if (uMeteor.w >= 0.) {
       vec3 a = normalize(uMeteor.xyz), b = normalize(uMeteorDir), head = normalize(a + b * uMeteor.w * 0.5), tail = normalize(a + b * max(0., uMeteor.w * 0.5 - 0.08));
-      vec3 ab = head - tail; float h = clamp(dot(d - tail, ab) / dot(ab, ab), 0., 1.); float dd = length(d - tail - ab * h);
+      vec3 ab = head - tail; float h = clamp(dot(d - tail, ab) / max(dot(ab, ab), 1e-8), 0., 1.); float dd = length(d - tail - ab * h);
       col += vec3(1.0, 0.95, 0.85) * exp(-dd * dd / 0.0000035) * h * sin(uMeteor.w * 3.14159) * 3.0;
     }
     col = mix(col, cloudCol, cl * 0.94);

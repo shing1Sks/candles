@@ -2,6 +2,7 @@
 // he's out of breath. Eye height 1.05 m, 0.62 crouched. The road keeps him in: he can walk on the
 // road, the pavement and into front gardens, not through houses, lamp posts, bins or hedges.
 import { ROAD, toRoad, at, groundAt } from './road.js';
+import { BRIDGE } from './town.js';
 
 export const PLAYER = { walk: 1.45, run: 3.3, crouch: 0.75, carryWalk: 1.3, carryRun: 2.5, eye: 1.05, eyeCrouch: 0.62, radius: 0.22, accel: 7, staminaDrain: 0.16, staminaCarry: 0.24, staminaRegen: 0.1 };
 
@@ -40,6 +41,8 @@ export function stepPlayer(P, input, dt, obstacles) {
   if (P.blocked && Math.abs(l) > EDGE + 0.05 && Math.abs(P.l) > EDGE + 0.05) { // inside a garden: its side boundaries are the next garden's
     const was = P.s; if (P.blocked(s, Math.sign(l)) && !P.blocked(was, Math.sign(l))) { /* allowed: moving within the garden */ }
   }
+  // the bridge's parapet: no stepping off over the canal
+  if (s > BRIDGE.from - 1 && s < BRIDGE.to + 1 && Math.abs(l) > 4.6) { const c = at(s, Math.sign(l) * 4.6); nx = c.x; nz = c.z; l = Math.sign(l) * 4.6; }
   if (s < -4) { const c = at(-4, l); nx = c.x; nz = c.z; s = -4; }
   if (s > ROAD.homeS - 1.2) { const c = at(ROAD.homeS - 1.2, l); nx = c.x; nz = c.z; s = ROAD.homeS - 1.2; } // home's garden fence
   // round things: push out

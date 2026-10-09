@@ -27,7 +27,7 @@ const OMENS = [
 function omen(D, ctx, emit) {
   const { P, rng, dog } = ctx, R = regionAt(P.s).id;
   const flickL = D.lamps.find((l) => l.on && !l.dying && l.s > P.s + 6 && l.s < P.s + 40);
-  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3));
+  const pool = OMENS.filter(([k, , rs]) => (!rs || rs.includes(R)) && k !== D.lastOmen && !(k === 'flicker' && !flickL) && !(k === 'dogStare' && (dog.carried || dog.lost)) && !(k === 'figure' && (D.omenCount.figure || 0) >= 3) && !((k === 'peek' || k === 'tallWindow') && D.glimpse !== 'done'));
   const w = (o) => o[1] / (1 + (D.omenCount[o[0]] || 0) * 0.8); // each one rarer the more it's happened
   let r = rng.range(0, pool.reduce((a, o) => a + w(o), 0)), kind = pool[0][0];
   for (const o of pool) { r -= w(o); if (r <= 0) { kind = o[0]; break; } }
@@ -136,6 +136,7 @@ export function stepDirector(D, ctx, dt, emit) {
   const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost && !D.finale;
   // Biscuit hears him first: a few seconds before he comes, the dog stops and stares back the way you
   // came, ears up, a low growl. Then the whistle
+  if (!canVisit) D.heardAt = 0;
   if (canVisit && !D.heardAt) { D.heardAt = D.t + 2.8; const p = at(P.s - 38, 0); D.omenPt = { x: p.x, z: p.z, until: D.t + 3.2 }; }
   if (canVisit && D.t < D.heardAt) { /* waiting: the dog has heard something */ }
   else if (canVisit) {
