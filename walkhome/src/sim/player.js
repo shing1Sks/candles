@@ -38,11 +38,13 @@ export function stepPlayer(P, input, dt, obstacles) {
   // a garden wall or fence along the back of the pavement, unless you're at the gate (or already inside)
   const EDGE = 4.82;
   if (P.blocked && Math.abs(l) > EDGE && Math.abs(P.l) <= EDGE + 0.05 && P.blocked(s, Math.sign(l))) { const c = at(s, Math.sign(l) * EDGE); nx = c.x; nz = c.z; l = Math.sign(l) * EDGE; }
-  if (P.blocked && Math.abs(l) > EDGE + 0.05 && Math.abs(P.l) > EDGE + 0.05) { // inside a garden: its side boundaries are the next garden's
-    const was = P.s; if (P.blocked(s, Math.sign(l)) && !P.blocked(was, Math.sign(l))) { /* allowed: moving within the garden */ }
-  }
+  // and from inside (a garden, the park), out only by the gate
+  if (P.blocked && Math.abs(P.l) > EDGE + 0.05 && Math.abs(l) <= EDGE + 0.05 && Math.sign(l) === Math.sign(P.l) && P.blocked(s, Math.sign(P.l))) { const c = at(s, Math.sign(P.l) * (EDGE + 0.1)); nx = c.x; nz = c.z; l = Math.sign(P.l) * (EDGE + 0.1); }
   // the bridge's parapet: no stepping off over the canal
-  if (s > BRIDGE.from - 1 && s < BRIDGE.to + 1 && Math.abs(l) > 4.6) { const c = at(s, Math.sign(l) * 4.6); nx = c.x; nz = c.z; l = Math.sign(l) * 4.6; }
+  if (s > BRIDGE.from - 1 && s < BRIDGE.to + 1 && Math.abs(l) > 4.6) {
+    if (P.s <= BRIDGE.from - 1 || P.s >= BRIDGE.to + 1) { s = P.s <= BRIDGE.from - 1 ? BRIDGE.from - 1 : BRIDGE.to + 1; const c = at(s, l); nx = c.x; nz = c.z; } /* (walking at the bank: the canal stops you) */
+    else { const c = at(s, Math.sign(l) * 4.6); nx = c.x; nz = c.z; l = Math.sign(l) * 4.6; }
+  }
   if (s < -4) { const c = at(-4, l); nx = c.x; nz = c.z; s = -4; }
   if (s > ROAD.homeS - 1.2) { const c = at(ROAD.homeS - 1.2, l); nx = c.x; nz = c.z; s = ROAD.homeS - 1.2; } // home's garden fence
   // round things: push out

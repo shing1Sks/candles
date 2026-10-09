@@ -219,15 +219,15 @@ function park(kit, group, town, s0, s1, anim) {
   // railings along the park side, with stone pillars; a gap and a gate at the entrance
   for (let s = Math.max(950, s0); s < Math.min(1250, s1); s += 0.14) {
     if (s > BRIDGE.from - 7 && s < BRIDGE.to + 7) continue;
-    if (Math.abs(s - P.gate.s) < 1.6) continue;
+    if (Math.abs(s - P.gate.s) < 1.6 || Math.abs(s - P.gate2.s) < 1.6) continue;
     const b = roadAt(s, 4.95);
     if (Math.abs(((s - 950) % 9)) < 0.14) { kit.add(xf(box(0.42, 1.5, 0.42), b.x, b.y + 0.75, b.z), 'slab', 0xa8a49c); kit.add(xf(sphere(0.2, 10, 8), b.x, b.y + 1.65, b.z), 'slab', 0xa8a49c); continue; }
     kit.add(xf(cyl(0.012, 0.012, 1.3, 5), b.x, b.y + 0.65, b.z), 'metal', 0x16181a);
     kit.add(xf(cone(0.028, 0.1, 5), b.x, b.y + 1.33, b.z), 'metal', 0x16181a);
   }
-  if (P.gate.s >= s0 && P.gate.s < s1) {
+  for (const G of [P.gate, P.gate2]) if (G.s >= s0 && G.s < s1) {
     // the gate: an iron arch, the gates standing open
-    const a = roadAt(P.gate.s - 1.6, 4.95), b = roadAt(P.gate.s + 1.6, 4.95);
+    const a = roadAt(G.s - 1.6, 4.95), b = roadAt(G.s + 1.6, 4.95);
     for (const p of [a, b]) { kit.add(xf(box(0.55, 2.4, 0.55), p.x, p.y + 1.2, p.z), 'slab', 0xa8a49c); kit.add(xf(sphere(0.25, 10, 8), p.x, p.y + 2.6, p.z), 'slab', 0xa8a49c); }
     const arch = []; for (let i = 0; i <= 20; i++) { const t = i / 20; const p = a.clone ? null : null; const q = V3(a.x + (b.x - a.x) * t, a.y + 2.5 + Math.sin(t * Math.PI) * 0.9, a.z + (b.z - a.z) * t); arch.push(q); }
     kit.add(tube(arch, 0.03, 30, 5), 'metal', 0x16181a);

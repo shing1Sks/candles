@@ -110,11 +110,13 @@ export function buildTown(seed) {
   for (let s = 950; s < 1250; s += rng.range(5, 9)) { if (s > BRIDGE.from - 8 && s < BRIDGE.to + 8) continue; if (Math.abs(s - 1012) < 14 || Math.abs(s - 1190) < 10) continue; trees.push({ s, l: rng.range(8, 22), h: rng.range(9, 14), seed: rng.int(0, 1e9), park: true }); }
 
   // the park: a playground, benches, a pond, bins, behind railings on the right
-  const park = { playground: { s: 1012, l: 11 }, pond: { s: 1190, l: 14, r: 7 }, benches: [{ s: 980, l: 6.2 }, { s: 1050, l: 6.2 }, { s: 1160, l: 6.2 }, { s: 1230, l: 6.2 }], gate: { s: 1000 } };
+  const park = { playground: { s: 1012, l: 11 }, pond: { s: 1190, l: 14, r: 7 }, benches: [{ s: 980, l: 6.2 }, { s: 1050, l: 6.2 }, { s: 1160, l: 6.2 }, { s: 1230, l: 6.2 }], gate: { s: 1000 }, gate2: { s: 1172 } };
   // the garden boundaries are solid: you can only go into a garden through its gate
   const edges = { '-1': [], '1': [] };
   for (const o of houses) if (o.boundary !== 'none' && !o.shop) edges[o.side].push({ a: o.s - o.w / 2 - 0.6, b: o.s + o.w / 2 + 0.6, gate: o.s + o.side * o.doorZ });
-  const blocked = (s, side) => { for (const e of edges[side]) if (s > e.a && s < e.b) return Math.abs(s - e.gate) > 0.55; return false; };
+  // and the park's railings are solid too, except at its two gates (one each side of the canal)
+  edges['1'].push({ a: 950, b: BRIDGE.from - 7, gate: park.gate.s, gw: 1.4 }, { a: BRIDGE.to + 7, b: 1250, gate: park.gate2.s, gw: 1.4 });
+  const blocked = (s, side) => { for (const e of edges[side]) if (s > e.a && s < e.b) return Math.abs(s - e.gate) > (e.gw || 0.55); return false; };
   // the gate in the boundary at s (for Biscuit, who has to go round by it like you do)
   const gateAt = (s, side) => { for (const e of edges[side]) if (s > e.a - 1 && s < e.b + 1) return e.gate; return null; };
   return { houses, lamps, props, trees, poles, park, blocked, gateAt, signposts };

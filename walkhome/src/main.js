@@ -203,6 +203,19 @@ function frame(now) {
   const home = ending.update(dt, { P: player, D: dog, tall, director, extraLights, post, sound: sound.ok ? sound : null, caught: false, stats: nightStats });
   if (home && !ending.musicOn && sound.ok) { ending.musicOn = true; for (const k of ['mus_1', 'mus_2', 'mus_3', 'bed_whistle', 'bed_creak']) sound.loops.get(k)?.set(0, 1); sound.stream('end', '/audio/licensed/music_memory_music_box_choir.ogg', { gain: 0.6, bus: 'music' }); }
   if (!home) {
+  // a bench in the park: E to sit. Biscuit settles at your feet, the music box plays, your breath comes
+  // back and the fear eases, and you're sitting still in the open. If he comes, you're up at once
+  if (caughtT < 0) {
+    const B = town.park.benches.find((b) => Math.abs(b.s - player.s) < 1.6 && Math.abs(b.l - player.l) < 1.3);
+    if (player.sitting) {
+      inp.carry && (inp.carry = false, player.sitting = false);
+      if (inp.move.x || inp.move.z || (tall.active && tall.mode !== 'glimpse')) player.sitting = false;
+      if (player.sitting) { inp.move.x = inp.move.z = 0; inp.run = false; director.fear *= 1 - dt * 0.12; player.stamina = Math.min(1, player.stamina + dt * 0.15); if (sound.ok) { sound.mbOn = true; sound.mbT = Math.max(sound.mbT || 0, 5); } }
+    } else if (B && !(tall.active && tall.mode !== 'glimpse')) {
+      if (!Q.has('go') || Q.has('hints')) hint('bench', 'E to sit on the bench a moment.', 4);
+      if (inp.carry && !dog.carried) { inp.carry = false; player.sitting = true; const p = roadAt(B.s, B.l - 0.15); player.x = p.x; player.z = p.z; player.vx = player.vz = 0; }
+    }
+  }
   // at a front door, facing it: E rings the bell (instead of picking Biscuit up)
   { const door = caughtT < 0 ? doors.at(player, camera.getWorldDirection(_fw)) : null;
     if (door) { if (!Q.has('go') || Q.has('hints')) hint('door', 'E to ring the bell.', 4); if (inp.carry) { inp.carry = false; doors.ring(door, { sound: sound.ok ? sound : null, emit, P: player, D: dog }); } }
@@ -286,7 +299,8 @@ function frame(now) {
   stream();
   pm('stream', t0);
   // camera: child's eye, a small bounce in the step, a little sway
-  const eye = PLAYER.eye + (PLAYER.eyeCrouch - PLAYER.eye) * player.crouch;
+  ectx.sitK = (ectx.sitK || 0) + ((player.sitting ? 1 : 0) - (ectx.sitK || 0)) * Math.min(1, dt * 4);
+  const eye = PLAYER.eye + (PLAYER.eyeCrouch - PLAYER.eye) * player.crouch - 0.1 * ectx.sitK; // (sat on the bench, swinging your feet)
   const sp = Math.min(1, player.speed / 3.3);
   bob = Math.sin(player.phase * Math.PI) * 0.028 * Math.min(1, player.speed / 1.4) * (player.running ? 2.2 : 1);
   camera.position.set(player.x, player.y + eye + Math.abs(bob) - 0.01, player.z);
