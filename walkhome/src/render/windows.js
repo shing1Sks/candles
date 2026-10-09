@@ -16,7 +16,7 @@ export const WIN_U = {
   // waves along the street (world z from, z to, strength): curtains closing house by house; lights going out
   uCurtainWave: { value: new THREE.Vector3(0, 0, 0) },
   uLightsOut: { value: new THREE.Vector3(0, 0, 0) },
-  uTallWin: { value: new THREE.Vector3(0, 0, 0) },   // x, z of one window he's standing in (z = on)
+  uTallWin: { value: new THREE.Vector4(0, 0, 0, 0) },   // the centre of the one window he's standing in (w = on)
 };
 
 const VERT = /* glsl */`
@@ -41,7 +41,7 @@ const VERT = /* glsl */`
 `;
 
 const FRAG = /* glsl */`
-  uniform float uTime, uEvil; uniform vec3 uPlayer; uniform vec3 uMoon, uSkyRefl, uCurtainWave, uLightsOut, uTallWin;
+  uniform float uTime, uEvil; uniform vec3 uPlayer; uniform vec3 uMoon, uSkyRefl, uCurtainWave, uLightsOut; uniform vec4 uTallWin;
   float inWave(vec3 w, float z) { return step(min(w.x, w.y), z) * step(z, max(w.x, w.y)) * w.z; }
   varying vec2 vUv; varying vec4 vRoom; varying vec4 vSize; varying vec3 vT, vB, vN, vWorld, vCenter; varying float vWatch;
   #include <fog_pars_fragment>
@@ -130,7 +130,7 @@ const FRAG = /* glsl */`
       }
     }
     // him. Standing in someone's front room, in his hat, too tall for the ceiling, head bent under it
-    if (uTallWin.z > 0.5 && length(vCenter.xz - uTallWin.xy) < 1.3) {
+    if (uTallWin.w > 0.5 && distance(vCenter, uTallWin.xyz) < 0.05) {
       float zf5 = -D * 0.5, tw5 = (zf5 - ro.z) / rd.z;
       if (tw5 > 0. && tw5 < t) { vec3 pw5 = ro + rd * tw5; float px5 = pw5.x, py5 = pw5.y - FL;
         float b5 = step(abs(px5), 0.24 + py5 * 0.04) * step(py5, 1.95) + step(length(vec2(px5 - 0.08, py5 - 2.1)), 0.13) + step(abs(px5 - 0.12), 0.24) * step(abs(py5 - 2.22), 0.025) + step(abs(px5 - 0.14), 0.15) * step(2.22, py5) * step(py5, 2.55);
@@ -158,7 +158,7 @@ const FRAG = /* glsl */`
     // curtains, just behind the glass: pinch pleats; watcher windows close as you come near
     float near = 1.0 - smoothstep(6.0, 12.0, length(uPlayer - vCenter));
     float cover = clamp(curtain + vWatch * near * (1.0 - curtain), 0.0, 1.0);
-    if (uTallWin.z > 0.5 && length(vCenter.xz - uTallWin.xy) < 1.3) cover = 0.0; // the curtains are open: he wants you to see
+    if (uTallWin.w > 0.5 && distance(vCenter, uTallWin.xyz) < 0.05) cover = 0.0; // the curtains are open: he wants you to see
     float twitch = vWatch > 0.5 ? 0.0 : 0.04 * step(0.85, h1(seed * 15.5)) * max(0., sin(uTime * 0.7 + seed * 9.0));
     float edgeL = -W * 0.5 + cover * W * 0.5 + twitch, edgeR = W * 0.5 - cover * W * 0.5;
     if (shape < 3.5 && cover > 0.01) {

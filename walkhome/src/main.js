@@ -217,9 +217,9 @@ function frame(now) {
     fx.omen(e.data, player, camera);
     // him, in a lit front room up ahead on your side (he's meant to be behind you)
     if (e.data.kind === 'tallWindow') { let best = null; for (const seg of segs.values()) for (const l of seg.lights) if (l.kind === 'window' && !l.tv && l.pos.y - player.y < 2.6) { const s = -l.pos.z; /* (ground floor: from the street you can't see into an upstairs room) */ if (s > player.s + 10 && s < player.s + 50 && (!best || Math.abs(s - player.s - 18) < Math.abs(-best.pos.z - player.s - 18))) best = l; }
-      if (best) { WIN_U.uTallWin.value.set(best.pos.x, best.pos.z, 1); ectx.tallWin = { x: best.pos.x, z: best.pos.z, t: 0 }; } }
+      if (best) { WIN_U.uTallWin.value.set(best.pos.x, best.pos.y, best.pos.z, 1); ectx.tallWin = { x: best.pos.x, z: best.pos.z, t: 0 }; } }
   }
-  if (ectx.tallWin) { const w = ectx.tallWin; w.t += dt; if (w.t > 16 || Math.hypot(w.x - player.x, w.z - player.z) < 5) { WIN_U.uTallWin.value.z = 0; ectx.tallWin = null; } }
+  if (ectx.tallWin) { const w = ectx.tallWin; w.t += dt; if (w.t > 16 || Math.hypot(w.x - player.x, w.z - player.z) < 5) { WIN_U.uTallWin.value.w = 0; ectx.tallWin = null; } }
   ectx.seenOmen = evId;
   }
   // the things on the way
@@ -379,7 +379,7 @@ document.querySelectorAll('#settings span').forEach((sp) => sp.addEventListener(
   if (k === 'film') { SET.film = !SET.film; localStorage.setItem('walkhome.film', SET.film ? 'on' : 'off'); }
   applySettings();
 }));
-applySettings(); setInterval(() => { if (sound.master && sound.master.gain.value !== SET.vol) applySettings(); }, 2000);
+applySettings(); setInterval(() => { if (sound.master && Math.abs(sound.master.gain.value - SET.vol) > 1e-3) applySettings(); }, 2000);
 // gentle first-time hints, each shown once
 const hintEl = document.getElementById('hint'), hinted = new Set();
 function hint(key, text, secs = 5) { if (hinted.has(key)) return; hinted.add(key); hintEl.textContent = text; hintEl.style.opacity = 1; setTimeout(() => (hintEl.style.opacity = 0), secs * 1000); }

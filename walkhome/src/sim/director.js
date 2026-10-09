@@ -105,6 +105,8 @@ export function stepDirector(D, ctx, dt, emit) {
     const stuttered = D.glimpseFlick && D.t - D.glimpseFlick > 0.3 && (L.level ?? 1) < 0.5;
     if (stuttered || (tall.everSeen && tall.unseenFor > 0.6) || D.t - D.glimpseT > 16 || P.s > tall.s - 8) { tall.active = false; tall.everSeen = false; D.glimpse = 'done'; D.glimpseDoneT = D.t; D.nextVisit = D.t + 25; emit('glimpseGone', {}); }
   }
+  // a lure (his voice calling the dog) only lasts so long, whatever else is happening
+  if (dog.lureUntil && D.t > dog.lureUntil) { dog.lured = null; dog.lureUntil = 0; }
   // between his visits, the edge: omens
   if (D.echo && (D.t > D.echo.until || ctx.lookingBack)) { if (ctx.lookingBack) emit('echoStop', {}); D.echo = null; }
   if (D.omenPt && D.t > D.omenPt.until) D.omenPt = null;
@@ -128,6 +130,7 @@ export function stepDirector(D, ctx, dt, emit) {
     D.visits++; D.visitT = 0; setPhase(D, 'hunt', emit); emit('finale', {}); emit('whistle', { x: tall.x, z: tall.z }); D.ledger.push([+D.t.toFixed(1), 'finale']);
     // the chain: lamps from far behind toward you, each a little after the last
     const behind = D.lamps.filter((L) => L.on && L.s < P.s + 6 && L.s > P.s - 140).sort((a, b) => a.s - b.s);
+    D.finaleLamps = behind.map((L) => [L, L.base]);
     behind.forEach((L, i) => { L.dying = 1.2 + i * 1.6; L.base = 0; });
   }
   const canVisit = reached && !tall.active && D.phase !== 'after' && D.t > D.nextVisit && D.glimpse === 'done' && !held && !dog.lost && !D.finale;
@@ -159,7 +162,6 @@ export function stepDirector(D, ctx, dt, emit) {
       if (!D.lured && D.visitT > 10 && !tall.seen && d > 12 && d < 34 && !dog.carried && !tall.finale && rng.chance(dt * 0.15)) {
         D.lured = true; emit('lure', { x: tall.x, z: tall.z }); dog.lured = { x: tall.x, z: tall.z }; dog.lureUntil = D.t + 6; D.ledger.push([+D.t.toFixed(1), 'lure']);
       }
-      if (dog.lureUntil && D.t > dog.lureUntil) { dog.lured = null; dog.lureUntil = 0; }
       // a visit can't hover: after a while of following he stops stalking and comes for you
       if (D.visitT > 38 && tall.mode === 'stalk') { tall.mode = 'hunt'; emit('hunt', {}); }
       // you got away: far ahead, survived the peak, hid well enough for long enough, or he's been at it too long
@@ -188,9 +190,10 @@ export function respawn(D, P, tall, dog, emit) {
   const c = at(D.checkpoint.s, D.checkpoint.l);
   Object.assign(P, { x: c.x, z: c.z, vx: 0, vz: 0, s: D.checkpoint.s, l: D.checkpoint.l, yaw: 0, pitch: -0.1, stamina: 1, winded: 0 });
   if (dog.carried) { dog.carried = false; P.carrying = false; }
+  dog.lured = null; dog.lureUntil = 0;
   Object.assign(dog, { x: c.x + 0.4, z: c.z - 0.6, vx: 0, vz: 0, fear: 0.7, state: 'hide', st: 0 });
   // caught in the last run: back to before it, and it starts again (Biscuit stays with you this time)
-  if (D.finale) { D.finale = false; tall.finale = false; if (D.checkpoint.s > DIR.finaleS - 10) { D.checkpoint = { s: DIR.finaleS - 25, l: 2.6 }; const q = at(D.checkpoint.s, 2.6); Object.assign(P, { x: q.x, z: q.z, s: D.checkpoint.s, l: 2.6 }); Object.assign(dog, { x: q.x + 0.4, z: q.z - 0.6 }); } D.lostOnce = true; }
+  if (D.finale) { D.finale = false; tall.finale = false; for (const [L, b] of D.finaleLamps || []) Object.assign(L, { on: 1, base: b, dying: 0, flick: 0 }); if (D.checkpoint.s > DIR.finaleS - 10) { D.checkpoint = { s: DIR.finaleS - 25, l: 2.6 }; const q = at(D.checkpoint.s, 2.6); Object.assign(P, { x: q.x, z: q.z, s: D.checkpoint.s, l: 2.6 }); Object.assign(dog, { x: q.x + 0.4, z: q.z - 0.6 }); } D.lostOnce = true; }
   // the first time, he bolts. He's up the road, pressed against a garden wall, on whichever side
   if (!D.lostOnce) {
     D.lostOnce = true;

@@ -80,7 +80,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
 
   // ---- carried: in your arms. Looks around; trembles when scared
   if (D.carried) {
-    D.state = 'carried'; D.speed = 0;
+    D.state = 'carried'; D.speed = 0; D.lie = 0; D.belly = 0;
     D.x = P.x; D.z = P.z; D.y = P.y;
     D.headYaw = th && danger > 0.1 ? 0 : Math.sin(D.st * 0.5) * 0.4; D.headPitch = 0.2;
     D.ears = D.fear > 0.5 ? -1 : 0.2; D.wag = petting ? 1 : 0.3 * (1 - D.fear); D.scared = D.fear > 0.55; D.crouch = 0; D.sit = 0; D.sniff = 0; D.pant = 0;

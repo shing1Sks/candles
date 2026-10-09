@@ -394,7 +394,7 @@ function strangerModel() {
   return shadowed(g);
 }
 E.stranger = {
-  regions: ['highStreet', 'longStreet'], phases: ['calm', 'unease', 'dread'], weight: 3, minS: 380,
+  regions: ['highStreet', 'longStreet'], phases: ['calm', 'unease', 'dread'], weight: 3, minS: 380, reach: 170,
   start(c) {
     // the bus shelter on the high street if it's coming up, otherwise a dark doorway
     this.s = c.P.s > 700 && c.P.s < 755 ? 760 : c.P.s + 28; this.side = this.s === 760 ? 1 : (Math.random() < 0.5 ? -1 : 1);
@@ -450,7 +450,7 @@ export class Deck {
     if (this.active) {
       this.activeT = (this.activeT || 0) + dt;
       // nothing may hold the deck forever: left far behind, or gone on too long, it ends
-      const stale = c.P.s > this.activeS + 75 || this.activeT > 140;
+      const stale = c.P.s > this.activeS + (this.active.reach ?? 75) || this.activeT > 140;
       if (stale || this.active.update(dt, c)) { this.activeT = 0; this.active.dispose(c); this.log.push([+c.P.s.toFixed(0), this.activeId, 'end']); this.active = null; this.nextS = c.P.s + rand(26, 48); }
       return;
     }

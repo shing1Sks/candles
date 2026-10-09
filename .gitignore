@@ -9,3 +9,5 @@ assets/audio/_downloads/
 Thumbs.db
 # plan execution scratch (ledgers, briefs)
 .superpowers/
+# gameplay clips (large; kept locally)
+assets/art/walkhome/game2/clips/
