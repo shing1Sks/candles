@@ -106,6 +106,8 @@ export class Fx {
     // ---- chimney smoke
     this.smokeC = new Cards(scene, 70, mt, 0x6a6670, 4);
     this.smoke = Array.from({ length: 70 }, () => ({ life: 0 }));
+    // ---- your breath, in the cold: a faint puff in front of your face, more when you've run or you're frightened
+    this.breathC = new Cards(scene, 8, mt, 0xc8c8d0, 5); this.breath = Array.from({ length: 8 }, () => ({ life: 0 })); this.breathT = 1;
     // ---- eyes in a garden: two points of shine, low down, that blink and are gone when you come close
     { const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.4, 1.2), fog: true }), g = new THREE.SphereGeometry(0.02, 8, 6);
       this.eyes = new THREE.Group(); this.eyes.visible = false; scene.add(this.eyes);
@@ -230,6 +232,20 @@ export class Fx {
       this.smokeC.set(i, S.x, S.y, S.z, k, k, Math.min(1, S.age * 2) * Math.max(0, S.life / 6) * 0.35);
     });
     this.smokeC.done();
+    // ---- breath
+    const P2 = this.breathP; this.breathT -= dt;
+    if (P2 && this.breathT < 0) {
+      const hard = Math.max(P2.winded > 0 ? 1 : 0, 1 - P2.stamina, fear * 0.8);
+      this.breathT = 3.2 - hard * 2.2 + Math.random() * 0.4;
+      const b = this.breath.find((q) => q.life <= 0);
+      if (b) { const f = _fw; camera.getWorldDirection(f); b.life = 1.8; b.age = 0; b.x = camera.position.x + f.x * 0.32; b.y = camera.position.y - 0.08 + f.y * 0.2; b.z = camera.position.z + f.z * 0.32; b.vx = f.x * (0.35 + hard * 0.4); b.vz = f.z * (0.35 + hard * 0.4); b.a = 0.16 + hard * 0.16; }
+    }
+    this.breath.forEach((b, i) => {
+      if (b.life <= 0) { this.breathC.set(i, 0, -99, 0, 0, 0, 0); return; }
+      b.life -= dt; b.age += dt; b.x += b.vx * dt; b.z += b.vz * dt; b.y += 0.08 * dt; b.vx *= 0.96; b.vz *= 0.96;
+      const k = 0.08 + b.age * 0.35; this.breathC.set(i, b.x, b.y, b.z, k, k * 0.8, Math.sin(Math.min(1, b.age / 1.8) * Math.PI) * b.a);
+    });
+    this.breathC.done();
   }
 }
 

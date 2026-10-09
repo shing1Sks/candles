@@ -317,7 +317,7 @@ function frame(now) {
     const bulbs = [], chim = [];
     for (const seg of segs.values()) { for (const L of seg.lamps) if (L.bulb && lampState[L.id].on && Math.abs(L.s - player.s) < 25) bulbs.push(L.bulb); for (const c of seg.chimneys) if (Math.abs(c.z - player.z) < 45) chim.push(c); }
     bulbs.sort((a, b) => a.distanceToSquared(camera.position) - b.distanceToSquared(camera.position));
-    fx.update(dt, player, camera, bulbs, chim, fear.v);
+    fx.breathP = player; fx.update(dt, player, camera, bulbs, chim, fear.v);
     U.uRainWet.value = fx.rainLevel; M.cobble.roughness = 1 - fx.rainLevel * 0.3; M.slab.roughness = 1 - fx.rainLevel * 0.35;
   }
   pm('fx', t0); t0 = performance.now();
@@ -395,5 +395,5 @@ function hint(key, text, secs = 5) { if (hinted.has(key)) return; hinted.add(key
 if (Q.has('go')) { title.style.display = 'none'; input.enabled = true; }
 
 // for tools
-window.__wh = { doors, bot, ending, deck, ectx, prof, sound, director, tall, tallView, dog, puppy, vm, events, scene, camera, player, town, segs, lampState, fear, post, renderer, M, U, WIN_U, SKY_U, input, stream, fps: () => fps,
+window.__wh = { fx, doors, bot, ending, deck, ectx, prof, sound, director, tall, tallView, dog, puppy, vm, events, scene, camera, player, town, segs, lampState, fear, post, renderer, M, U, WIN_U, SKY_U, input, stream, fps: () => fps,
   put(s, l = 0, yaw = 0, pitch = 0) { const p = roadAt(s, l); Object.assign(player, { x: p.x, z: p.z, s, l, yaw, pitch, vx: 0, vz: 0 }); stream(true); } };
