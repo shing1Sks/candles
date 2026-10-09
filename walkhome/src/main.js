@@ -224,6 +224,7 @@ function frame(now) {
   if (!Q.has('go') || Q.has('hints')) {
     if (dog.fear > 0.4 && !dog.carried) hint('pet', "He's frightened. Hold F to kneel and stroke him, or E to pick him up.");
     if (dog.tension > 0.95 && dog.state === 'sniff') hint('tug', 'Right mouse to tug the lead.', 4);
+    if (dog.state === 'lured' && dog.lureUntil) hint('haul', "He's pulling toward it. Right mouse (or Q) to haul him back.", 5);
     if (tall.active && tall.seen && tall.mode !== 'glimpse') hint('look', "Don't take your eyes off him.", 4);
     if (player.winded > 0) hint('wind', 'Out of breath.', 3);
     if (dog.lost) hint('lost', 'Biscuit ran. Listen for him, look for his collar light. R squeaks his toy (but it carries).', 8);

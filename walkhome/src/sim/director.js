@@ -138,7 +138,7 @@ export function stepDirector(D, ctx, dt, emit) {
     if (ahead) placeTall(tall, P.s + rng.range(34, 44), rng.range(-1.6, 1.6));
     else placeTall(tall, P.s - rng.range(30, 42), rng.range(-2.4, 2.8));
     tall.mode = region === 'parkEdge' || region === 'hill' || D.visits >= 3 ? 'hunt' : 'stalk';
-    D.visits++; D.visitT = 0; emit('visit', { n: D.visits, mode: tall.mode, ahead }); D.ledger.push([+D.t.toFixed(1), 'visit ' + tall.mode + (ahead ? ' ahead' : '')]);
+    D.visits++; D.visitT = 0; D.lured = false; emit('visit', { n: D.visits, mode: tall.mode, ahead }); D.ledger.push([+D.t.toFixed(1), 'visit ' + tall.mode + (ahead ? ' ahead' : '')]);
     // his first tell: a whistle, far off
     emit('whistle', { x: tall.x, z: tall.z });
   }
@@ -153,6 +153,12 @@ export function stepDirector(D, ctx, dt, emit) {
       else setPhase(D, 'unease', emit);
       // the peak ends: he's close for a while, or you got away (far ahead, or reached a lit lamp while he was being watched)
       D.visitT = (D.visitT || 0) + dt;
+      // once a visit, from the dark where you can't see him, he calls the dog by name. Biscuit
+      // hears his name and goes to it, pulling you after him, until you haul him back (tug)
+      if (!D.lured && D.visitT > 10 && !tall.seen && d > 12 && d < 34 && !dog.carried && !tall.finale && rng.chance(dt * 0.15)) {
+        D.lured = true; emit('lure', { x: tall.x, z: tall.z }); dog.lured = { x: tall.x, z: tall.z }; dog.lureUntil = D.t + 6; D.ledger.push([+D.t.toFixed(1), 'lure']);
+      }
+      if (dog.lureUntil && D.t > dog.lureUntil) { dog.lured = null; dog.lureUntil = 0; }
       // a visit can't hover: after a while of following he stops stalking and comes for you
       if (D.visitT > 38 && tall.mode === 'stalk') { tall.mode = 'hunt'; emit('hunt', {}); }
       // you got away: far ahead, survived the peak, hid well enough for long enough, or he's been at it too long

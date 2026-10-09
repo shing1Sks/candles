@@ -148,3 +148,28 @@ save('syn_dread', y, peak=0.8)
 N = int(SR * 0.35); t = np.arange(N) / SR
 y = bp(rng.standard_normal(N), 1500, 5000) * np.exp(-((t - 0.08) ** 2) / 0.0012) + bp(rng.standard_normal(N), 900, 3000) * np.exp(-((t - 0.2) ** 2) / 0.0008) * 0.7
 save('syn_lick', y, peak=0.6)
+
+# ---- a whisper: "Bis...cuit". Whispered speech is breath through the shapes of the vowels: noise
+#      through formant filters, consonants as bursts and hiss. (Slow, drawn out, a little wet.)
+def formant(n, fs, bws, gains):
+    x = rng.standard_normal(n); y = np.zeros(n)
+    for f, bw, g in zip(fs, bws, gains): y += bp(x, max(60, f - bw / 2), f + bw / 2) * g
+    return y
+def seg(dur, kind, fs=None):
+    n = int(dur * SR); t = np.arange(n) / SR
+    if kind == 'vowel': y = formant(n, fs, [120, 220, 320], [1.0, 0.8, 0.4]); env = np.clip(t / 0.04, 0, 1) * np.clip((dur - t) / 0.06, 0, 1)
+    elif kind == 's': y = bp(rng.standard_normal(n), 4500, 9000) * 0.9; env = np.clip(t / 0.05, 0, 1) * np.clip((dur - t) / 0.05, 0, 1)
+    elif kind == 'burst': y = bp(rng.standard_normal(n), fs[0], fs[1]) * 1.4; env = np.exp(-t * 60)
+    else: y = np.zeros(n); env = np.zeros(n)
+    return y * env
+word = np.concatenate([
+    seg(0.025, 'burst', (300, 1500)),                  # b
+    seg(0.2, 'vowel', (420, 1950, 2650)),              # i
+    seg(0.22, 's'),                                    # s
+    seg(0.07, 'gap'),
+    seg(0.035, 'burst', (1500, 3500)),                 # k
+    seg(0.24, 'vowel', (440, 1850, 2550)),             # i
+    seg(0.03, 'burst', (3000, 6000)),                  # t
+])
+word = np.concatenate([np.zeros(int(0.1 * SR)), word, np.zeros(int(0.5 * SR)), word * 0.7, np.zeros(int(0.2 * SR))])
+save('syn_whisper_biscuit', reverb(lp(word, 7000), 1.2, 0.3), peak=0.8)

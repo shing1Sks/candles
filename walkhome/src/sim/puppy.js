@@ -96,7 +96,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.still = moving ? 0 : (D.still || 0) + dt;
   let tx, tz, want = DOG.trot, look = null;
   // states
-  if (input.tug) { D.state = 'come'; D.st = 0; emit('tug', {}); D.lured = null; }
+  if (input.tug) { D.state = 'come'; D.st = 0; emit('tug', {}); D.lured = null; D.lureUntil = 0; }
   if (input.call) { D.state = 'come'; D.st = 0; emit('call', {}); }
   if (D.lured && D.state !== 'come' && D.state !== 'hide') D.state = 'lured';
   else if (!D.lured && D.state === 'lured') { D.state = 'follow'; D.st = 0; }
@@ -104,6 +104,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   else if (D.state === 'hide' && D.fear < 0.4) { D.state = 'follow'; D.st = 0; }
   else if (danger > 0.15 && D.state !== 'come' && D.state !== 'alert' && D.state !== 'hide') { D.state = 'alert'; D.st = 0; emit('alert', { x: th.x, z: th.z }); }
   else if (D.state === 'alert' && danger < 0.08 && D.st > 2) { D.state = 'follow'; D.st = 0; }
+  // his name, called from the dark: frightened or not, he goes to it (until you haul him back)
+  if (D.lured && D.lureUntil && D.state !== 'come') { if (D.state !== 'lured') { D.state = 'lured'; D.st = 0; } }
 
   switch (D.state) {
     case 'follow': {

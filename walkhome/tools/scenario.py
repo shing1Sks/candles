@@ -49,6 +49,13 @@ SCEN = {
                ("hold", "KeyW", 50), ("log", "JSON.stringify({st: __wh.deck.active && __wh.deck.active.state, s: __wh.player.s})"),
                ("look", 3.14, 0.0), ("wait", 0.6), ("shot", "b_behind"), ("log", "JSON.stringify({cap: document.getElementById('caption').textContent})"),
                ("wait", 7), ("shot", "c_close"), ("log", "JSON.stringify({st: __wh.deck.active && __wh.deck.active.state, cap: document.getElementById('caption').textContent})"), ("wait", 4), ("shot", "d_past")],
+  # he calls the dog's name from the dark: does Biscuit pull you toward him? does a tug bring him back?
+  "lure": [("js", "__wh.put(420, 3, 0, -0.1); __wh.deck.nextS = 99999; __wh.director.glimpse = 'done'; __wh.director.nextOmen = 99999; __wh.director.nextVisit = 0; __wh.director.visits = 1"), ("wait", 1.5),
+           ("js", "__wh.director.visitT = 11; __wh.director.lured = false; __wh.dog.fear = 0.7"), ("wait", 0.2),
+           ("js", "(() => { const D = __wh.director, T = __wh.tall, d = __wh.dog; D.lured = true; d.lured = { x: T.x, z: T.z }; d.lureUntil = D.t + 6; __wh.events.push({name: 'lure', data: {x: T.x, z: T.z}, t: __wh.U.uTime.value, id: 1e7}); })()"),
+           ("wait", 1.5), ("log", "JSON.stringify({st: __wh.dog.state, tens: +__wh.dog.tension.toFixed(2), pull: __wh.player.pull, ps: +__wh.player.s.toFixed(2)})"), ("look", 3.14, -0.2), ("wait", 0.3), ("shot", "a_pulling"),
+           ("wait", 2), ("log", "JSON.stringify({st: __wh.dog.state, tens: +__wh.dog.tension.toFixed(2), ps: +__wh.player.s.toFixed(2)})"),
+           ("js", "__wh.input.edges.add('Mouse2')"), ("wait", 1.5), ("log", "JSON.stringify({st: __wh.dog.state, tens: +__wh.dog.tension.toFixed(2), lured: !!__wh.dog.lured})")],
   # a slow human-paced walk: stop, look about, walk on. What happens in 4 minutes?
   "human": [("js", "__wh.put(2, 3.4, 0, -0.1)")] + sum([[("hold", "KeyW", 7), ("look", 3.0, -0.05), ("wait", 1.5), ("log", TSTATE), ("look", 0.0, -0.1), ("wait", 2.0), ("log", TSTATE)] for i in range(22)], []),
   # walk up the long street; the director sends him; look back now and then
