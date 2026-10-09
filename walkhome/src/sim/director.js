@@ -140,7 +140,8 @@ export function stepDirector(D, ctx, dt, emit) {
       D.visitT = (D.visitT || 0) + dt;
       // a visit can't hover: after a while of following he stops stalking and comes for you
       if (D.visitT > 38 && tall.mode === 'stalk') { tall.mode = 'hunt'; emit('hunt', {}); }
-      const escaped = d > DIR.leftBehind || (D.phase === 'peak' && D.pt > 10) || D.visitT > 95;
+      // you got away: far ahead, survived the peak, hid well enough for long enough, or he's been at it too long
+      const escaped = d > DIR.leftBehind || (D.phase === 'peak' && D.pt > 10) || D.visitT > 95 || (tall.lostFor || 0) > 10;
       if (escaped) { tall.mode = 'withdraw'; emit('withdraw', {}); }
     } else if (tall.vanished || (!tall.seen && (d > 34 || tall.unseenFor > 6))) {
       tall.active = false; tall.vanished = false; setPhase(D, 'after', emit);

@@ -24,7 +24,7 @@ export class Sound {
     // a street's echo: a short convolver reverb for positional things
     this.verb = C.createConvolver(); this.verb.buffer = this.impulse(1.6, 2.6); const vg = C.createGain(); vg.gain.value = 0.32; this.verb.connect(vg); vg.connect(this.master);
     this.slices = await fetch(W + 'slices.json').then((r) => r.json()).catch(() => ({}));
-    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak'];
+    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak'];
     // the beds start at once (they stream); the rest of the sounds load in the background
     this.ok = true; this.startBeds();
     pre.forEach((n) => this.load(n));

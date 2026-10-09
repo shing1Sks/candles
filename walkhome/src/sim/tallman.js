@@ -52,9 +52,10 @@ export function stepTall(M, P, cam, dt, lamps, ctx, emit) {
     if (M.seenFor > stare) { M.blink = TALL.blinkT; M.heavy = 0; M.seenFor = 0; M.blinkJump = Math.max(0, Math.min(4.5, pd - 2.0)); emit('blink', { d: pd }); }
   } else M.heavy = Math.max(0, M.heavy - dt * 2);
   // what does he know? noise tells him where you are; hiding makes him lose you
-  for (const n of ctx.noise) { M.knows = Math.max(M.knows, n.loud); M.target = { x: n.x, z: n.z }; }
-  if (!ctx.hidden) { M.knows = Math.min(1, M.knows + dt * 0.4); M.target = { x: P.x, z: P.z }; }
-  else M.knows = Math.max(0, M.knows - dt * 0.35);
+  // (a sound carries further the louder it is; a whimper only to someone close)
+  for (const n of ctx.noise) { const nd = Math.hypot(n.x - M.x, n.z - M.z), heard = n.loud * Math.max(0, 1 - nd / (6 + 55 * n.loud)); if (heard > 0.15) { M.knows = Math.max(M.knows, heard); M.target = { x: n.x, z: n.z }; } }
+  if (!ctx.hidden) { M.knows = Math.min(1, M.knows + dt * 0.4); M.target = { x: P.x, z: P.z }; M.lostFor = 0; }
+  else { M.knows = Math.max(0, M.knows - dt * 0.35); M.lostFor = (M.lostFor || 0) + dt; }
   M.headTurn = Math.atan2(-(P.x - M.x), -(P.z - M.z));
   // the lamp you're watching him under: it starts to go (he's putting it out)
   if (looked && M.lit && under && !under.dying && M.mode !== 'glimpse') {
@@ -87,10 +88,15 @@ export function stepTall(M, P, cam, dt, lamps, ctx, emit) {
     const nx = M.x + (M.target.x - M.x) * 0.08, nz = M.z + (M.target.z - M.z) * 0.08;
     for (const L of lamps) if (L.on && !L.dying && L !== under && Math.hypot(L.x - nx, L.z - nz) < 3.2 && Math.hypot(L.x - P.x, L.z - P.z) < 4.5) blocked = true;
     if (!blocked) moveToward(M, M.target.x, M.target.z, speed, dt); else M.speed = 0;
-  } else {
-    // lost you: stands, listening, turns slowly
-    M.speed = 0; M.yaw += Math.sin(M.phase * 0.3) * dt * 0.3; M.phase += dt;
-  }
+  } else if (M.target) {
+    // lost you: he searches where he last knew you were, slowly, pacing round it, stopping to listen.
+    // Crouched behind the car with your hand on Biscuit, you can hear him go round
+    M.searchT = (M.searchT || 0) - dt;
+    if (!M.searchPt || M.searchT < 0) { const a = Math.random() * Math.PI * 2, r = 1.5 + Math.random() * 3.5; M.searchPt = { x: M.target.x + Math.cos(a) * r, z: M.target.z + Math.sin(a) * r }; M.searchT = 3 + Math.random() * 3; }
+    if (Math.hypot(M.searchPt.x - M.x, M.searchPt.z - M.z) > 0.4) moveToward(M, M.searchPt.x, M.searchPt.z, 0.9, dt); else { M.speed = 0; M.yaw += Math.sin(M.phase * 0.7) * dt * 0.6; M.phase += dt * 0.3; }
+    // right on top of you, he doesn't need to hear anything
+    if (pd < 1.7) { if (M.knows < 1) emit('spotted', {}); M.knows = 1; M.target = { x: P.x, z: P.z }; }
+  } else { M.speed = 0; }
   // lamps near him die (a lamp you're standing under holds out longer: light is worth something)
   for (const L of lamps) {
     if (!L.on || L.dying) continue;

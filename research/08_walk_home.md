@@ -284,3 +284,77 @@ What playing it showed, and what changed:
   - It's backlit (05 R10), the faint porcelain face catches the light, and it's placed with a clear line of sight.
 - **The bot reached the gate but the ending never fired:** it measured the distance to the centre of the road. Now the trigger is reaching the top of the road anywhere on the pavement.
 - **Busy rules:** while he's about, the deck only deals quiet wrongness, never people. The director's phases have hysteresis (no dread↔hunt flicker).
+
+### Pass 5 (2026-10-09, day): the user's second playtest
+
+What the user found: no thrill for 5–10 minutes; the Tall Man "just stuck"; Biscuit through walls; a car
+through a parked car; hands and dog reactions weird. And: push the sky and surroundings toward realism.
+Research in `09_terror_research.md`.
+
+- **The Tall Man can't stall any more.** His rule is still "only when you're not looking", but with a
+  child's holes in it:
+  - you only see him in light, or as a silhouette within about 28 m;
+  - a lamp you watch him under starts to die, and he moves in the dark frames of its flicker;
+  - stare too long and your eyelids get heavy (shown on screen), then you blink, and he's up to 4.5 m nearer;
+  - a Tall Man withdrawing while you watch vanishes on a blink;
+  - the glimpse ahead ends in a lamp stutter, and so does the figure in the doorway.
+  - Measured (`scenario stare`): from 40 m he reaches you in about 30 s of staring, in steps.
+- **Hide and seek.** Crouched behind a car with Biscuit quiet:
+  - he loses you and searches round where he last knew you were;
+  - right on top of you, he finds you; a whimper or growl carries about 15 m;
+  - lost for 10 s, he gives up (`scenario hide`).
+  - Noise now falls off with distance: a bark carries about 60 m, the doorbell about 30.
+- **The clock paces the night as well as the road.** The glimpse comes by 80 s and the first visit about 55 s after it, wherever you are. An encounter can't hold him off for more than 30 s.
+- **Omens fill every gap between visits** (13–28 s apart):
+  - footsteps behind that match yours and take one more step when you stop;
+  - Biscuit staring back down the road and growling at nothing;
+  - a lamp stuttering ahead, eyes shining in a garden, a gate creaking behind you;
+  - a TV, a phone or knocking inside a house; breathing right behind you; his whistle far off;
+  - a figure at the edge of your eye that's gone when you turn;
+  - the first one on the long street is always the fox scream, and Biscuit barks at it.
+  - Bot night: 32 omens, 8 visits and 11 encounters on the way home.
+- **Doorbells:** walk up any garden path and press E at the door. Each house answers once:
+  - nothing at all;
+  - footsteps down the hall that stop on the other side of the door;
+  - three knocks back from inside;
+  - a big dog going mad behind the door;
+  - "Go home." through the letterbox.
+- **Biscuit:**
+  - garden walls, gates, lamp posts and cars are solid for him; he goes round by the gate;
+  - he walks the way you're walking, not the way you're looking;
+  - he walks, trots or gallops depending on speed, and lies down chin on paws if you stand still;
+  - he looks back and wags when you look at him, and half-closes his eyes when stroked;
+  - frights frighten him; call him (R, a squeaky toy) when he's lost and he yips back;
+  - his collar light stutters when the Tall Man is near.
+- **Hands:**
+  - knitted red mittens: a fist round the lead's loop, an open hand for stroking;
+  - a duffel sleeve with a turned-back cuff;
+  - arms are always aimed from the shoulder;
+  - the lead pulls your arm toward him; your free hand pumps when you run.
+- **His face:** crazed grey porcelain, uneven eye holes weeping black, a crack, a chip off the jaw, and a wet glint of real eyes deep in the holes that follow you. At the catch, the stitched smile tears open in the middle and the face is lit from below.
+- **Sound:**
+  - a music-box lullaby (original) that slows and detunes with fear and stops dead when he comes;
+  - his coat rustles only while he moves unseen;
+  - a cooling bulb ticks after each lamp dies; a sub thump on each blink;
+  - knocking, a fox, a squeaky toy and a doorbell;
+  - after a fright the world goes thin and your ears ring.
+- **The night, made real:**
+  - **Stars** with a real brightness spread; how many you see depends on lamp glare and the region.
+  - **The moon:** a flat gibbous disc (Lommel-Seeliger shading) with seas and craters.
+  - **Cloud:** two layers lit by the moon, with silver edges, a corona, the town's orange on the cloud base, and the 22° halo before the rain.
+  - **The town beyond:** a distant skyline with lit windows, which from the hill becomes a town below.
+  - **Lamp light in the mist:** analytic in-scattering, which dies with each lamp.
+  - **Wet road:** long reflection streaks from the lamps.
+  - **Eyes at night:** the dim world goes blue-grey (scotopic grade), the lamps stay warm.
+  - **Rain-streaked walls.**
+- **Fixed:**
+  - the encounter car and the van drive down the middle (there are parked cars both sides);
+  - dead lamps no longer glow in the distance;
+  - the moon's shadows don't swim when you look round;
+  - FOV narrows when he's near.
+- **Perf:**
+  - loose meshes in each segment are merged by material (−170 draw calls on the high street);
+  - shaders compile once at build;
+  - 4 full segments ahead instead of 5 (the fog hides the 5th);
+  - the lead is a tube rewritten in place.
+  - Bot night: 41 fps average, 28 minimum.

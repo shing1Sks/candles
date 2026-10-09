@@ -116,3 +116,11 @@ for t0, d, f in [(0.0, 0.16, 1650), (0.3, 0.22, 1500)]:
     v = np.sin(ph) + 0.35 * np.sin(2 * ph) + 0.12 * np.sin(3 * ph) + 0.15 * bp(rng.standard_normal(n), 2000, 6000)
     s = int(t0 * SR); y[s:s + n] += v * np.sin(np.pi * u) ** 0.6
 save('syn_squeak', reverb(y, 0.5, 0.15), peak=0.75)
+
+# ---- a doorbell, heard from outside: the old two-tone electric chime (ding... dong), muffled by the door
+N = int(SR * 3.2); y = np.zeros(N)
+for t0, n in [(0.0, 'E5'), (0.55, 'C5')]:
+    s = int(t0 * SR); m = int(2.4 * SR); t = np.arange(m) / SR; f = hz(n)
+    tone = sum(g * np.sin(2 * np.pi * f * k * t) * np.exp(-t * d) for k, g, d in [(1, 1, 1.5), (2.0, 0.3, 3), (3.0, 0.12, 5), (4.2, 0.05, 8)])
+    y[s:s + m] += (tone + hp(rng.standard_normal(m), 2000) * np.exp(-t * 200) * 0.3)[: N - s]
+save('syn_bell', reverb(lp(y, 2600), 1.0, 0.35), peak=0.8)

@@ -26,6 +26,7 @@ import { Fx } from './render/fx.js';
 import { Deck } from './render/encounters.js';
 import { Ending } from './render/ending.js';
 import { Bot } from './bot.js';
+import { Doors } from './render/doors.js';
 
 const Q = new URLSearchParams(location.search);
 const SEED = Q.get('seed') || 'biscuit';
@@ -134,6 +135,7 @@ const deck = new Deck(), extraLights = [];
 const ectx = { lampState, scene, camera, fwd: new THREE.Vector3(), P: null, D: null, sound, emit: null, WIN_U, town, director: null, input: null, extraLights, obstacles: null, caught: false, evilBoost: 0, fearAdd: 0 };
 let shake = 0;
 const ending = new Ending(scene);
+const doors = new Doors(town);
 const intro = { t: Q.has('go') ? 99 : -1 };
 const bot = Q.has('bot') ? new Bot() : null, TS = Number(Q.get('ts') || 1);
 
@@ -186,6 +188,10 @@ function frame(now) {
   const home = ending.update(dt, { P: player, D: dog, tall, director, extraLights, post, sound: sound.ok ? sound : null, caught: false });
   if (home && !ending.musicOn && sound.ok) { ending.musicOn = true; for (const k of ['mus_1', 'mus_2', 'mus_3', 'bed_whistle', 'bed_creak']) sound.loops.get(k)?.set(0, 1); sound.stream('end', '/audio/licensed/music_memory_music_box_choir.ogg', { gain: 0.6, bus: 'music' }); }
   if (!home) {
+  // at a front door, facing it: E rings the bell (instead of picking Biscuit up)
+  { const door = caughtT < 0 ? doors.at(player, camera.getWorldDirection(_fw)) : null;
+    if (door) { if (!Q.has('go') || Q.has('hints')) hint('door', 'E to ring the bell.', 4); if (inp.carry) { inp.carry = false; doors.ring(door, { sound: sound.ok ? sound : null, emit, P: player, D: dog }); } }
+    doors.update(dt, { sound: sound.ok ? sound : null, emit, P: player, D: dog }); }
   stepPlayer(player, inp, dt, obstacles);
   // Biscuit
   const hand = vm.hold.getWorldPosition(new THREE.Vector3());
@@ -195,7 +201,7 @@ function frame(now) {
   }
   // noise he can hear: barking, running
   noise.length = 0;
-  for (const e of events) if (e.name === 'bark' && e.id > seenNoise) noise.push({ x: e.data.x, z: e.data.z, loud: 1 });
+  for (const e of events) if (e.id > seenNoise) { if (e.name === 'bark') noise.push({ x: e.data.x, z: e.data.z, loud: e.data.loud ?? 1 }); if (e.name === 'whimper' && !e.data.lost) noise.push({ x: dog.x, z: dog.z, loud: 0.22 }); if (e.name === 'growl') noise.push({ x: dog.x, z: dog.z, loud: 0.18 }); if (e.name === 'ring') noise.push({ x: e.data.x, z: e.data.z, loud: 0.45 }); }
   seenNoise = evId;
   if (player.running) noise.push({ x: player.x, z: player.z, loud: 0.5 });
   if (inpCall) noise.push({ x: player.x, z: player.z, loud: 0.8 }); // you called his name out loud
@@ -237,7 +243,7 @@ function frame(now) {
     tall.x = player.x + fx * 1.82; tall.z = player.z + fz * 1.82; tall.yaw = ectx.catchYaw + Math.PI; tall.active = true;
     tallView.root.position.set(tall.x, player.y, tall.z); tallView.root.rotation.y = tall.yaw; tallView.stoop(k);
     if (!ectx.catchLight) { ectx.catchLight = { pos: new THREE.Vector3(), color: [0.9, 0.85, 0.75], power: 2.2, cone: 0, kind: 'catch' }; extraLights.push(ectx.catchLight); }
-    ectx.catchLight.pos.set(player.x - fx * 0.25, player.y + 1.3, player.z - fz * 0.25); ectx.catchLight.power = 1.4;
+    ectx.catchLight.pos.set(player.x + fx * 0.35, player.y + 0.72, player.z + fz * 0.35); ectx.catchLight.power = 2.0 + Math.random() * 0.6; // from below, like a torch under a chin
     shake = Math.max(shake, 0.5);
   }
   if (caughtT >= 0) { caughtT += dt; black = caughtT < 0.75 ? 0 : Math.min(1, (caughtT - 0.75) * 5);
@@ -257,6 +263,12 @@ function frame(now) {
   shake = Math.max(0, shake - dt * 1.5);
   const jolt = shake * shake * 0.04;
   camera.rotation.set(player.pitch + (Math.random() - 0.5) * jolt, player.yaw + (Math.random() - 0.5) * jolt, Math.sin(player.phase * Math.PI * 0.5) * 0.006 * sp, 'YXZ');
+  // the world narrows when he's near (tunnel vision), and the first sight of him each time pulls at it
+  { const near = tall.active && !tall.vanished ? Math.max(0, 1 - Math.hypot(tall.x - player.x, tall.z - player.z) / 16) : 0;
+    for (const e of events) if (e.name === 'tallSeen' && e.id > (ectx.seenFov || 0)) ectx.zoom = 1; ectx.seenFov = evId;
+    ectx.zoom = Math.max(0, (ectx.zoom || 0) - dt * 0.8);
+    const fov = 68 - near * 7 - Math.sin(Math.min(1, ectx.zoom) * Math.PI) * 5;
+    if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); } }
   camera.updateMatrixWorld();
   // sky and moon follow
   sky.position.copy(camera.position); skyline.position.set(camera.position.x, Math.min(camera.position.y, 2), camera.position.z); // the town is down there: from the hill you look down on it
@@ -342,5 +354,5 @@ function hint(key, text, secs = 5) { if (hinted.has(key)) return; hinted.add(key
 if (Q.has('go')) { title.style.display = 'none'; input.enabled = true; }
 
 // for tools
-window.__wh = { bot, ending, deck, ectx, prof, sound, director, tall, tallView, dog, puppy, vm, events, scene, camera, player, town, segs, lampState, fear, post, renderer, M, U, WIN_U, SKY_U, input, stream, fps: () => fps,
+window.__wh = { doors, bot, ending, deck, ectx, prof, sound, director, tall, tallView, dog, puppy, vm, events, scene, camera, player, town, segs, lampState, fear, post, renderer, M, U, WIN_U, SKY_U, input, stream, fps: () => fps,
   put(s, l = 0, yaw = 0, pitch = 0) { const p = roadAt(s, l); Object.assign(player, { x: p.x, z: p.z, s, l, yaw, pitch, vx: 0, vz: 0 }); stream(true); } };

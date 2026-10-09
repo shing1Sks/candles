@@ -6,31 +6,53 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-function faceTexture() {
+// the face. Old porcelain, crazed and grimed, greyer toward the edges. Two eye-holes that don't
+// match, and from each a long black stain run down the cheek like something has been crying ink for
+// years. A crack from the brow down through the left eye, and a chip gone from the jaw. The mouth: a
+// thin slit pulled far too wide, stitched shut with black thread. When he has you (open = true) the
+// stitches have torn and the mouth hangs open, a tall black hole.
+function faceTexture(open = false) {
   const S = 512, c = document.createElement('canvas'); c.width = S; c.height = S; const g = c.getContext('2d');
-  // porcelain, greyer toward the edges, a little yellowed
-  const bg = g.createRadialGradient(S / 2, S * 0.45, S * 0.1, S / 2, S / 2, S * 0.62); bg.addColorStop(0, '#ece6da'); bg.addColorStop(0.7, '#cfc6b6'); bg.addColorStop(1, '#8a8274');
+  let seed = 31; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const bg = g.createRadialGradient(S / 2, S * 0.42, S * 0.08, S / 2, S / 2, S * 0.62); bg.addColorStop(0, '#e2ddd2'); bg.addColorStop(0.6, '#c2bbae'); bg.addColorStop(1, '#6e675c');
   g.fillStyle = bg; g.fillRect(0, 0, S, S);
-  // fine crazing, and one long crack
-  g.strokeStyle = 'rgba(90,80,70,0.25)'; g.lineWidth = 1;
-  for (let i = 0; i < 26; i++) { g.beginPath(); let x = Math.random() * S, y = Math.random() * S; g.moveTo(x, y); for (let k = 0; k < 4; k++) { x += (Math.random() - 0.5) * 60; y += (Math.random() - 0.5) * 60; g.lineTo(x, y); } g.stroke(); }
-  g.strokeStyle = 'rgba(40,30,25,0.7)'; g.lineWidth = 2; g.beginPath(); g.moveTo(S * 0.62, S * 0.05); g.lineTo(S * 0.58, S * 0.22); g.lineTo(S * 0.64, S * 0.3); g.lineTo(S * 0.6, S * 0.38); g.stroke();
-  // the eyes: tall black almond voids, a little uneven, the outer corners dragging down. A pale point
-  // in each, turned toward the middle, toward you.
-  const EYES = [[-1, 0.405], [1, 0.395]];
-  for (const [sx, ey] of EYES) {
-    const cx = S / 2 + sx * S * 0.16, cy = S * ey;
-    g.save(); g.translate(cx, cy); g.rotate(sx * 0.32);
-    const eg = g.createRadialGradient(0, 0, 2, 0, 0, S * 0.11); eg.addColorStop(0, '#000'); eg.addColorStop(0.75, '#060303'); eg.addColorStop(1, 'rgba(50,30,30,0)');
-    g.fillStyle = eg; g.beginPath(); g.ellipse(0, 0, S * 0.062, S * 0.105, 0, 0, 7); g.fill();
+  // grime in the hollows and a yellowed bloom
+  for (let i = 0; i < 40; i++) { const x = rnd() * S, y = rnd() * S, r = 10 + rnd() * 50, gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${90 + rnd() * 40},${80 + rnd() * 30},60,${0.05 + rnd() * 0.08})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2); }
+  // crazing: a fine web of hairline cracks
+  g.strokeStyle = 'rgba(70,60,50,0.28)'; g.lineWidth = 0.8;
+  for (let i = 0; i < 60; i++) { g.beginPath(); let x = rnd() * S, y = rnd() * S; g.moveTo(x, y); for (let k = 0; k < 5; k++) { x += (rnd() - 0.5) * 40; y += (rnd() - 0.5) * 40; g.lineTo(x, y); } g.stroke(); }
+  // the eyes: uneven black almonds, the left lower and larger, the outer corners dragging down
+  const EYES = [[-1, 0.415, 1.12], [1, 0.39, 0.92]];
+  for (const [sx, ey, sc] of EYES) {
+    const cx = S / 2 + sx * S * 0.155, cy = S * ey;
+    // the stain: ink run down from the eye, in streaks, pooling at the jaw
+    for (let k = 0; k < 4; k++) {
+      const x0 = cx + (rnd() - 0.5) * S * 0.07, len = S * (0.18 + rnd() * 0.3), w = 2 + rnd() * 5;
+      const gr = g.createLinearGradient(x0, cy, x0, cy + len); gr.addColorStop(0, 'rgba(10,6,6,0.85)'); gr.addColorStop(1, 'rgba(10,6,6,0)');
+      g.strokeStyle = gr; g.lineWidth = w; g.beginPath(); g.moveTo(x0, cy + 10); g.bezierCurveTo(x0 + (rnd() - 0.5) * 10, cy + len * 0.4, x0 + (rnd() - 0.5) * 14, cy + len * 0.7, x0 + (rnd() - 0.5) * 8, cy + len); g.stroke();
+    }
+    g.save(); g.translate(cx, cy); g.rotate(sx * 0.38);
+    const eg = g.createRadialGradient(0, 0, 2, 0, 0, S * 0.12 * sc); eg.addColorStop(0, '#000'); eg.addColorStop(0.7, '#050202'); eg.addColorStop(1, 'rgba(40,24,24,0)');
+    g.fillStyle = eg; g.beginPath(); g.ellipse(0, 0, S * 0.058 * sc, S * 0.1 * sc, 0, 0, 7); g.fill();
     g.restore();
-    g.fillStyle = 'rgba(235,228,212,0.95)'; g.beginPath(); g.arc(cx - sx * 7, cy - 6, 3.2, 0, 7); g.fill();
   }
-  // the mouth: a slit of a smile pulled out to the cheeks, black inside, stitched shut
-  g.fillStyle = '#0a0404'; g.beginPath(); g.moveTo(S * 0.13, S * 0.6); g.quadraticCurveTo(S / 2, S * 0.83, S * 0.87, S * 0.6); g.quadraticCurveTo(S / 2, S * 0.76, S * 0.13, S * 0.6); g.fill();
-  g.strokeStyle = '#3a1a14'; g.lineWidth = 2.2; for (let k = 1; k < 14; k++) { const t = k / 14, x = S * (0.13 + 0.74 * t), y = S * 0.6 + Math.sin(t * Math.PI) * S * 0.165; g.beginPath(); g.moveTo(x - 2, y - 12); g.lineTo(x + 2, y + 8); g.stroke(); }
-  // rouge, faded
-  g.fillStyle = 'rgba(150,50,50,0.16)'; for (const sx of [-1, 1]) { g.beginPath(); g.arc(S / 2 + sx * S * 0.22, S * 0.58, S * 0.06, 0, 7); g.fill(); }
+  // the crack, through the left eye, and the chip gone from the jaw (black: the inside of him)
+  g.strokeStyle = 'rgba(25,18,15,0.9)'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(S * 0.4, S * 0.02); g.lineTo(S * 0.37, S * 0.17); g.lineTo(S * 0.33, S * 0.24); g.lineTo(S * 0.35, S * 0.33); g.moveTo(S * 0.3, S * 0.5); g.lineTo(S * 0.26, S * 0.6); g.lineTo(S * 0.28, S * 0.7); g.stroke();
+  g.fillStyle = '#050303'; g.beginPath(); g.moveTo(S * 0.66, S * 0.86); g.lineTo(S * 0.72, S * 0.8); g.lineTo(S * 0.78, S * 0.83); g.lineTo(S * 0.76, S * 0.92); g.lineTo(S * 0.69, S * 0.95); g.fill();
+  if (!open) {
+    // the mouth: a thin slit pulled almost ear to ear, a little crooked, stitched shut
+    g.strokeStyle = '#080404'; g.lineWidth = 4; g.beginPath(); g.moveTo(S * 0.1, S * 0.6); g.bezierCurveTo(S * 0.3, S * 0.7, S * 0.66, S * 0.71, S * 0.9, S * 0.57); g.stroke();
+    g.strokeStyle = '#1a0c0a'; g.lineWidth = 2;
+    for (let k = 1; k < 18; k++) { const t = k / 18, x = S * (0.1 + 0.8 * t), y = S * 0.6 + Math.sin(t * Math.PI) * S * 0.095 - t * S * 0.02; g.beginPath(); g.moveTo(x - 3, y - 11); g.lineTo(x + 3, y + 10); g.stroke(); }
+  } else {
+    // the stitches torn: the mouth hangs open, a tall black hole, threads still hanging from the edges
+    // the corners still stitched in their smile; the middle torn open and the jaw dropped, a long black hole
+    g.strokeStyle = '#080404'; g.lineWidth = 4; g.beginPath(); g.moveTo(S * 0.1, S * 0.6); g.bezierCurveTo(S * 0.2, S * 0.65, S * 0.3, S * 0.665, S * 0.38, S * 0.665); g.moveTo(S * 0.62, S * 0.665); g.bezierCurveTo(S * 0.72, S * 0.66, S * 0.82, S * 0.63, S * 0.9, S * 0.57); g.stroke();
+    g.strokeStyle = '#1a0c0a'; g.lineWidth = 2;
+    for (let k = 1; k < 18; k++) { const t = k / 18; if (t > 0.33 && t < 0.67) continue; const x = S * (0.1 + 0.8 * t), y = S * 0.6 + Math.sin(t * Math.PI) * S * 0.095 - t * S * 0.02; g.beginPath(); g.moveTo(x - 3, y - 11); g.lineTo(x + 3, y + 10); g.stroke(); }
+    g.fillStyle = '#020101'; g.beginPath(); g.moveTo(S * 0.37, S * 0.655); g.bezierCurveTo(S * 0.36, S * 0.82, S * 0.42, S * 0.99, S * 0.5, S * 1.0); g.bezierCurveTo(S * 0.58, S * 0.99, S * 0.64, S * 0.82, S * 0.63, S * 0.655); g.bezierCurveTo(S * 0.55, S * 0.675, S * 0.45, S * 0.675, S * 0.37, S * 0.655); g.fill();
+    g.strokeStyle = '#2a1410'; g.lineWidth = 1.6; for (let k = 0; k < 7; k++) { const x = S * (0.39 + k * 0.035), y = S * 0.67; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + (rnd() - 0.5) * 10, y + 15, x + (rnd() - 0.5) * 6, y + 18 + rnd() * 28); g.stroke(); }
+  }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
@@ -41,7 +63,8 @@ export class TallManView {
     const satin = new THREE.MeshStandardMaterial({ color: 0x0c0b0e, roughness: 0.35, metalness: 0.1 });
     const leather = new THREE.MeshStandardMaterial({ color: 0x0a0909, roughness: 0.3 });
     const skin = new THREE.MeshStandardMaterial({ color: 0x9a9088, roughness: 0.6 });
-    const porcelain = this.porcelain = new THREE.MeshStandardMaterial({ map: faceTexture(), color: 0xd8d2c8, roughness: 0.32, metalness: 0, emissive: 0x1c1a14 });
+    this.faceShut = faceTexture(false); this.faceOpen = faceTexture(true);
+    const porcelain = this.porcelain = new THREE.MeshStandardMaterial({ map: this.faceShut, color: 0xd8d2c8, roughness: 0.28, metalness: 0, emissive: 0x161410 });
     const pale = new THREE.MeshStandardMaterial({ color: 0xcfc6b6, roughness: 0.3 });
     const sh = (o) => { o.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } }); return o; };
     // the coat: a lathe profile (shoulders down to the flared hem), with folds pressed into it
@@ -94,14 +117,19 @@ export class TallManView {
     const nk = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.22, 8), skin); nk.position.y = 0.16; this.neck.add(nk);
     this.head = new THREE.Group(); this.head.position.y = 0.38; this.neck.add(this.head);
     // the head: a long narrow skull, and the porcelain face as a mask on its front
-    const skull = sh(new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 18), pale)); skull.scale.set(0.78, 1.32, 0.86); this.head.add(skull);
-    const mask = sh(new THREE.Mesh(new THREE.SphereGeometry(0.153, 28, 20, Math.PI * 1.5 - 0.95, 1.9, 0.35, 2.35), porcelain)); mask.scale.set(0.79, 1.33, 0.87); this.head.add(mask);
+    const skull = sh(new THREE.Mesh(new THREE.SphereGeometry(0.15, 24, 18), pale)); skull.scale.set(0.7, 1.5, 0.86); this.head.add(skull);
+    const mask = sh(new THREE.Mesh(new THREE.SphereGeometry(0.153, 28, 20, Math.PI * 1.5 - 0.95, 1.9, 0.35, 2.35), porcelain)); mask.scale.set(0.71, 1.51, 0.87); this.head.add(mask);
     // the eye sockets, sunk in: real depth, so the dark holds even when a lamp is full on his face
     for (const [u, v] of [[0.5 - 0.16, 0.405], [0.5 + 0.16, 0.395]]) {
       const ph = Math.PI * 1.5 - 0.95 + u * 1.9, th = 0.35 + v * 2.35, r = 0.147;
       const sock = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 10), new THREE.MeshBasicMaterial({ color: 0x000000 }));
-      sock.position.set(-r * Math.cos(ph) * Math.sin(th) * 0.79, r * Math.cos(th) * 1.33, r * Math.sin(ph) * Math.sin(th) * 0.87);
+      sock.position.set(-r * Math.cos(ph) * Math.sin(th) * 0.71, r * Math.cos(th) * 1.51, r * Math.sin(ph) * Math.sin(th) * 0.87);
       sock.scale.set(0.018, 0.032, 0.012); sock.lookAt(sock.position.clone().multiplyScalar(2)); this.head.add(sock);
+      // and deep in each hole, something wet that catches the light: an eye, looking at you
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 10, 8), new THREE.MeshStandardMaterial({ color: 0x0a0806, roughness: 0.05, metalness: 0.2, emissive: 0x020101 }));
+      eye.position.copy(sock.position).multiplyScalar(0.94); this.head.add(eye);
+      const glint = new THREE.Mesh(new THREE.SphereGeometry(0.0022, 6, 4), new THREE.MeshBasicMaterial({ color: 0xd8d0c0 })); glint.position.set(0.003, 0.003, 0.007); eye.add(glint);
+      (this.eyes ||= []).push(eye);
     }
     const brim = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.02, 24), satin)); brim.position.y = 0.15; this.head.add(brim);
     const crown = sh(new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.145, 0.52, 20), satin)); crown.position.y = 0.42; this.head.add(crown);
@@ -112,6 +140,9 @@ export class TallManView {
   // M: tall man sim state
   // the catch: he folds down over you until his face is level with yours
   stoop(k) {
+    // and the mouth comes open
+    const want = k > 0.72 ? this.faceOpen : this.faceShut; if (this.porcelain.map !== want) { this.porcelain.map = want; this.porcelain.needsUpdate = true; }
+    this.porcelain.roughness = 0.28 + k * 0.4; this.porcelain.emissive.setHex(k > 0 ? 0x34302a : 0x161410);
     // fold at the hips (pivot 1.3 m up): the torso goes over toward you until the face is level with yours
     const a = -k * 1.78, h = 1.3;
     this.body.rotation.x = a; this.body.position.set(0, h * (1 - Math.cos(a)), -h * Math.sin(a));
@@ -123,6 +154,7 @@ export class TallManView {
   update(M, dt, camera) {
     this.root.visible = M.active && !M.vanished;
     if (!M.active) return;
+    this.eyes?.forEach((e) => e.lookAt(camera.position)); // the eyes in the holes follow you, always
     if (M.catching) return;
     this.root.position.set(M.x, M.y, M.z); this.root.rotation.y = M.yaw;
     // caught mid-stride: nothing moves while you look. Nothing. Except, once, if you hold him long

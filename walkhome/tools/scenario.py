@@ -25,6 +25,15 @@ SCEN = {
             ("wait", 2), ("js", "__wh.dog.x = __wh.player.x + 0.3; __wh.dog.z = __wh.player.z - 0.6; __wh.input.edges.add('KeyE')"), ("wait", 1.0), ("shot", "e_carry"), ("js", "__wh.input.edges.add('KeyE')"),
             ("wait", 1.0), ("js", "__wh.dog.state = 'lured'; __wh.dog.lured = {x: __wh.player.x - 6, z: __wh.player.z - 4}"), ("wait", 2.5), ("shot", "f_pull"), ("js", "__wh.dog.lured = null"),
             ("look", 1.2, -0.2), ("wait", 1.0), ("shot", "g_side"), ("look", 3.14, -0.1), ("wait", 1.0), ("shot", "h_lookback")],
+  # crouch behind a parked car while he hunts you: does he search, and give up?
+  "hide": [("js", "__wh.put(420, 3, 0, 0); __wh.deck.nextS = 99999; __wh.director.glimpse = 'done'; __wh.director.nextVisit = 99999"), ("wait", 2),
+           ("js", "(() => { const c = __wh.ectx.obstacles.find(o => o.car && Math.hypot(o.x - __wh.player.x, o.z - __wh.player.z) < 40) || __wh.ectx.obstacles.find(o => o.car); const P = __wh.player; P.x = c.x + 1.25; P.z = c.z; window.__car = c; const T = __wh.tall; T.active = true; T.mode = 'hunt'; T.knows = 1; T.x = P.x + 0.5; T.z = P.z + 22; T.y = P.y; __wh.director.visits = 2; })()"),
+           ("js", "__wh.input.keys.add('KeyC'); __wh.player.yaw = 3.14; __wh.player.pitch = 0.1"), ("wait", 1), ("log", "JSON.stringify({hidden: __wh.post.U.uHide.value.toFixed(2)})"), ("shot", "a_hide"),
+          ] + sum([[("wait", 1.5), ("log", "JSON.stringify({t:+__wh.director.t.toFixed(1), d:+Math.hypot(__wh.tall.x-__wh.player.x, __wh.tall.z-__wh.player.z).toFixed(1), act:__wh.tall.active, mode:__wh.tall.mode, knows:+__wh.tall.knows.toFixed(2), lost:+(__wh.tall.lostFor||0).toFixed(1), seen:__wh.tall.seen, ph:__wh.director.phase, dfear:+__wh.dog.fear.toFixed(2), ev:__wh.events.splice(0).map(e=>e.name).filter(n=>!/sniff|pee|tug|call|happy|step/.test(n)).join(',')})")] + ([("shot", f"b_{i:02d}")] if i % 4 == 0 else []) for i in range(18)], []),
+  # walk up a garden path and ring the bell, at three houses
+  "bell": sum([[("js", f"(() => {{ const d = __wh.doors.list.filter(d => d.s > 60)[{k}]; window.__d = d; const p = d; __wh.put(d.s, d.side * 6.6, 0, 0); const P = __wh.player; P.yaw = Math.atan2(-(d.x - P.x), -(d.z - P.z)); P.pitch = 0.15; }})()"), ("wait", 1.5),
+                ("log", "JSON.stringify({kind: __wh.doors.list.filter(d => d.s > 60)[" + str(k) + "].kind, at: !!__wh.doors.at(__wh.player, __wh.camera.getWorldDirection(new __wh.camera.position.constructor()))})"), ("shot", f"door{k}"),
+                ("js", "__wh.input.edges.add('KeyE')"), ("wait", 7), ("log", "JSON.stringify({ev: __wh.events.splice(0).map(e => e.name).filter(n => !/sniff|step/.test(n)).join(','), cap: document.getElementById('caption').textContent, carried: __wh.dog.carried})")] for k in range(4)], []),
   # a slow human-paced walk: stop, look about, walk on. What happens in 4 minutes?
   "human": [("js", "__wh.put(2, 3.4, 0, -0.1)")] + sum([[("hold", "KeyW", 7), ("look", 3.0, -0.05), ("wait", 1.5), ("log", TSTATE), ("look", 0.0, -0.1), ("wait", 2.0), ("log", TSTATE)] for i in range(22)], []),
   # walk up the long street; the director sends him; look back now and then
