@@ -340,6 +340,10 @@ function frame(now) {
   pm('fx', t0); t0 = performance.now();
   puppy.root.visible = !dog.hidden; dog.nearEvil = tall.active && !tall.vanished && Math.hypot(tall.x - dog.x, tall.z - dog.z) < 15;
   puppy.update(dog, dt, camera);
+  // lost, his collar light blinks red on the wall beside him: it's how you find him in the dark
+  if (dog.lost) { if (!ectx.collarLight) { ectx.collarLight = { pos: new THREE.Vector3(), color: [1.0, 0.18, 0.12], power: 0, cone: 0, kind: 'collar' }; extraLights.push(ectx.collarLight); }
+    ectx.collarLight.pos.set(dog.x, dog.y + 0.45, dog.z); ectx.collarLight.power = puppy.led.visible ? 0.45 : 0.04; }
+  else if (ectx.collarLight) { extraLights.splice(extraLights.indexOf(ectx.collarLight), 1); ectx.collarLight = null; }
   tallView.update(tall, dt, camera);
   // the peek: he stands behind the trunk, leaning out sideways so his head and a shoulder show; held in
   // your eyes a moment, he leans back in and he's gone; walked up to, he's gone

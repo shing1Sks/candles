@@ -225,9 +225,9 @@ export class Puppy {
     for (const e of this.eyes) e.scale.y += ((closed ? 0.15 : content) - e.scale.y) * Math.min(1, dt * 12);
     // the collar light blinks
     // ...and stutters when something is very near (cheap electronics, or not)
-    this.led.visible = (Math.floor(this.t * 1.2) % 2 === 0 || P.scared) && !(P.nearEvil && Math.random() < 0.45);
+    this.led.visible = (P.lost ? Math.floor(this.t * 2) % 2 === 0 : Math.floor(this.t * 1.2) % 2 === 0 || P.scared) && !(P.nearEvil && Math.random() < 0.45); /* (lost, it blinks: a beacon) */
     this.led.material.color.setHex(P.scared ? 0xff5040 : 0x66ff88);
-    this.ledGlow.material.color.copy(this.led.material.color); this.ledGlow.scale.setScalar(P.lost ? 0.5 : 0.08); this.ledGlow.visible = this.led.visible;
+    this.ledGlow.material.color.copy(this.led.material.color); this.ledGlow.scale.setScalar(P.lost ? 0.9 : 0.08); this.ledGlow.visible = this.led.visible;
     // fur trails motion (world velocity -> drag), gravity in world
     const wp = R.getWorldPosition(new THREE.Vector3());
     const v = wp.clone().sub(this.prevPos).divideScalar(Math.max(dt, 1e-3)); this.prevPos.copy(wp);
