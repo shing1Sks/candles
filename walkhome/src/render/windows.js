@@ -108,6 +108,26 @@ const FRAG = /* glsl */`
         if (body > 0.5) { col = vec3(0.005); t = tw; p = pw; }
       }
     }
+    // someone standing with their face to the far wall, very still (a few lit rooms, all night)
+    if (lit > 0.5 && kind < 0.5 && shape < 3.5 && h1(seed * 25.9) < 0.07) {
+      float zf4 = -D * 0.9, tw4 = (zf4 - ro.z) / rd.z;
+      if (tw4 > 0. && tw4 < t) { vec3 pw4 = ro + rd * tw4; float px4 = pw4.x - (h1(seed * 26.3) - 0.5) * RW * 0.5, py4 = pw4.y - FL;
+        float b4 = step(abs(px4), 0.21) * step(py4, 1.45) + step(length(vec2(px4, py4 - 1.6)), 0.12); if (b4 > 0.5) { col = vec3(0.05, 0.045, 0.04); t = tw4; p = pw4; } }
+    }
+    // the family at the table: three of them, and every face turned to the window (once it's bad)
+    if (lit > 0.5 && kind < 0.5 && shape < 3.5 && uEvil > 0.25 && h1(seed * 23.3) < 0.08 + uEvil * 0.12) {
+      float zf3 = -D * 0.55, tw3 = (zf3 - ro.z) / rd.z;
+      if (tw3 > 0. && tw3 < t) {
+        vec3 pw3 = ro + rd * tw3; float py3 = pw3.y - FL; bool got = false;
+        if (py3 < 0.8 && py3 > 0.72 && abs(pw3.x) < 1.25) { col = vec3(0.3, 0.2, 0.12); got = true; }
+        for (int k = -1; k <= 1; k++) {
+          float px3 = pw3.x - float(k) * 0.72;
+          if (length(vec2(px3, py3 - 1.12)) < 0.13) { vec2 e = vec2(abs(px3) - 0.045, py3 - 1.15); col = length(e) < 0.022 ? vec3(0.0) : vec3(0.78, 0.72, 0.64) * 0.65; got = true; }
+          else if (abs(px3) < 0.2 && py3 < 0.98 && py3 > 0.3 && !got) { col = vec3(0.045, 0.04, 0.035); got = true; }
+        }
+        if (got) { t = tw3; p = pw3; }
+      }
+    }
     // someone crossing a lit room now and then: a shadow sliding past the lamp
     if (lit > 0.5 && kind < 0.5 && h1(seed * 17.7) < 0.3) {
       float cyc = fract(uTime * 0.045 + h1(seed * 19.1)), zf2 = -D * 0.42, tw2 = (zf2 - ro.z) / rd.z;
