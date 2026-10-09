@@ -52,7 +52,7 @@ function catModel() {
   const head = new THREE.Group(); head.position.set(0, 0.34, -0.1); g.add(head);
   const hd = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 10), fur); head.add(hd);
   for (const s of [-1, 1]) { const ear = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.06, 4), fur); ear.position.set(s * 0.045, 0.07, 0); head.add(ear);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), new THREE.MeshBasicMaterial({ color: 0xc8ff60 })); eye.position.set(s * 0.028, 0.01, -0.066); head.add(eye); }
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.019, 8, 6), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 2.4, 0.5) })); /* eyes that catch the light: a black cat, you see the eyes first */ eye.position.set(s * 0.028, 0.01, -0.066); head.add(eye); }
   const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 12; pts.push(V3(0.08 + Math.sin(t * 3) * 0.08, 0.04 + t * 0.05, 0.18 + t * 0.1)); }
   const tail = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, 0.016, 6), fur); g.add(tail);
   g.userData = { head, tail };
