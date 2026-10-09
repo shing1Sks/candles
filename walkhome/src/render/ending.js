@@ -27,7 +27,14 @@ export class Ending {
       // the door, swinging open, and the light
       const { F, o } = G;
       this.hinge = new THREE.Group(); this.hinge.position.copy(V3(o.d / 2 + 0.07, 0.55, -0.5).applyMatrix4(F.matrix)); this.hinge.rotation.y = F.rotY; this.scene.add(this.hinge);
-      const door = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.12, 0.98), new THREE.MeshStandardMaterial({ color: o.door, roughness: 0.5 })); door.position.set(0, 1.06, 0.49); this.hinge.add(door);
+      // a proper front door: four panels, a brass knocker, a letterbox, the number
+      const dc = document.createElement('canvas'); dc.width = 128; dc.height = 256; const dg = dc.getContext('2d'); const col = '#' + new THREE.Color(o.door).getHexString();
+      dg.fillStyle = col; dg.fillRect(0, 0, 128, 256); dg.strokeStyle = 'rgba(0,0,0,0.45)'; dg.lineWidth = 3; for (const [x, y, w, h] of [[14, 14, 44, 100], [70, 14, 44, 100], [14, 140, 44, 100], [70, 140, 44, 100]]) { dg.strokeRect(x, y, w, h); dg.strokeStyle = 'rgba(255,255,255,0.12)'; dg.strokeRect(x + 4, y + 4, w - 8, h - 8); dg.strokeStyle = 'rgba(0,0,0,0.45)'; }
+      dg.fillStyle = '#c8a050'; dg.fillRect(40, 122, 48, 10); dg.beginPath(); dg.arc(64, 70, 8, 0, 7); dg.fill(); dg.beginPath(); dg.arc(104, 132, 5, 0, 7); dg.fill();
+      const dtx = new THREE.CanvasTexture(dc); dtx.colorSpace = THREE.SRGBColorSpace;
+      const dm = new THREE.MeshStandardMaterial({ map: dtx, roughness: 0.45 }), edge = new THREE.MeshStandardMaterial({ color: o.door, roughness: 0.5 });
+      const door = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.12, 0.98), [edge, edge, edge, edge, edge, edge]); door.position.set(0, 1.06, 0.49); this.hinge.add(door);
+      for (const sx of [-1, 1]) { const face = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 2.12), dm); face.position.set(sx * 0.036, 1.06, 0.49); face.rotation.y = sx * Math.PI / 2; this.hinge.add(face); }
       this.hall = new THREE.Mesh(new THREE.PlaneGeometry(0.96, 2.1), new THREE.MeshBasicMaterial({ color: 0xffe6b0 })); this.hall.position.copy(V3(o.d / 2 + 0.06, 1.6, 0).applyMatrix4(F.matrix)); this.hall.rotation.y = F.rotY + Math.PI / 2; this.hall.visible = false; this.scene.add(this.hall);
       this.light = { pos: V3(o.d / 2 + 1.2, 1.7, 0).applyMatrix4(F.matrix), color: [1.0, 0.8, 0.55], power: 0, cone: 0, kind: 'home' }; c.extraLights.push(this.light);
       c.sound?.one('door_creak', { pos: G.door, gain: 0.7, rate: 0.9, slice: false, verb: 0.3 });

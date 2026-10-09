@@ -107,6 +107,8 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
 
   switch (D.state) {
     case 'follow': {
+      // you're kneeling with your hand out: he stays right there at your hand
+      if (input.pet) { tx = P.x + vfx * 0.68 + vrx * 0.05; tz = P.z + vfz * 0.68 + vrz * 0.05; want = DOG.trot * 0.6; look = { x: P.x, z: P.z }; break; }
       // a little ahead and to the right of you; idles beside you when you stop
       tx = P.x + fx * (moving ? 2.15 : 1.6) + rx * 0.5; tz = P.z + fz * (moving ? 2.15 : 1.6) + rz * 0.5;
       // something to sniff nearby?
@@ -206,7 +208,11 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.sniff = ease(D.sniff, D.state === 'sniff' ? 1 : 0, 5, dt);
   D.sit = ease(D.sit, (D.state === 'follow' && !moving && D.speed < 0.1 && D.st > 3) || D.state === 'intro' || D.state === 'scratch' || D.state === 'yawn' ? 1 : D.state === 'pee' ? 0.6 : 0, 3, dt);
   // stood still a long while, nothing about: he lies down, chin on his paws (and gets straight up when you go)
-  D.lie = ease(D.lie || 0, D.state === 'follow' && D.still > 14 && world.calm && D.fear < 0.2 ? 1 : 0, D.still > 14 ? 1.2 : 6, dt);
+  const settle = ((D.state === 'follow' || D.state === 'yawn') && D.still > 10) || (petting && D.state === 'follow' && D.st > 2.5); // (being stroked a while, he flops down too)
+  D.lie = ease(D.lie || 0, settle && world.calm && D.fear < 0.2 ? 1 : 0, settle ? 1.6 : 6, dt);
+  // lying down and you kneel and stroke him: he rolls over for his belly
+  D.belly = ease(D.belly || 0, petting && D.lie > 0.6 ? 1 : 0, petting ? 1.5 : 5, dt);
+  if (D.belly > 0.5 && rng.chance(dt * 0.3)) emit('happyHuff', {});
   D.crouch = ease(D.crouch, D.state === 'hide' ? 1 : D.state === 'alert' ? 0.35 : 0, 5, dt);
   D.ears = ease(D.ears, D.state === 'hide' ? -1 : D.state === 'alert' ? 1 : D.state === 'come' ? 0.3 : 0, 6, dt);
   D.wag = ease(D.wag, petting || D.state === 'come' || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 1 : D.state === 'alert' || D.state === 'hide' ? 0 : 0.45, 3, dt);

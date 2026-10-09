@@ -60,7 +60,7 @@ export class Viewmodel {
     this.camera = camera; this.scene = scene;
     this.rig = new THREE.Group(); camera.add(this.rig);
     const wool = woolTex();
-    const sleeve = new THREE.MeshStandardMaterial({ color: 0x27304a, roughness: 1, bumpMap: wool, bumpScale: 1.2, emissive: 0x05070d });
+    const sleeve = new THREE.MeshStandardMaterial({ color: 0x34406a, roughness: 1, bumpMap: wool, bumpScale: 1.2, emissive: 0x080b16 });
     const knit = new THREE.MeshStandardMaterial({ color: 0x9a3a30, roughness: 1, bumpMap: ribTex(), bumpScale: 1.6, emissive: 0x15130f });
     const mt = knitTex('#c23a30', '#6a1612');
     mt.repeat.set(5, 4);

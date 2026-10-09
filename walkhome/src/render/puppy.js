@@ -153,6 +153,8 @@ export class Puppy {
     const sp = Math.min(1, P.speed / 1.6), ph = P.phase;
     // body: bob with the trot, lower when crouched/scared, tilt back when sitting
     // sitting: the rump goes down and back, the chest stays up on straight front legs
+    // (rolled over for a belly rub: on his back, paws up and paddling, head lolling)
+    const belly = P.belly || 0;
     // gait by speed: a walk (one foot at a time) when he's ambling, a trot beside you, a bounding
     // gallop when he runs (front feet together, back feet together, the back arching)
     const gait = P.speed < 1.15 ? 'walk' : P.speed < 2.6 ? 'trot' : 'gallop';
@@ -171,6 +173,7 @@ export class Puppy {
       if (L.front && P.sit > 0) { hip = hip * (1 - P.sit) - 0.62 * P.sit; knee *= 1 - P.sit; }
       if (P.carried) { hip = L.front ? -0.4 : 0.5; knee = L.front ? 0.3 : 0.2; }
       if (lie > 0) { hip = hip * (1 - lie) + (L.front ? -1.45 : -1.25) * lie; knee = knee * (1 - lie) + (L.front ? 0.15 : 2.4) * lie; }
+      if (belly > 0) { hip = hip * (1 - belly) + (L.front ? -0.9 : 0.6) * belly + Math.sin(this.t * 5 + L.x * 40) * 0.25 * belly; knee = knee * (1 - belly) + 1.2 * belly; }
       hip += P.crouch * (L.front ? -0.25 : 0.35);
       L.hip.rotation.x += (hip - L.hip.rotation.x) * Math.min(1, dt * 18);
       L.knee.rotation.x += (knee - L.knee.rotation.x) * Math.min(1, dt * 18);
@@ -207,6 +210,7 @@ export class Puppy {
     if (m === 'yawn') { const k = Math.sin(Math.min(1, mt / 1.8) * Math.PI); this.head.rotation.x -= k * 0.55; this.tongue.visible = k > 0.3; this.tongue.scale.set(1.2, 1, 1.3); this.jaw = k; }
     if (m === 'shake') { const k = Math.sin(Math.min(1, mt / 1.2) * Math.PI); this.body.rotation.z = Math.sin(mt * 32) * 0.55 * k; this.head.rotation.z = -Math.sin(mt * 32) * 0.7 * k; this.ears.forEach((E) => (E.v += Math.sin(mt * 32) * 30 * k * dt * 60)); }
     else this.body.rotation.z *= 0.8;
+    if (belly > 0.01) { this.body.rotation.z = belly * 2.5; this.body.position.y = 0.2 - 0.07 * belly; this.head.rotation.z = -belly * 0.8; }
     if (m === 'sneeze') { const k = mt < 0.5 ? mt / 0.5 : Math.max(0, 1 - (mt - 0.5) * 4); this.head.rotation.x += mt < 0.5 ? k * 0.35 : -k * 0.6; }
     // blinking
     this.blink -= dt; const closed = this.blink < 0.12 && this.blink > 0;
