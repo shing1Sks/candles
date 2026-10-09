@@ -57,14 +57,37 @@ export class Ending {
   still(c) {
     const S = this.stillScene = new THREE.Scene(); S.background = new THREE.Color(0x0a0705);
     const cam = this.stillCam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.05, 20);
-    cam.position.set(0, 1.25, 1.35); cam.lookAt(0.05, 0.92, 0);
+    cam.position.set(0, 1.18, 1.95); cam.lookAt(0.0, 0.6, 0);
     const wallM = new THREE.MeshStandardMaterial({ color: 0x7a5a48, roughness: 0.9 });
-    // wallpaper: faded stripes
-    const wc = document.createElement('canvas'); wc.width = 256; wc.height = 256; const w2 = wc.getContext('2d'); w2.fillStyle = '#8a6a52'; w2.fillRect(0, 0, 256, 256); for (let x = 0; x < 256; x += 32) { w2.fillStyle = 'rgba(60,40,30,0.25)'; w2.fillRect(x, 0, 10, 256); w2.fillStyle = 'rgba(220,200,160,0.12)'; w2.fillRect(x + 14, 0, 4, 256); }
+    // wallpaper: an old faded damask, a sprig in a diamond, the paper a little stained
+    const wc = document.createElement('canvas'); wc.width = 256; wc.height = 256; const w2 = wc.getContext('2d'); w2.fillStyle = '#9a7658'; w2.fillRect(0, 0, 256, 256);
+    for (const [ox, oy] of [[0, 0], [128, 128], [128, -128], [-128, 128], [256, 0], [0, 256], [256, 256]]) {
+      w2.save(); w2.translate(64 + ox, 64 + oy); w2.strokeStyle = 'rgba(200,170,120,0.22)'; w2.lineWidth = 3;
+      w2.beginPath(); w2.moveTo(0, -46); w2.lineTo(40, 0); w2.lineTo(0, 46); w2.lineTo(-40, 0); w2.closePath(); w2.stroke();
+      w2.fillStyle = 'rgba(70,46,34,0.35)'; for (let k = 0; k < 5; k++) { w2.beginPath(); w2.ellipse(Math.cos(k * 1.256) * 14, Math.sin(k * 1.256) * 14 - 4, 6, 11, k * 1.256, 0, 7); w2.fill(); }
+      w2.fillRect(-1.5, 4, 3, 26); w2.restore();
+    }
+    for (let i = 0; i < 30; i++) { w2.fillStyle = `rgba(40,25,15,${Math.random() * 0.06})`; w2.beginPath(); w2.arc(Math.random() * 256, Math.random() * 256, 10 + Math.random() * 40, 0, 7); w2.fill(); }
     const wt = new THREE.CanvasTexture(wc); wt.wrapS = wt.wrapT = THREE.RepeatWrapping; wt.repeat.set(4, 3); wt.colorSpace = THREE.SRGBColorSpace; wallM.map = wt;
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(6, 4), wallM); wall.position.set(0, 1.5, -0.35); S.add(wall);
     const skirting = new THREE.Mesh(new THREE.BoxGeometry(6, 0.18, 0.04), new THREE.MeshStandardMaterial({ color: 0xd8cfc0, roughness: 0.5 })); skirting.position.set(0, 0.09, -0.33); S.add(skirting);
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 4), new THREE.MeshStandardMaterial({ color: 0x3a2618, roughness: 0.6 })); floor.rotation.x = -Math.PI / 2; S.add(floor);
+    // floorboards, worn pale down the middle where people walk
+    const fcv = document.createElement('canvas'); fcv.width = 256; fcv.height = 256; const fg = fcv.getContext('2d');
+    for (let i = 0; i < 8; i++) { fg.fillStyle = `hsl(25, 40%, ${16 + Math.random() * 6}%)`; fg.fillRect(i * 32, 0, 32, 256); fg.fillStyle = 'rgba(0,0,0,0.5)'; fg.fillRect(i * 32, 0, 1.5, 256); for (let k = 0; k < 14; k++) { fg.fillStyle = 'rgba(0,0,0,0.12)'; fg.fillRect(i * 32 + Math.random() * 30, Math.random() * 256, 1, 20 + Math.random() * 60); } fg.fillStyle = 'rgba(0,0,0,0.6)'; fg.fillRect(i * 32, (i * 97) % 256, 32, 1.5); }
+    const ftx = new THREE.CanvasTexture(fcv); ftx.wrapS = ftx.wrapT = THREE.RepeatWrapping; ftx.repeat.set(3, 2); ftx.colorSpace = THREE.SRGBColorSpace;
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 4), new THREE.MeshStandardMaterial({ map: ftx, roughness: 0.5 })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; S.add(floor);
+    // a picture rail, and the hook by the door with his red bobble hat on it, still damp
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(6, 0.04, 0.03), new THREE.MeshStandardMaterial({ color: 0x3a2618, roughness: 0.5 })); rail.position.set(0, 1.82, -0.33); S.add(rail);
+    const hook = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 8), new THREE.MeshStandardMaterial({ color: 0x9a7a38, metalness: 0.8, roughness: 0.3 })); hook.rotation.x = Math.PI / 2 - 0.4; hook.position.set(-0.66, 1.2, -0.3); S.add(hook);
+    const knit = new THREE.MeshStandardMaterial({ color: 0xa82a24, roughness: 1 });
+    const hat = new THREE.Mesh(new THREE.SphereGeometry(0.075, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), knit); hat.position.set(-0.66, 1.14, -0.27); hat.rotation.z = 0.25; hat.scale.set(1, 1.2, 0.8); hat.castShadow = true; S.add(hat);
+    const pom = new THREE.Mesh(new THREE.SphereGeometry(0.028, 12, 10), new THREE.MeshStandardMaterial({ color: 0xece4d8, roughness: 1 })); pom.position.set(-0.64, 1.235, -0.27); pom.castShadow = true; S.add(pom);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.014, 8, 20), new THREE.MeshStandardMaterial({ color: 0xece4d8, roughness: 1 })); band.position.set(-0.675, 1.09, -0.27); band.rotation.set(Math.PI / 2, 0.25, 0); band.scale.set(1, 0.8, 1); S.add(band);
+    // and on the floor by the table, his bowl, with his name on it. Empty
+    const bc = document.createElement('canvas'); bc.width = 256; bc.height = 64; const b2 = bc.getContext('2d'); b2.fillStyle = '#d8d0c0'; b2.fillRect(0, 0, 256, 64); b2.fillStyle = '#2a4a7a'; b2.font = 'bold 30px Georgia'; b2.textAlign = 'center'; b2.fillText('BISCUIT', 128, 44);
+    const bt = new THREE.CanvasTexture(bc); bt.colorSpace = THREE.SRGBColorSpace;
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.06, 28, 1, true), new THREE.MeshStandardMaterial({ map: bt, roughness: 0.3, side: THREE.DoubleSide })); bowl.position.set(-0.2, 0.03, 0.12); bowl.rotation.y = -0.3; bowl.castShadow = true; S.add(bowl);
+    const bb = new THREE.Mesh(new THREE.CircleGeometry(0.08, 24), new THREE.MeshStandardMaterial({ color: 0xc8c0b0, roughness: 0.3 })); bb.rotation.x = -Math.PI / 2; bb.position.set(-0.2, 0.005, 0.12); S.add(bb);
     const wood = new THREE.MeshStandardMaterial({ color: 0x4a2e1e, roughness: 0.45 });
     const top = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.04, 0.4), wood); top.position.set(0, 0.82, -0.12); S.add(top);
     for (const x of [-0.5, 0.5]) for (const z of [-0.28, 0.04]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.8, 0.035), wood); leg.position.set(x, 0.4, z); S.add(leg); }
@@ -86,15 +109,20 @@ export class Ending {
     const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace;
     const fold = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.14), new THREE.MeshStandardMaterial({ map: ft, roughness: 0.95, color: 0x8a8070 })); fold.rotation.x = -Math.PI / 2; fold.rotation.z = 0.35; fold.position.set(0.02, 0.843, 0.02); S.add(fold);
     // a small lamp, and the lead, back on its hook
-    const shade = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.15, 18, 1, true), new THREE.MeshStandardMaterial({ color: 0xf0d8a8, emissive: 0x8a6a30, side: THREE.DoubleSide })); shade.position.set(0.38, 1.15, -0.2); S.add(shade);
-    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.04, 0.3, 10), new THREE.MeshStandardMaterial({ color: 0x8a6a30, metalness: 0.7, roughness: 0.3 })); stem.position.set(0.38, 0.99, -0.2); S.add(stem);
+    // a little table lamp: a pleated fabric shade, the bulb glowing through it, a turned brass stem
+    const pleat = document.createElement('canvas'); pleat.width = 128; pleat.height = 8; const p2 = pleat.getContext('2d'); for (let x = 0; x < 128; x++) { const v = 200 + Math.sin(x / 128 * Math.PI * 2 * 24) * 30; p2.fillStyle = `rgb(${v},${v * 0.86 | 0},${v * 0.64 | 0})`; p2.fillRect(x, 0, 1, 8); }
+    const pt2 = new THREE.CanvasTexture(pleat); pt2.colorSpace = THREE.SRGBColorSpace;
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.12, 0.15, 32, 1, true), new THREE.MeshStandardMaterial({ map: pt2, color: 0xf8e0b0, emissive: 0xc08840, emissiveIntensity: 0.9, emissiveMap: pt2, side: THREE.DoubleSide, roughness: 1 })); shade.position.set(0.38, 1.17, -0.2); S.add(shade);
+    const stemM = new THREE.MeshStandardMaterial({ color: 0x9a7a38, metalness: 0.8, roughness: 0.28 });
+    const stem = new THREE.Mesh(new THREE.LatheGeometry([[0.0, 0], [0.06, 0], [0.065, 0.015], [0.03, 0.03], [0.012, 0.06], [0.02, 0.13], [0.01, 0.2], [0.014, 0.27], [0.0, 0.29]].map(([r, y]) => new THREE.Vector2(r, y)), 20), stemM); stem.position.set(0.38, 0.84, -0.2); stem.castShadow = true; S.add(stem);
     // the lead, coiled on the table where someone put it down, the clasp catching the light
     const coil = []; for (let i = 0; i <= 60; i++) { const a = i / 60 * Math.PI * 5.2, r = 0.035 + i / 60 * 0.045; coil.push(V3(-0.38 + Math.cos(a) * r, 0.848 + (i % 12 < 6 ? 0.004 : 0), -0.02 + Math.sin(a) * r * 0.8)); }
     coil.push(V3(-0.3, 0.846, 0.05), V3(-0.22, 0.846, 0.09));
     const lead = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil), 120, 0.006, 5), new THREE.MeshStandardMaterial({ color: 0xb8302a, roughness: 0.6 })); S.add(lead);
     const clasp = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.003, 6, 12), new THREE.MeshStandardMaterial({ color: 0xc8b070, metalness: 0.9, roughness: 0.25 })); clasp.position.set(-0.21, 0.85, 0.095); clasp.rotation.x = Math.PI / 2; S.add(clasp);
-    const L = new THREE.PointLight(0xffc888, 2.2, 6, 2); L.position.set(0.38, 1.1, -0.1); S.add(L);
-    S.add(new THREE.AmbientLight(0x2a2018, 1.0));
+    const L = new THREE.PointLight(0xffc888, 2.4, 6, 2); L.position.set(0.38, 1.13, -0.18); L.castShadow = true; L.shadow.mapSize.set(512, 512); L.shadow.bias = -0.002; S.add(L);
+    frame.castShadow = true; top.castShadow = true; top.receiveShadow = true; wall.receiveShadow = true;
+    S.add(new THREE.AmbientLight(0x3a2c22, 1.4));
     c.frozen = true;
   }
 
