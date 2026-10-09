@@ -87,7 +87,28 @@ function hopscotch(group, s, l) {
     g.beginPath(); g.arc(cx, y - 10, 40, Math.PI, 0); g.stroke(); g.font = 'bold 26px Georgia'; g.fillText('HOME', cx, y - 18);
   });
   const p = roadAt(s, l, 0.125), m = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.0), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -3 }));
-  m.rotation.set(-Math.PI / 2, 0, yaw(s) + Math.PI); m.position.set(p.x, p.y, p.z); group.add(m);
+  m.rotation.set(-Math.PI / 2, 0, yaw(s)); m.position.set(p.x, p.y, p.z); group.add(m); // reads the right way up as you walk home
+}
+
+// chalk on the pavement, by children: him. A tall man in a hat, getting more careful each time,
+// the last one chalked at your own gate
+function chalkMan(group, s, l, v) {
+  const tex = canvasTex('chalkman' + v, 256, 512, (g, w, h) => {
+    g.clearRect(0, 0, w, h); g.strokeStyle = 'rgba(236,232,220,0.8)'; g.fillStyle = 'rgba(236,232,220,0.8)'; g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = v === 0 ? 7 : 5;
+    const j = (a) => a + (Math.random() - 0.5) * (v === 0 ? 8 : 3), cx = w / 2;
+    g.beginPath(); g.moveTo(j(cx - 22), 470); g.lineTo(j(cx - 12), 300); g.moveTo(j(cx + 22), 470); g.lineTo(j(cx + 12), 300); g.stroke();          // legs
+    g.beginPath(); g.moveTo(cx - 34, 320); g.lineTo(cx - 26, 150); g.lineTo(cx + 26, 150); g.lineTo(cx + 34, 320); g.closePath(); g.stroke();       // coat
+    g.beginPath(); g.moveTo(cx - 26, 160); g.lineTo(j(cx - 70), 360); g.moveTo(cx + 26, 160); g.lineTo(j(cx + 70), 360); g.stroke();                  // long arms
+    for (const sx of [-1, 1]) for (let f = 0; f < 4; f++) { g.beginPath(); g.moveTo(cx + sx * 70, 360); g.lineTo(cx + sx * (62 + f * 6), 395 + f * 3); g.stroke(); }
+    g.beginPath(); g.ellipse(cx, 115, 22, 30, 0, 0, 7); g.stroke();                                                                               // face
+    g.fillRect(cx - 30, 80, 60, 6); g.strokeRect(cx - 18, 30, 36, 50);                                                                            // hat
+    g.beginPath(); g.arc(cx - 8, 110, 4, 0, 7); g.arc(cx + 8, 110, 4, 0, 7); g.fill();
+    g.beginPath(); g.moveTo(cx - 14, 128); g.quadraticCurveTo(cx, 140, cx + 14, 128); g.stroke();
+    if (v === 1) { g.font = 'bold 30px Georgia'; g.textAlign = 'center'; g.fillText('DONT LOOK', cx, 506); g.font = 'bold 22px Georgia'; g.fillText('AWAY', cx + 70, 30); }
+    if (v === 2) { g.font = 'bold 24px Georgia'; g.textAlign = 'center'; g.fillText('HE WAITS', cx, 506); }
+  });
+  const p = roadAt(s, l, 0.125), m = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.6), new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3 }));
+  m.rotation.set(-Math.PI / 2, 0, yaw(s) + (Math.random() - 0.5) * 0.3); m.position.set(p.x, p.y, p.z); group.add(m);
 }
 
 function houseNumber(group, F, o, num) {
@@ -155,6 +176,7 @@ export function details(kit, group, town, s0, s1) {
   if (20 >= s0 && 20 < s1) signPost(group, kit, 20, 4.5, 'children');
   if (996 >= s0 && 996 < s1) signPost(group, kit, 996, 4.5, 'playground');
   if (44 >= s0 && 44 < s1) hopscotch(group, 44, 3.9);
+  for (const [cs, cl, v] of [[49, 4.0, 0], [523, -3.9, 1], [1032, -4.0, 1], [1594, 1.2, 2]]) if (cs >= s0 && cs < s1) chalkMan(group, cs, cl, v);
   if (520 >= s0 && 520 < s1) hopscotch(group, 520, -3.9);
   return { lights, obstacles };
 }
