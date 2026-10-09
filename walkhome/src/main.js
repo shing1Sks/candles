@@ -372,7 +372,7 @@ document.addEventListener('pointerlockchange', () => {
 });
 pauseEl.addEventListener('click', (e) => { if (e.target.closest('#settings')) return; renderer.domElement.requestPointerLock?.(); paused = false; pauseEl.style.display = 'none'; sound.ctx?.resume(); last = performance.now(); });
 // a few settings on the pause screen (kept between visits)
-const SET = { vol: Number(localStorage.getItem('walkhome.vol') ?? 0.9), film: localStorage.getItem('walkhome.film') !== 'off' };
+const SET = { vol: Number(localStorage.getItem('walkhome.vol') ?? 1.0), film: localStorage.getItem('walkhome.film') !== 'off' };
 function applySettings() {
   if (sound.master) { sound.master.gain.value = SET.vol; sound.body.gain.value = SET.vol; }
   post.U.uFilm.value = SET.film ? 1 : 0;

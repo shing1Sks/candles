@@ -20,7 +20,7 @@ export class Sound {
     const comp = C.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.3;
     this.master.connect(this.duck); this.duck.connect(comp); comp.connect(C.destination);
     // your own body (heart, breath) bypasses the muffling: when the world goes far away, they don't
-    this.body = C.createGain(); this.body.gain.value = 0.9; this.body.connect(comp);
+    this.body = C.createGain(); this.body.gain.value = 0.9; this.body.connect(comp); this.comp = comp;
     this.bus = {};
     for (const [k, g] of Object.entries({ sfx: 1, amb: 0.8, music: 0.55, dog: 1.0, him: 1.0 })) { const n = C.createGain(); n.gain.value = g; n.connect(this.master); this.bus[k] = n; }
     this.bus.body = this.body;
