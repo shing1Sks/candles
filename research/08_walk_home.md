@@ -401,3 +401,24 @@ Research in `09_terror_research.md`.
   - the eyelids darkened the screen corners even when open;
   - a "flicker" omen could fire with no lamp to flicker;
   - R made no squeak while Biscuit was lost.
+- **Later in Pass 6:**
+  - **The towpath.** The canal was invisible from the bridge: the ground strips ran straight over it. They now stop at the canal, so you look down to the water.
+    - Crossing, you see a man on the towpath below under the narrowboat's light, face turned up to you.
+    - Look away and there's a splash, and he's gone.
+    - The encounter always gets its slot on the bridge approach.
+  - **Him in a front room:** an omen where he stands in a lit ground-floor room ahead (he's meant to be behind you), curtains open. It matches exactly one window.
+  - **The toy-shop dolls** turn their heads to follow you once the night has turned, all but the one facing the wall.
+  - **The catch holds his face on you** for about a second (it was 0.2 s, too quick to register) before the dark; then the mouth tears open.
+  - **Feel and hints:** running feels like it (bob, sway, +4° view); the first blink is named ("You blinked.").
+  - **Performance** (1080p is the hard case on the Iris Xe, about 28–33 fps):
+    - lamp glow and reflections moved to a half-res pass;
+    - cheaper beams;
+    - render scale floor 0.5 on big screens;
+    - a lighter moon shadow map.
+  - **A second code review fixed:**
+    - a lure that never ended if you were caught mid-lure;
+    - him appearing in several windows (bay sides, upstairs);
+    - a last-run retry with no lamps left to die;
+    - the stranger cut off by the deck;
+    - Biscuit carried upside down after a belly rub.
+  - **Gameplay clips** (bot): `assets/art/walkhome/game2/clips/` (kept out of git).
