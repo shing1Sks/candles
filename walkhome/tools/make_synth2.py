@@ -173,3 +173,12 @@ word = np.concatenate([
 ])
 word = np.concatenate([np.zeros(int(0.1 * SR)), word, np.zeros(int(0.5 * SR)), word * 0.7, np.zeros(int(0.2 * SR))])
 save('syn_whisper_biscuit', reverb(lp(word, 7000), 1.2, 0.3), peak=0.8)
+
+# ---- something going into the canal: a heavy splash, then the water closing over it, bubbles
+N = int(SR * 3.0); t = np.arange(N) / SR
+hit = lp(rng.standard_normal(N), 2500) * np.exp(-t * 7) + bp(rng.standard_normal(N), 300, 1200) * np.exp(-t * 4) * 0.8
+bub = np.zeros(N)
+for k in range(26):
+    s = int(rng.uniform(0.25, 2.4) * SR); m = int(0.05 * SR); u = np.arange(m) / SR; f = rng.uniform(300, 900)
+    bub[s:s + m] += np.sin(2 * np.pi * f * (1 + u * 6) * u) * np.exp(-u * 70) * rng.uniform(0.1, 0.35)
+save('syn_splash', reverb(hit + bub, 1.8, 0.4), peak=0.85)

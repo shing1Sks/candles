@@ -12,6 +12,7 @@ import { WindowBatch } from './windows.js';
 import { beamMaterial } from './lamps.js';
 import { regionContent, homeSpec, shopWindow } from './regions.js';
 import { puddles } from './fx.js';
+import { BRIDGE } from '../sim/town.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // the loose one-off meshes in a segment (posters, doll heads, signs, numbers...) that share a
@@ -56,7 +57,9 @@ function crossSection(kit, s0, s1) {
           pos.push(c.x + N.x * L, c.y + y + rise, c.z + N.z * L);
           uv.push(l0 === l1 ? (y - y0) * side : L, s); // vertical strips map their height
         }
-        if (i < n) { const a = i * 2; side > 0 ? idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        // (the ground stops at the canal: from the bridge you look down to the water)
+        const sm = s0 + (s1 - s0) * (i + 0.5) / n, canal = mat === 'grass' && Math.abs(sm - BRIDGE.water) < BRIDGE.width / 2 - 0.4;
+        if (i < n && !canal) { const a = i * 2; side > 0 ? idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2) : idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
       // vertical kerb faces: face the road

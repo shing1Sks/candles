@@ -13,7 +13,8 @@ import * as THREE from 'three';
 import { at as roadAt, N as roadN, T as roadT, regionAt, groundAt, toRoad } from '../sim/road.js';
 import { houseFrame } from './house.js';
 import { TallManView } from './tallman.js';
-import { ROAD } from '../sim/road.js';
+import { ROAD, height } from '../sim/road.js';
+import { BRIDGE } from '../sim/town.js';
 import { carMeshes, vanMeshes } from './car.js';
 
 const V3 = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -435,6 +436,36 @@ E.stranger = {
     return false;
   },
   dispose(c) { c.scene.remove(this.g); c.fearAdd = 0; },
+};
+
+// THE TOWPATH. Crossing the canal bridge you can see along the water both ways. Down there on the
+// towpath, under the narrowboat's light, a man is standing very still with his face turned up to
+// the bridge. To you. Look away, and there's a splash, and the towpath is empty.
+E.towpath = {
+  regions: ['parkEdge'], phases: ['calm', 'unease', 'dread'], weight: 8, minS: 1055,
+  start(c) {
+    if (c.P.s > 1098) return false;
+    const w = roadAt(BRIDGE.water, 0), wy = height(BRIDGE.water) - 4.4, side = Math.random() < 0.5 ? -1 : 1, bank = Math.random() < 0.5 ? -1 : 1;
+    this.g = strangerModel(); this.g.position.set(w.x + side * (16 + Math.random() * 8), wy + 0.65, w.z + bank * (BRIDGE.width / 2 - 1.15));
+    this.g.userData.head.rotation.x = -0.55;                        // looking up
+    this.g.rotation.y = Math.atan2(-(w.x - this.g.position.x), -(w.z - this.g.position.z)); c.scene.add(this.g);
+    this.light = { pos: V3(this.g.position.x + side * 1.5, wy + 2.6, this.g.position.z), color: [1.0, 0.75, 0.45], power: 0.9, cone: 0, kind: 'boat' }; c.extraLights.push(this.light);
+    this.t = 0; this.seenFor = 0; this.state = 'there'; return true;
+  },
+  update(dt, c) {
+    this.t += dt; const g = this.g, head = { x: g.position.x, y: g.position.y + 1.7, z: g.position.z };
+    if (this.state === 'there') {
+      const seen = looking(c.camera, c.fwd, head, 0.94);
+      if (seen) { this.seenFor += dt; if (this.seenFor > 0.2 && !this.felt) { this.felt = true; c.emit('glimpseSeen', {}); c.D.fear = Math.min(1, c.D.fear + 0.3); } }
+      // he turns his face to follow you across the bridge
+      g.rotation.y = Math.atan2(-(c.camera.position.x - g.position.x), -(c.camera.position.z - g.position.z));
+      if (this.seenFor > 1.0 && !seen) { this.state = 'gone'; this.t = 0; g.visible = false; this.light.power = 0.15;
+        c.sound?.one('syn_splash', { pos: { x: g.position.x, y: g.position.y, z: g.position.z }, gain: 0.9, slice: false, verb: 0.6, ref: 6, at: 0.35 }); }
+      return c.P.s > BRIDGE.to + 25 || this.t > 70;
+    }
+    return this.t > 8;
+  },
+  dispose(c) { c.scene.remove(this.g); const i = c.extraLights.indexOf(this.light); if (i >= 0) c.extraLights.splice(i, 1); },
 };
 
 // ---------------------------------------------------------------- the deck
