@@ -169,8 +169,13 @@ export class TallManView {
       L.hip.rotation.x = a * 0.55 + (moving ? 0.1 : 0);
       L.knee.rotation.x = moving ? -Math.max(0, Math.sin(ph + o + 1.2)) * 1.3 : 0;
     });
-    this.body.position.y = moving ? -Math.abs(Math.sin(ph)) * 0.06 : 0;
-    this.body.rotation.x = moving ? 0.12 : 0.04;
+    // the body lurches side to side with a hitch every other step (wrong, like something learned
+    // walking from watching people do it), while the head stays level, locked on you
+    const hitch = moving ? Math.max(0, Math.sin(ph * 0.5)) ** 8 : 0;
+    this.body.position.y = moving ? -Math.abs(Math.sin(ph)) * 0.06 - hitch * 0.05 : 0;
+    this.body.rotation.x = moving ? 0.12 + hitch * 0.12 : 0.04;
+    this.body.rotation.z = moving ? Math.sin(ph) * 0.07 : 0;
+    this.neck.rotation.z = -this.body.rotation.z * 1.1;
     // arms hang and swing a little late; when hunting they reach
     this.arms.forEach((A, i) => {
       const reach = M.mode === 'hunt' && moving ? 0.9 : 0;
