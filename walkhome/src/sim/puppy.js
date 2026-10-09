@@ -116,7 +116,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
       // you're kneeling with your hand out: he stays right there at your hand
       if (input.pet) { tx = P.x + vfx * 0.68 + vrx * 0.05; tz = P.z + vfz * 0.68 + vrz * 0.05; want = DOG.trot * 0.6; look = { x: P.x, z: P.z }; break; }
       /* gone quiet: right against your leg, eyes on the dark behind you */
-      if (world.quiet) { tx = P.x + fx * 0.3 + rx * 0.42; tz = P.z + fz * 0.3 + rz * 0.42; want = DOG.trot * 0.8; look = { x: P.x - fx * 20, z: P.z - fz * 20 }; break; }
+      if (world.quiet) { const a = moving ? 0.85 : 0.25; tx = P.x + fx * a + rx * 0.42; tz = P.z + fz * a + rz * 0.42; want = Math.max(DOG.trot * 0.8, P.speed * 1.2); look = { x: P.x - fx * 20, z: P.z - fz * 20 }; break; }
       // a little ahead and to the right of you; idles beside you when you stop
       tx = P.x + fx * (moving ? 2.15 : 1.6) + rx * 0.5; tz = P.z + fz * (moving ? 2.15 : 1.6) + rz * 0.5;
       // something to sniff nearby?
