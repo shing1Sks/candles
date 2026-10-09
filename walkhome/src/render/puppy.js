@@ -182,7 +182,10 @@ export class Puppy {
     this.neck.rotation.x += (hp * 0.5 - this.neck.rotation.x) * Math.min(1, dt * 6);
     this.head.rotation.x += (hp * 0.5 + (P.sniff > 0.5 ? Math.sin(this.t * 22) * 0.03 : 0) - this.head.rotation.x) * Math.min(1, dt * 10);
     this.head.rotation.z = (P.tilt || 0) * 0.4;
-    this.tongue.visible = P.pant > 0.3; this.tongue.scale.z = 1 + Math.sin(this.t * 11) * 0.2;
+    this.tongue.visible = P.pant > 0.3 || P.lickT > 0; this.tongue.scale.z = 1 + Math.sin(this.t * 11) * 0.2 + (P.lickT > 0 ? 0.6 : 0);
+    if (P.lickT > 0) this.head.rotation.x -= Math.sin(P.lickT / 0.7 * Math.PI) * 0.35;  // up to your hand
+    // silent and shaking
+    if (P.hush) { this.body.position.x = Math.sin(this.t * 63) * 0.004; this.body.rotation.z = Math.sin(this.t * 51) * 0.03; } else this.body.position.x = 0;
     // ears: a spring toward their target, kicked by head motion (they flop)
     for (const E of this.ears) {
       const target = P.ears >= 0 ? E.s * (0.25 + P.ears * 0.9) : E.s * 0.15;

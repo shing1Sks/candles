@@ -124,3 +124,27 @@ for t0, n in [(0.0, 'E5'), (0.55, 'C5')]:
     tone = sum(g * np.sin(2 * np.pi * f * k * t) * np.exp(-t * d) for k, g, d in [(1, 1, 1.5), (2.0, 0.3, 3), (3.0, 0.12, 5), (4.2, 0.05, 8)])
     y[s:s + m] += (tone + hp(rng.standard_normal(m), 2000) * np.exp(-t * 200) * 0.3)[: N - s]
 save('syn_bell', reverb(lp(y, 2600), 1.0, 0.35), peak=0.8)
+
+# ---- a Shepard tone: a rising glissando that never arrives (for when he's hunting you). 20 s loop:
+#      eight sine voices an octave apart, each fading in at the bottom and out at the top
+N = int(SR * 20); t = np.arange(N) / SR; y = np.zeros(N); base = 55.0
+for k in range(8):
+    pos = (k + t / 20.0) % 8.0                                   # each voice climbs one octave per loop
+    f = base * 2 ** pos
+    amp = np.exp(-((pos - 4.0) ** 2) / (2 * 1.4 ** 2))           # bell over log-frequency
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    y += amp * (np.sin(ph) + 0.15 * np.sin(2 * ph))
+y = lp(y, 3000) * (1 + 0.08 * np.sin(2 * np.pi * 0.5 * t))
+save('syn_shepard', y, peak=0.7)
+
+# ---- the dread drone: two low sines beating against each other (felt more than heard) plus their
+#      harmonics, so laptop speakers still carry it. 10 s loop (every partial completes whole cycles)
+N = int(SR * 10); t = np.arange(N) / SR
+y = (np.sin(2 * np.pi * 38 * t) + np.sin(2 * np.pi * 38.6 * t)) * 0.6 + (np.sin(2 * np.pi * 76 * t) + np.sin(2 * np.pi * 77.2 * t)) * 0.35 + (np.sin(2 * np.pi * 114 * t) + np.sin(2 * np.pi * 115.8 * t)) * 0.2
+y += lp(rng.standard_normal(N), 90) * 0.15
+save('syn_dread', y, peak=0.8)
+
+# ---- a lick: a quick wet little sound (Biscuit, at your mitten)
+N = int(SR * 0.35); t = np.arange(N) / SR
+y = bp(rng.standard_normal(N), 1500, 5000) * np.exp(-((t - 0.08) ** 2) / 0.0012) + bp(rng.standard_normal(N), 900, 3000) * np.exp(-((t - 0.2) ** 2) / 0.0008) * 0.7
+save('syn_lick', y, peak=0.6)

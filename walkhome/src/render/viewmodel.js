@@ -147,7 +147,7 @@ export class Viewmodel {
       LF.visible = this.runT > 0.05 && this.petT < 0.05;
       if (LF.visible) { const s = Math.sin(P.phase * Math.PI); this.aim(LF, this.v.d.set(-0.26 + this.sway.x * 0.6, -0.6 + this.runT * 0.16 + Math.max(0, s) * 0.07, -0.44 - s * 0.07), SH_L, 0.4); }
       L.visible = this.petT > 0.05;
-      if (L.visible) this.stroke(L, puppy, this.petT);
+      if (L.visible) { this.stroke(L, puppy, this.petT); if (D.lickT > 0.4) L.position.y += Math.sin((D.lickT - 0.4) / 0.3 * Math.PI) * 0.025; } // a lick: the hand flinches up (it tickles)
     }
     R.visible = true;
     // puppy carried: sits in your arms in front of you

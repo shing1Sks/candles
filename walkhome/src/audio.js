@@ -24,7 +24,7 @@ export class Sound {
     // a street's echo: a short convolver reverb for positional things
     this.verb = C.createConvolver(); this.verb.buffer = this.impulse(1.6, 2.6); const vg = C.createGain(); vg.gain.value = 0.32; this.verb.connect(vg); vg.connect(this.master);
     this.slices = await fetch(W + 'slices.json').then((r) => r.json()).catch(() => ({}));
-    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak'];
+    const pre = ['step_concrete', 'run_concrete', 'step_leaves', 'step_grass', 'step_gravel', 'dog_bark_small', 'dog_growl_bark', 'dog_cry_1', 'dog_cry_2', 'dog_pant_loop', 'syn_lamp_die', 'syn_whistle', 'syn_whistle_far', 'syn_sub', 'syn_ring', 'owl_tawny_1', 'owl_tawny_2', 'crows', 'cat_complain', 'dog_behind_door', 'gate_creak', 'syn_knock', 'syn_musicbox', 'syn_coat', 'syn_tick', 'breath_run', 'tv_static', 'syn_fox', 'syn_squeak', 'syn_bell', 'dog_inside', 'door_creak', 'syn_shepard', 'syn_dread', 'syn_lick'];
     // the beds start at once (they stream); the rest of the sounds load in the background
     this.ok = true; this.startBeds();
     pre.forEach((n) => this.load(n));
@@ -132,6 +132,12 @@ export class Sound {
     set('mus_1', pre ? 0.02 : Math.max(0, Math.min(1, (fear - 0.12) / 0.3)) * 0.55);
     set('mus_2', pre ? 0 : Math.max(0, Math.min(1, (fear - 0.42) / 0.25)) * 0.5);
     set('mus_3', S.director.phase === 'peak' ? 0.65 : 0);
+    // the hunt: a tone that rises and rises and never arrives; and under everything while he's
+    // about, a slow beating in the floor of the sound, stronger the nearer he is
+    const shep = this.loop('shep', 'syn_shepard', { gain: 0, bus: 'music', verb: 0.3, offset: 0 });
+    if (shep) shep.set(S.director.phase === 'hunt' && !pre ? 0.22 : 0, S.director.phase === 'hunt' ? 2 : 0.6);
+    const dr = this.loop('dread', 'syn_dread', { gain: 0, bus: 'music', verb: 0 });
+    if (dr) { const T = S.tall, dd = T.active && !T.vanished ? Math.hypot(T.x - S.player.x, T.z - S.player.z) : 99; dr.set(Math.max(0, 1 - dd / 32) * 0.55, 1.2); }
     // the music box: Biscuit's tune, in the quiet. Fear slows it and bends it out of tune; when he
     // comes it stops dead, mid-phrase (the stop is the warning)
     const mb = this.loop('mbox', 'syn_musicbox', { gain: 0, bus: 'music', verb: 0.2, offset: 0 });
@@ -155,7 +161,7 @@ export class Sound {
     const D = S.dog, dp = { x: D.x, y: D.y + 0.3, z: D.z };
     if (D.carried) { dp.x = p.x; dp.y = p.y - 0.4; dp.z = p.z; }
     const pant = this.loop('pant', 'dog_pant_loop', { pos: dp, gain: 0, bus: 'dog', rate: 1.25, ref: 1, verb: 0.05 });
-    if (pant) { pant.move(dp); pant.set(D.pant * 0.35 + (D.scared ? 0.12 : 0), 0.3); }
+    if (pant) { pant.move(dp); pant.set(D.pant * 0.35 + (D.scared && !D.hush ? 0.12 : 0), D.hush ? 0.05 : 0.3); }
     // ---- lamps: the nearest lit ones buzz
     const near = S.lamps;
     for (let i = 0; i < 3; i++) {
@@ -207,6 +213,7 @@ export class Sound {
     const D = S.dog, dpos = D.carried ? { x: S.cam.position.x, y: S.cam.position.y - 0.4, z: S.cam.position.z } : { x: D.x, y: D.y + 0.3, z: D.z };
     switch (e.name) {
       case 'bark': this.one('dog_bark_small', { pos: dpos, gain: 0.9, rate: rand(1.15, 1.3), bus: 'dog', verb: 0.5, ref: 1.5, at: e.data.at || 0 }); break;
+      case 'lick': this.one('syn_lick', { pos: dpos, gain: 0.5, rate: 1 + Math.random() * 0.2, slice: false, verb: 0, bus: 'dog' }); break;
       case 'call': this.one('syn_squeak', { gain: 0.45, slice: false, verb: 0.2 }); break;
       case 'startle': this.shock = Math.max(this.shock || 0, e.data.amount * 1.6); break;
       case 'growl': this.one('dog_growl_bark', { pos: dpos, gain: 0.35 + e.data.level * 0.3, rate: rand(1.05, 1.2), bus: 'dog', verb: 0.15, ref: 1 }); break;

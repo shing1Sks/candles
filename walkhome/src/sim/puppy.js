@@ -63,10 +63,17 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.fear = Math.max(0, Math.min(1, D.fear + (danger * 0.9 - 0.18 - D.calm * 0.3) * dt));
   D.petting = petting;
   if (petting && D.st > 0.3 && rng.chance(dt * 0.5)) emit('happyHuff', {});
-  // ---- the voice: growl, whimper, bark (the bark is noise others can hear)
-  if (danger > 0.25 && D.growlCd < 0 && D.fear > 0.2) { emit('growl', { level: danger }); D.growlCd = 3 + rng.range(0, 2); }
-  if (D.fear > 0.6 && D.whimperCd < 0) { emit('whimper', {}); D.whimperCd = 2.5 + rng.range(0, 2); }
-  if (D.fear > 0.75 && danger > 0.5 && D.barkCd < 0 && rng.chance(dt * (1.4 - D.calm * 1.2))) { emit('bark', { x: D.x, z: D.z, loud: 1 }); D.barkCd = 1.2 + rng.range(0, 1.5); }
+  // ---- the voice: growl, whimper, bark (the bark is noise others can hear). But when it's right
+  // there, within a few steps, he goes completely silent: no growl, no panting, just shaking
+  D.hush = !!(th && th.kind === 'tall' && tDist < 5.5);
+  if (!D.hush) {
+    if (danger > 0.25 && D.growlCd < 0 && D.fear > 0.2) { emit('growl', { level: danger }); D.growlCd = 3 + rng.range(0, 2); }
+    if (D.fear > 0.6 && D.whimperCd < 0) { emit('whimper', {}); D.whimperCd = 2.5 + rng.range(0, 2); }
+    if (D.fear > 0.75 && danger > 0.5 && D.barkCd < 0 && rng.chance(dt * (1.4 - D.calm * 1.2))) { emit('bark', { x: D.x, z: D.z, loud: 1 }); D.barkCd = 1.2 + rng.range(0, 1.5); }
+  }
+  // stroked for a while, he licks your mitten
+  D.lickT = Math.max(0, (D.lickT || 0) - dt);
+  if (petting && D.st > 1.5 && D.lickT <= 0 && rng.chance(dt * 0.45)) { D.lickT = 0.7; emit('lick', {}); }
 
   // ---- carried: in your arms. Looks around; trembles when scared
   if (D.carried) {
@@ -205,7 +212,7 @@ export function stepDog(D, P, input, dt, world, emit, rng) {
   D.wag = ease(D.wag, petting || D.state === 'come' || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 1 : D.state === 'alert' || D.state === 'hide' ? 0 : 0.45, 3, dt);
   D.tailUp = ease(D.tailUp, D.state === 'alert' ? 1 : 0, 4, dt);
   D.scared = D.state === 'hide';
-  D.pant = ease(D.pant, D.speed > 2 || P.running ? 1 : 0, 1.5, dt);
+  D.pant = ease(D.pant, D.hush ? 0 : D.speed > 2 || P.running ? 1 : 0, D.hush ? 8 : 1.5, dt);
   D.tilt = ease(D.tilt, petting || D.state === 'intro' || (world.time < (D.lookBackUntil || 0)) ? 0.6 : 0, 4, dt);
   D.moment = D.state === 'scratch' || D.state === 'yawn' || D.state === 'shake' || D.state === 'sneeze' ? D.state : null; D.mt = D.st;
   return D;
