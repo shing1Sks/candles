@@ -41,7 +41,7 @@ export function stepTall(M, P, cam, dt, lamps, ctx, emit) {
   if (M.blink > 0) M.blink -= dt;
   const blinking = M.blink > 0;
   // the dark of a flicker, in the lamp that's showing him: he moves in it
-  const flickDark = under && (under.dying > 0 || under.flick > 0) && (under.level ?? 1) < 0.5;
+  const flickDark = under && (under.dying > 0 || under.flick > 0) && (under.level ?? 1) < 0.5 && pd > 4.5; // (close up, only a blink or a look away frees him)
   const looked = !blinking && M.inView && !flickDark && (M.lit || d < TALL.darkSee);
   if (looked && !M.seen && (M.unseenFor > 0.5 || !M.everSeen)) { emit('tallSeen', { d, first: !M.everSeen }); M.everSeen = true; }
   M.seen = looked; M.seenFor = looked ? M.seenFor + dt : 0; M.unseenFor = looked ? 0 : M.unseenFor + dt;

@@ -330,8 +330,11 @@ function frame(now) {
   fpsAcc += realDt; fpsN++;
   if (fpsAcc > 1) {
     fps = fpsN / fpsAcc; fpsAcc = 0; fpsN = 0;
-    const want = fps < 40 ? post.scale - 0.05 : fps > 55 && post.scale < 0.95 ? post.scale + 0.05 : post.scale;
-    if (want !== post.scale && !Q.has('fixres')) { post.scale = Math.max(0.6, Math.min(0.95, want)); post.setSize(innerWidth, innerHeight); }
+    // (only after a few seconds out of the band: resizing the render targets is itself a hitch)
+    const dir = fps < 40 ? -1 : fps > 55 && post.scale < 0.95 ? 1 : 0;
+    ectx.scaleRun = dir && dir === ectx.scaleDir ? (ectx.scaleRun || 0) + 1 : dir ? 1 : 0; ectx.scaleDir = dir;
+    const want = ectx.scaleRun >= (dir < 0 ? 2 : 4) ? post.scale + dir * 0.05 : post.scale;
+    if (want !== post.scale && !Q.has('fixres')) { post.scale = Math.max(0.6, Math.min(0.95, want)); post.setSize(innerWidth, innerHeight); ectx.scaleRun = 0; }
     if (Q.has('stats')) stats.textContent = `${fps.toFixed(0)} fps  x${post.scale.toFixed(2)}  calls ${renderer.info.render.calls}  tris ${(renderer.info.render.triangles / 1000).toFixed(0)}k  s ${player.s.toFixed(0)} ${regionAt(player.s).name}`;
   }
   requestAnimationFrame(frame);

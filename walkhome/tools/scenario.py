@@ -34,6 +34,11 @@ SCEN = {
   "bell": sum([[("js", f"(() => {{ const d = __wh.doors.list.filter(d => d.s > 60)[{k}]; window.__d = d; const p = d; __wh.put(d.s, d.side * 6.6, 0, 0); const P = __wh.player; P.yaw = Math.atan2(-(d.x - P.x), -(d.z - P.z)); P.pitch = 0.15; }})()"), ("wait", 1.5),
                 ("log", "JSON.stringify({kind: __wh.doors.list.filter(d => d.s > 60)[" + str(k) + "].kind, at: !!__wh.doors.at(__wh.player, __wh.camera.getWorldDirection(new __wh.camera.position.constructor()))})"), ("shot", f"door{k}"),
                 ("js", "__wh.input.edges.add('KeyE')"), ("wait", 7), ("log", "JSON.stringify({ev: __wh.events.splice(0).map(e => e.name).filter(n => !/sniff|step/.test(n)).join(','), cap: document.getElementById('caption').textContent, carried: __wh.dog.carried})")] for k in range(4)], []),
+  # he's ahead, standing in the road: walk toward him and past him, keeping your eyes on him
+  "ahead": [("js", "__wh.put(560, 3.2, 0, -0.05); __wh.deck.nextS = 99999; __wh.director.glimpse = 'done'; __wh.director.visits = 2; __wh.director.lastAhead = false; __wh.director.nextVisit = 99999"), ("wait", 2),
+            ("js", "(() => { const T = __wh.tall, P = __wh.player; const p = { s: P.s + 30, l: 0.6 }; T.active = true; T.mode = 'stalk'; T.knows = 0.5; const q = __wh.town && null; })(); (() => { const P = __wh.player, T = __wh.tall; const r = __wh.lampState.find(L => L.s > P.s + 25 && L.s < P.s + 45 && L.on); const s = r ? r.s + 0.5 : P.s + 32; const a = { x: 0, z: 0 }; T.x = (r ? r.x : P.x) - (r ? r.side * 2.6 : 0); T.z = -s; T.y = P.y; T.s = s; T.blink = 0; T.heavy = 0; T.seenFor = 0; })()"),
+            ("js", TRACK), ("wait", 0.8), ("shot", "a_ahead")]
+           + sum([[("hold", "KeyW", 2.0), ("log", TSTATE)] + ([("shot", f"b_{i:02d}")] if i % 2 == 1 else []) for i in range(10)], []),
   # a slow human-paced walk: stop, look about, walk on. What happens in 4 minutes?
   "human": [("js", "__wh.put(2, 3.4, 0, -0.1)")] + sum([[("hold", "KeyW", 7), ("look", 3.0, -0.05), ("wait", 1.5), ("log", TSTATE), ("look", 0.0, -0.1), ("wait", 2.0), ("log", TSTATE)] for i in range(22)], []),
   # walk up the long street; the director sends him; look back now and then
