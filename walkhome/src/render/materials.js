@@ -148,7 +148,7 @@ export function depthFor({ lean, wind }) {
 }
 
 // texMeters: how many metres one tile of the texture covers (the geometry builders scale UVs by it)
-export const TEX_METERS = { brick: 1.3, siding: 1.6, render: 2.2, slate: 1.3, cobble: 1.3, slab: 1.4, grass: 2.0, wood: 1.0, metal: 1.0, hedge: 1.1, bark: 1.2 };
+export const TEX_METERS = { brick: 1.3, siding: 1.6, render: 2.2, slate: 1.3, cobble: 1.3, slab: 1.4, grass: 2.0, wood: 1.0, metal: 1.0, hedge: 1.1, bark: 1.2, twig: 1.2 };
 
 export function makeMaterials(T, envMap) {
   // the sky's reflection only where it shows (wet stone, glass, metal): it costs several texture reads a pixel
@@ -174,6 +174,7 @@ export function makeMaterials(T, envMap) {
     metal: tex('metal', { metalness: 0.5, roughness: 1, env: true }, {}),
     hedge: tex('hedge', { roughness: 1 }, { wind: true }),
     bark: tex('bark', {}, { wind: true }),
+    twig: tex('bark', {}, { wind: true }),
     paint: std({ color: 0xffffff, roughness: 0.55, vertexColors: true }, {}),
     carpaint: std({ color: 0xffffff, roughness: 0.32, metalness: 0.0, vertexColors: true, env: true, envMapIntensity: 0.14 }, {}),
     plastic: std({ color: 0xffffff, roughness: 0.4, vertexColors: true }, {}),

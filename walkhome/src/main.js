@@ -97,6 +97,7 @@ function stream(force = false) {
     if (!force && built >= 1) break;
   }
   if (!built || force) for (const i of [...wantLod].sort((a, b) => a - b)) { if (lods.has(i) || segs.has(i)) continue; lods.set(i, buildSegmentLOD(M, town, i, scene)); if (!force) break; }
+  for (const [i, seg] of segs) { const v = i >= cur - 1 && i <= cur + 2; for (const m of seg.twigs || []) m.visible = v; }
   if (built) { lampObstacles(); refreshPois(); far.mat.uniforms.uNear.value = (cur + AHEAD) * ROAD.segment - player.s + 8; }
 }
 

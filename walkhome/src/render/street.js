@@ -176,7 +176,7 @@ function tree(kit, t) {
       d.normalize(); p = p.clone().addScaledVector(d, len / n); pts.push(p);
     }
     const w = depth === 0 ? 0 : 0.004 * depth * depth;
-    kit.add(tube(pts, rad, depth < 2 ? 10 : depth < 3 ? 6 : 4, depth < 2 ? 7 : depth < 3 ? 4 : 3), 'bark', 0xffffff, null, (y) => w * Math.max(0, y - root.y) / h * 3);
+    kit.add(tube(pts, rad, depth < 2 ? 10 : depth < 3 ? 6 : 4, depth < 2 ? 7 : depth < 3 ? 4 : 3), depth >= 3 ? 'twig' : 'bark', 0xffffff, null, (y) => w * Math.max(0, y - root.y) / h * 3);
     if (depth >= 4) return;
     const kids = depth === 0 ? 4 : depth === 3 ? 2 : 3;
     for (let k = 0; k < kids; k++) {
@@ -276,7 +276,9 @@ export function buildSegment(M, town, i, scene) {
   mergeStatic(group);
   lampify(group); // before its first draw, so its shaders compile once, with the lamps in
   scene.add(group);
-  return { i, group, lamps, lights, anim, chimneys, obstacles: dt2.obstacles };
+  // the finest twigs are only drawn near you (further off, the mist has them anyway)
+  const twigs = group.children.filter((o) => o.isMesh && o.material?.name === 'twig');
+  return { i, group, lamps, lights, anim, chimneys, obstacles: dt2.obstacles, twigs };
 }
 
 // a far segment: the same houses as silhouettes (body, roof, chimney, lit windows as specks), the

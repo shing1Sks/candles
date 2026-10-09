@@ -13,12 +13,12 @@ T = {
   'no beams': ("__wh.scene.traverse(o => { if (o.userData.mat) o.visible = false; })", ""),
   'no air': ('__wh.post.noAir = true', '__wh.post.noAir = false'),
   'no lamps': ('__wh.U.uLampCol.value.forEach(v => v.set(0,0,0)); __wh.rigOff = true', ''),
-  'no trees': ("__wh.scene.traverse(o => { if (o.material && o.material.name === 'bark') o.visible = false; })", "__wh.scene.traverse(o => { if (o.material && o.material.name === 'bark') o.visible = true; })"),
+  'no trees': ("__wh.scene.traverse(o => { if (o.material && /^(bark|twig)$/.test(o.material.name)) o.visible = false; })", "__wh.scene.traverse(o => { if (o.material && /^(bark|twig)$/.test(o.material.name)) o.visible = true; })"),
 }
 with sync_playwright() as pw:
-    b = pw.chromium.launch(headless=False, args=["--window-position=-2400,0"]); pg = b.new_page(viewport={"width": 1280, "height": 720})
+    b = pw.chromium.launch(headless=False, args=["--window-position=-2400,0"]); pg = b.new_page(viewport={"width": int(_os.environ.get("WH_W", 1280)), "height": int(_os.environ.get("WH_H", 720))})
     pg.goto(f"http://localhost:{PORT}/?go&stats&fixres&s={s}&l={l}&yaw={yaw}")
-    pg.wait_for_function("window.__wh && __wh.segs.size > 6", timeout=120000); time.sleep(4)
+    pg.wait_for_function("window.__wh && __wh.segs.size >= 3", timeout=120000); time.sleep(4)
     for name, (on, off) in T.items():
         if on: pg.evaluate(on)
         time.sleep(3.2)

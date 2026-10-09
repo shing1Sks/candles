@@ -66,6 +66,9 @@ SCEN = {
   "parkends": [("js", "__wh.put(1080, 6.0, 0, -0.05); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.nextOmen = 99999; __wh.director.glimpse = 'done'"), ("wait", 1),
                ("hold", "KeyW", 9), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), ds:+(__wh.dog.s||0).toFixed(1), dl:+(__wh.dog.l||0).toFixed(2)})"), ("shot", "a_end"), ("js", "__wh.put(1085, 4.75, 0, -0.05)"), ("wait", 1), ("hold", "KeyW", 8), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), ds:+(__wh.dog.s||0).toFixed(1), dl:+(__wh.dog.l||0).toFixed(2)})"),
                ("js", "__wh.put(944, 6.0, 0, -0.05)"), ("wait", 1), ("hold", "KeyW", 7), ("log", "JSON.stringify({s:+__wh.player.s.toFixed(2), l:+__wh.player.l.toFixed(2), ds:+(__wh.dog.s||0).toFixed(1), dl:+(__wh.dog.l||0).toFixed(2)})"), ("shot", "b_end950")],
+  # the park's trees, near and far (do the far ones look bare without their twigs?)
+  "trees": [("js", "__wh.put(985, 2.0, -0.35, 0.12); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.nextOmen = 99999"), ("wait", 3), ("shot", "a_park"),
+            ("js", "__wh.put(1290, 2.0, 0.0, 0.1)"), ("wait", 3), ("shot", "b_hill")],
   # Biscuit goes quiet: pressed to your leg, silent, shaking; then himself again
   "quiet": [("js", "__wh.put(300, 3.4, 0, -0.1); __wh.deck.nextS = 99999; __wh.director.nextVisit = 99999; __wh.director.nextOmen = 99999; __wh.director.glimpse = 'done'"), ("hold", "KeyW", 4),
             ("js", "__wh.director.dogQuiet = __wh.director.t + 14"), ("hold", "KeyW", 3)]
