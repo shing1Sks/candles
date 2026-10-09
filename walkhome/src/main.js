@@ -12,7 +12,7 @@ import { LightRig, FarLamps, SODIUM } from './render/lamps.js';
 import { makeSky, bakeEnv, SKY_U, makeSkyline } from './render/sky.js';
 import { WIN_U } from './render/windows.js';
 import { Post } from './render/post.js';
-import { Input } from './input.js';
+import { Input, LOOK, setMouseSpeed } from './input.js';
 import { makeDog, stepDog } from './sim/puppy.js';
 import { Puppy } from './render/puppy.js';
 import { Viewmodel } from './render/viewmodel.js';
@@ -353,7 +353,23 @@ document.addEventListener('pointerlockchange', () => {
   // lost the mouse (Esc): the night waits for you
   if (!locked && !Q.has('go') && title.style.display === 'none' && ending.state === 'waiting') { paused = true; pauseEl.style.display = 'flex'; sound.ctx?.suspend(); }
 });
-pauseEl.addEventListener('click', () => { renderer.domElement.requestPointerLock?.(); paused = false; pauseEl.style.display = 'none'; sound.ctx?.resume(); last = performance.now(); });
+pauseEl.addEventListener('click', (e) => { if (e.target.closest('#settings')) return; renderer.domElement.requestPointerLock?.(); paused = false; pauseEl.style.display = 'none'; sound.ctx?.resume(); last = performance.now(); });
+// a few settings on the pause screen (kept between visits)
+const SET = { vol: Number(localStorage.getItem('walkhome.vol') ?? 0.9), film: localStorage.getItem('walkhome.film') !== 'off' };
+function applySettings() {
+  if (sound.master) sound.master.gain.value = SET.vol;
+  post.U.uFilm.value = SET.film ? 1 : 0;
+  const el = (k) => document.querySelector(`#settings [data-k="${k}"] i`);
+  if (el('vol')) { el('vol').textContent = Math.round(SET.vol * 100) + '%'; el('mouse').textContent = LOOK.speed.toFixed(1); el('film').textContent = SET.film ? 'on' : 'off'; }
+}
+document.querySelectorAll('#settings span').forEach((sp) => sp.addEventListener('click', (e) => {
+  const b = e.target.closest('b'); if (!b) return; const up = b === sp.querySelectorAll('b')[1], k = sp.dataset.k;
+  if (k === 'vol') { SET.vol = Math.max(0, Math.min(1, Math.round((SET.vol + (up ? 0.1 : -0.1)) * 10) / 10)); localStorage.setItem('walkhome.vol', SET.vol); }
+  if (k === 'mouse') setMouseSpeed(LOOK.speed + (up ? 0.1 : -0.1));
+  if (k === 'film') { SET.film = !SET.film; localStorage.setItem('walkhome.film', SET.film ? 'on' : 'off'); }
+  applySettings();
+}));
+applySettings(); setInterval(() => { if (sound.master && sound.master.gain.value !== SET.vol) applySettings(); }, 2000);
 // gentle first-time hints, each shown once
 const hintEl = document.getElementById('hint'), hinted = new Set();
 function hint(key, text, secs = 5) { if (hinted.has(key)) return; hinted.add(key); hintEl.textContent = text; hintEl.style.opacity = 1; setTimeout(() => (hintEl.style.opacity = 0), secs * 1000); }

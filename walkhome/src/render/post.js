@@ -53,7 +53,7 @@ export class Post {
       tColor: { value: null }, tDepth: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uNear: { value: 0.05 }, uFar: { value: 600 },
       uL: { value: Array.from({ length: 10 }, () => new THREE.Vector4()) }, uLC: { value: Array.from({ length: 10 }, () => new THREE.Vector3()) }, uLR: { value: Array.from({ length: 10 }, () => new THREE.Vector4()) },
       uInvProj: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, uCamPos: { value: new THREE.Vector3() }, uMist: { value: 0.035 }, uWet: { value: 0.5 }, uLowMist: { value: 0.3 }, uGround: { value: 0 }, uMistCol: { value: new THREE.Color(0.06, 0.05, 0.06) }, uAspect: { value: 1.7 },
-      uTime: { value: 0 }, uFear: { value: 0 }, uExposure: { value: 0.8 }, uInk: { value: 1.0 }, uFlash: { value: 0 }, uBlack: { value: 0 }, uHide: { value: 0 }, uLid: { value: 0 },
+      uTime: { value: 0 }, uFear: { value: 0 }, uExposure: { value: 0.8 }, uInk: { value: 1.0 }, uFlash: { value: 0 }, uBlack: { value: 0 }, uHide: { value: 0 }, uLid: { value: 0 }, uFilm: { value: 1 },
     };
     this.bright = pass(/* glsl */`
       uniform sampler2D tColor; varying vec2 vUv; uniform vec2 uTexel;
@@ -68,7 +68,7 @@ export class Post {
     this.add = pass(/* glsl */`
       uniform sampler2D tA, tB; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tA, vUv).rgb + texture2D(tB, vUv).rgb * 0.8, 1.); }`, { tA: { value: null }, tB: { value: null } });
     this.final = pass(/* glsl */`
-      uniform sampler2D tColor, tDepth, tBloom; uniform vec2 uRes; uniform float uNear, uFar, uTime, uFear, uExposure, uInk, uFlash, uBlack, uHide, uLid;
+      uniform sampler2D tColor, tDepth, tBloom; uniform vec2 uRes; uniform float uNear, uFar, uTime, uFear, uExposure, uInk, uFlash, uBlack, uHide, uLid, uFilm;
       uniform vec4 uL[10]; uniform vec3 uLC[10]; uniform vec4 uLR[10]; uniform mat4 uInvProj, uCamWorld; uniform vec3 uCamPos, uMistCol; uniform float uMist, uWet, uAspect, uLowMist, uGround;
       varying vec2 vUv;
       vec3 worldAt(vec2 uv, float zb){ vec4 v = uInvProj * vec4(uv * 2. - 1., zb * 2. - 1., 1.); v /= v.w; return (uCamWorld * vec4(v.xyz, 1.)).xyz; }
@@ -78,7 +78,7 @@ export class Post {
       void main(){
         vec2 px = 1. / uRes, uv = vUv;
         // a breath of chromatic fringe toward the edges, more when it's bad
-        vec2 cc = uv - 0.5; float ca = (0.0006 + uFear * 0.0025) * dot(cc, cc) * 4.;
+        vec2 cc = uv - 0.5; float ca = (0.0006 + uFear * 0.0025) * dot(cc, cc) * 4. * uFilm;
         vec3 c = vec3(texture2D(tColor, uv + cc * ca).r, texture2D(tColor, uv).g, texture2D(tColor, uv - cc * ca).b);
         c += texture2D(tBloom, uv).rgb * 0.55;
         // ---- the air and the wet road
@@ -124,7 +124,7 @@ export class Post {
         float v = 1. - dot(cc * vec2(0.85, 1.0), cc * vec2(0.85, 1.0)) * (1.5 + uFear * 1.6 + uHide * 2.2);
         c *= clamp(v, 0., 1.);
         c = pow(c, vec3(1. / 2.2));
-        c += (hash(floor(vUv * uRes) + fract(uTime * 13.7) * 91.) - 0.5) * (0.045 + uFear * 0.03);
+        c += (hash(floor(vUv * uRes) + fract(uTime * 13.7) * 91.) - 0.5) * (0.045 + uFear * 0.03) * (0.25 + 0.75 * uFilm);
         // eyelids: heavy when you've stared too long, shut for a blink
         float ey = abs(cc.y) + cc.x * cc.x * 0.42;
         c *= 1. - smoothstep((1. - uLid) * 0.62 - 0.07, (1. - uLid) * 0.62, ey) * step(0.001, uLid);
