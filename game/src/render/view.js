@@ -35,6 +35,8 @@ export function createView(canvas, L) {
   const candles = createCandles(scene, L.candles);
   const table = createTable(scene, camera, L);
   const props = createProps(scene, L);
+  // the giant's fist hits the table: the whole board jumps
+  table.giant.onImpact(() => { shake = Math.max(shake, 0.8); impact = 1; });
   const center = new THREE.Vector3(L.w / 2, 0, L.h / 2);
 
   // film pass
@@ -73,7 +75,7 @@ export function createView(canvas, L) {
   const postCam = new THREE.Camera();
 
   const target = new THREE.Vector3(), tmp = new THREE.Vector3();
-  let hide = 0, shake = 0, first = true, zoom = 0.9, zoomWant = 0.9, mode = 'in', yaw = 0, inDist = 4.4;
+  let impact = 0, hide = 0, shake = 0, first = true, zoom = 0.9, zoomWant = 0.9, mode = 'in', yaw = 0, inDist = 4.4;
   const camPos = new THREE.Vector3(), look = new THREE.Vector3(), right = { x: 1, z: 0 };
   const st = { flash: 0, dark: 0 };
 
@@ -93,7 +95,7 @@ export function createView(canvas, L) {
   return {
     renderer, camera, st,
     shake(a) { shake = Math.max(shake, a); },
-    event(e) { props.event(e); table.event?.(e); if (e.type === 'slam') shake = Math.max(shake, 0.45); },
+    event(e) { props.event(e); table.event(e); },
     get mode() { return mode; },
     toggleMode() { mode = mode === 'in' ? 'table' : 'in'; if (mode === 'table') zoomWant = zoom = 0.15; first = true; },
     turn(a) { yaw += a; },
