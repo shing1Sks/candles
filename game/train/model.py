@@ -85,9 +85,12 @@ class WorldModel(nn.Module):
         s.register_buffer('mover_z', torch.tensor([schema.field(k, 'z', i) for k, i in s.mover_cols]), persistent=False)
         s.register_buffer('door_open', torch.tensor([schema.field('door', 'open', i) for i in range(schema.by_kind['door']['count'])]), persistent=False)
         s.mover_tok = [schema.by_kind[k]['first'] + i for k, i in s.mover_cols]
+        place = torch.zeros(schema.n_tokens, len(s.mover_tok))
+        for j, t in enumerate(s.mover_tok): place[t, j] = 1
+        s.register_buffer('place', place, persistent=False)
 
-    def patches(s, cur):
-        """tile types in the 5 x 5 round each mover, shut doors marked"""
+    def patch_ids(s, cur):
+        """tile types in the 5 x 5 round each mover, shut doors marked (the game computes the same in JS)"""
         M = s.S.map
         x = torch.floor(cur[:, s.mover_x] * M['w']).long()
         z = torch.floor(cur[:, s.mover_z] * M['h']).long()
@@ -101,23 +104,26 @@ class WorldModel(nn.Module):
         d = s.door_at[cz, cx]
         shut = (d >= 0) & (cur[:, s.door_open].gather(1, d.clamp(min=0).flatten(1)).view_as(d) < 0.5)
         t = torch.where(shut, s.n_types, t)
-        t = torch.where(inside, t, s.n_types + 1)
-        return s.patch(s.tile_emb(t).flatten(2))  # B, movers, d
+        return torch.where(inside, t, s.n_types + 1)  # B, movers, 5, 5
 
-    def tokens(s, cur):
+    def tokens(s, cur, ids=None):
         B = cur.shape[0]
+        if ids is None: ids = s.patch_ids(cur)
         out = []
         for k in s.S.kinds:
             x = cur[:, k['offset']: k['offset'] + k['count'] * k['width']].view(B, k['count'], k['width'])
             out.append(s.inp[k['kind']](x))
-        t = torch.cat(out, 1) + s.slot.weight.unsqueeze(0)
-        t[:, s.mover_tok] = t[:, s.mover_tok] + s.patches(cur)
-        return t
+        if ids.is_floating_point():  # tile ids as floats (the play graphs: no integer ops, which WebGPU runs on the CPU)
+            e = (ids.unsqueeze(-1) == torch.arange(s.n_types + 2, device=ids.device, dtype=ids.dtype)).to(cur.dtype) @ s.tile_emb.weight
+        else: e = s.tile_emb(ids)
+        patches = s.patch(e.flatten(2))  # B, movers, d
+        # added to the movers' pieces through a fixed placement matrix (no in-place writes: friendlier to export)
+        return torch.cat(out, 1) + s.slot.weight.unsqueeze(0) + torch.einsum('nm,bmd->bnd', s.place, patches)
 
-    def forward(s, cur, ki, gi, persona, gi_given=True):
+    def forward(s, cur, ki, gi, persona, ids=None):
         B = cur.shape[0]
         n = s.S.n_tokens
-        a = torch.cat([s.tokens(cur), s.persona(persona).unsqueeze(1), s.qa.expand(B, 1, -1)], 1)
+        a = torch.cat([s.tokens(cur, ids), s.persona(persona).unsqueeze(1), s.qa.expand(B, 1, -1)], 1)
         for blk in s.blocks_a: a = blk(a)
         a = s.norm_a(a)
         giant = s.giant(a[:, -1])
@@ -193,7 +199,7 @@ def predict_next(model, out, cur, sample=False, temp=1.0):
     for k in S.kinds:
         num, flag, cats = split_head(k, out['world'][k['kind']].float())
         c = piece(k, cur)
-        p = piece(k, nxt)
+        p = piece(k, nxt)  # a view: writing into it writes the row
         if k['num']:
             if sample:
                 idx = torch.distributions.Categorical(logits=num / temp).sample()
@@ -206,7 +212,6 @@ def predict_next(model, out, cur, sample=False, temp=1.0):
         for (o, n), logit in zip(k['cat'], cats):
             choice = logit.argmax(-1) if not sample else torch.distributions.Categorical(logits=logit / temp).sample()
             p[..., o: o + n] = F.one_hot(choice, n).float()
-        nxt[:, k['offset']: k['offset'] + k['count'] * k['width']] = p.flatten(1)
     return nxt
 
 

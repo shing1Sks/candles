@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(__file__))
 from data import Data
-from model import WorldModel, losses, predict_next, param_count, split_head, piece, gi_targets, GI_STICK, GI_AIM
+from model import WorldModel, losses, predict_next, param_count, split_head, piece, gi_targets, GI_STICK, GI_AIM, GI_BUTTONS
 
 SIZES = {  # width, stage A layers, stage B layers
     'T': (64, 1, 1), 'S': (256, 4, 4), 'M': (384, 6, 6), 'L': (512, 8, 8), 'XL': (768, 6, 6),
@@ -35,6 +35,7 @@ def evaluate(model, data, split, batches=40, B=1024):
     out_tp = out_fp = out_fn = 0
     ev_tp = torch.zeros(len(S.events), device=data.states.device); ev_fp = torch.zeros_like(ev_tp); ev_fn = torch.zeros_like(ev_tp)
     btn_tp = torch.zeros(7, device=data.states.device); btn_fp = torch.zeros_like(btn_tp); btn_fn = torch.zeros_like(btn_tp)
+    btn_p = torch.zeros_like(btn_tp); btn_y = torch.zeros_like(btn_tp)  # how often it presses each, predicted and real
     stick_ok = 0.0
     for _ in range(batches):
         b = data.batch(split, B)
@@ -63,7 +64,8 @@ def evaluate(model, data, split, batches=40, B=1024):
         e = torch.sigmoid(out['events'].float()) > 0.5; y = b['ev'] > 0.5
         ev_tp += (e & y).sum(0); ev_fp += (e & ~y).sum(0); ev_fn += (~e & y).sum(0)
         g = out['giant'].float(); stick, _, buttons = gi_targets(b['gi'])
-        pb = torch.sigmoid(g[:, 4 * GI_STICK + 2 * GI_AIM:]) > 0.5; yb = buttons > 0.5
+        pp = torch.sigmoid(g[:, 4 * GI_STICK + 2 * GI_AIM:]); pb = pp > 0.5; yb = buttons > 0.5
+        btn_p += pp.sum(0); btn_y += yb.float().sum(0)
         btn_tp += (pb & yb).sum(0); btn_fp += (pb & ~yb).sum(0); btn_fn += (~pb & yb).sum(0)
         stick_ok += (g[:, :GI_STICK].argmax(1) == stick[:, 0]).float().mean().item()
     model.train()
@@ -77,7 +79,9 @@ def evaluate(model, data, split, batches=40, B=1024):
                candle_out_f1=f1(out_tp, out_fp, out_fn), events_f1=ev_f1.mean().item() if len(ev_f1) else 0.0,
                giant_stick_acc=stick_ok / batches,
                giant_buttons_f1={name: round(f1(btn_tp[i].item(), btn_fp[i].item(), btn_fn[i].item()), 3)
-                                 for i, name in enumerate(['run', 'lunge', 'use', 'bash', 'yell', 'light', 'reach'])})
+                                 for i, name in enumerate(GI_BUTTONS)},
+               # rare buttons are pressed on hidden beliefs: the model should press them as often, if not at the same moments
+               giant_buttons_rate={name: [round(btn_p[i].item() / n, 4), round(btn_y[i].item() / n, 4)] for i, name in enumerate(GI_BUTTONS)})
     return res
 
 
