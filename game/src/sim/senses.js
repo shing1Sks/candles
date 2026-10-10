@@ -102,9 +102,10 @@ export function observe(G) {
   const out = G.candles.filter((c) => !c.lit).length;
   const heard = S.heard, alerts = S.alertsSeen, ping = S.ping, hideSeen = S.hideSeen, gapSeen = S.gapSeen, felt = S.felt;
   S.heard = []; S.alertsSeen = []; S.ping = null; S.hideSeen = -1; S.gapSeen = -1; S.felt = [];
+  const shoved = M.shoved; M.shoved = false;
   return {
     t: G.t,
-    self: { x: M.x, z: M.z, hx: M.hx, hz: M.hz, vx: M.vx, vz: M.vz, act: M.act, actT: M.actT, speed: M.speed, awake: M.awake, shoved: M.shoved, cool: M.cool, yellCool: M.yellCool, rage: M.rage, lust: M.lust },
+    self: { x: M.x, z: M.z, hx: M.hx, hz: M.hz, vx: M.vx, vz: M.vz, act: M.act, actT: M.actT, speed: M.speed, awake: M.awake, shoved, cool: M.cool, yellCool: M.yellCool, rage: M.rage, lust: M.lust },
     sees: M.sees, kid: M.sees ? { x: k.x, z: k.z, vx: k.vx, vz: k.vz } : null,
     lastSeen: S.lastSeen, lastSeenT: S.lastSeenT,
     heard, ping, alerts, hideSeen, gapSeen, felt,

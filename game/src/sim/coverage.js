@@ -77,10 +77,17 @@ export const CASES = [
   { id: 'Z4', detect: ev('tactic') },
 ];
 
+// not rules but health checks on the data, counted the same way (keys start with _)
+export const STATS = [
+  // a standoff: the kid sitting still in cover with the monster awake right beside it (near-identical rows)
+  { id: '_standoff', detect: st((G) => G.kid.crawl && G.kid.speed < 0.1 && G.monster.awake && dist(G) < 3) },
+];
+
 export function countCases(G, events, ki, gi, row, counts) {
   for (const c of CASES) {
     const n = c.detect(G, events, ki, gi, row);
     if (n) counts[c.id] = (counts[c.id] || 0) + n;
   }
+  for (const c of STATS) if (c.detect(G, events, ki, gi, row)) counts[c.id] = (counts[c.id] || 0) + 1;
   return counts;
 }

@@ -3,10 +3,11 @@
 // usage: node tools/gen.mjs <batch> <count> [workers=cores-1] [--out DIR] [--maxT SECONDS]
 //   data/<batch>/schema.json                 the row layout (src/sim/schema.js)
 //   data/<batch>/shard-NNN/ (256 episodes each)
-//     episodes.jsonl   one line per episode: config, outcome, seconds, rows, hash, case counts, where its rows start
-//     states.f16       float16 states: rows + 1 per episode (the start, then after every step)
-//     ki.f16, gi.f16   float16 inputs, one row per step: the kid's and the giant's
-//     events.jsonl     one line per episode: [row, type, x, z, id] for every event
+//     episodes.jsonl   one line per episode: config, the monster's traits, outcome, seconds, rows, hash, case counts,
+//                      where its rows start
+//     states.f32       float32 states: rows + 1 per episode (the start, then after every step)
+//     ki.f32, gi.f32   float32 inputs, one row per step: the kid's and the giant's
+//     events.jsonl     one line per episode: [row, type, x, z, id, detail] for every event
 //   data/<batch>/errors.jsonl                an episode that crashed: its config and stack (it is skipped)
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,7 +22,7 @@ const SHARD = 256;
 const NL = String.fromCharCode(10);
 
 if (!isMainThread) {
-  // a worker: run each episode it is sent, send back its rows as float16
+  // a worker: run each episode it is sent, send back its rows
   const { batch, maxT } = workerData;
   parentPort.on('message', (i) => {
     const config = configFor(batch, i);
@@ -29,9 +30,9 @@ if (!isMainThread) {
     try {
       if (process.env.GEN_FAIL !== undefined && Number(process.env.GEN_FAIL) === i) throw new Error('GEN_FAIL: a forced failure');
       const r = runEpisode(config, { record: true });
-      const states = new Float16Array(r.states), ki = new Float16Array(r.ki), gi = new Float16Array(r.gi);
-      const meta = { i, id: config.id, config, outcome: r.outcome, t: +r.t.toFixed(2), clock: +r.clock.toFixed(2), rows: r.rows, hash: r.hash, counts: r.counts };
-      const events = r.events.map(([row, type, x, z, id]) => [row, type, +x.toFixed(2), +z.toFixed(2), id]);
+      const { states, ki, gi } = r;
+      const meta = { i, id: config.id, config, persona: r.persona, outcome: r.outcome, t: +r.t.toFixed(2), clock: +r.clock.toFixed(2), rows: r.rows, hash: r.hash, counts: r.counts };
+      const events = r.events.map(([row, type, x, z, id, detail]) => [row, type, +x.toFixed(2), +z.toFixed(2), id, detail]);
       parentPort.postMessage({ i, meta, events, states, ki, gi }, [states.buffer, ki.buffer, gi.buffer]);
     } catch (e) {
       parentPort.postMessage({ i, error: { i, config, message: e.message, stack: e.stack } });
@@ -56,7 +57,7 @@ if (!isMainThread) {
       const sd = path.join(dir, `shard-${String(s).padStart(3, '0')}`);
       fs.mkdirSync(sd, { recursive: true });
       const open = (f) => fs.openSync(path.join(sd, f), 'w');
-      shards.set(s, { ep: open('episodes.jsonl'), ev: open('events.jsonl'), st: open('states.f16'), ki: open('ki.f16'), gi: open('gi.f16'), stateRows: 0, inputRows: 0 });
+      shards.set(s, { ep: open('episodes.jsonl'), ev: open('events.jsonl'), st: open('states.f32'), ki: open('ki.f32'), gi: open('gi.f32'), stateRows: 0, inputRows: 0 });
     }
     return shards.get(s);
   };

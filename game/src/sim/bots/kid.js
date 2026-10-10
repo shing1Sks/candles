@@ -28,14 +28,15 @@ export function observeKid(G) {
 
 const IDLE = Object.freeze({ mx: 0, mz: 0, creep: false, blow: false, use: false, throw: false });
 
-// flee when it is this close (m), creep when it is within this, crawl spaces' worth when fleeing
+// flee when it is this close (m), creep when it is within this, crawl spaces' worth when fleeing, how long it will
+// sit in cover with the monster right there before slipping out (s)
 const STYLE = {
-  sneaker: { flee: 7, creep: 14, crawl: 3, hide: 0, lure: 0, shut: 0.5, greed: 0 },
-  sprinter: { flee: 5, creep: 0, crawl: 1, hide: 0, lure: 0, shut: 0, greed: 0.2 },
-  hider: { flee: 8, creep: 9, crawl: 2, hide: 1, lure: 0, shut: 0.4, greed: 0 },
-  trickster: { flee: 7, creep: 9, crawl: 2, hide: 0.2, lure: 1, shut: 1, greed: 0.1 },
-  greedy: { flee: 4.5, creep: 6, crawl: 2, hide: 0, lure: 0, shut: 0, greed: 1 },
-  probe: { flee: 7, creep: 10, crawl: 2, hide: 0, lure: 0, shut: 0, greed: 0 },
+  sneaker: { flee: 7, creep: 14, crawl: 3, hide: 0, lure: 0, shut: 0.5, greed: 0, sit: 10 },
+  sprinter: { flee: 5, creep: 0, crawl: 1, hide: 0, lure: 0, shut: 0, greed: 0.2, sit: 4 },
+  hider: { flee: 8, creep: 9, crawl: 2, hide: 1, lure: 0, shut: 0.4, greed: 0, sit: 8 },
+  trickster: { flee: 7, creep: 9, crawl: 2, hide: 0.2, lure: 1, shut: 1, greed: 0.1, sit: 6 },
+  greedy: { flee: 4.5, creep: 6, crawl: 2, hide: 0, lure: 0, shut: 0, greed: 1, sit: 5 },
+  probe: { flee: 7, creep: 10, crawl: 2, hide: 0, lure: 0, shut: 0, greed: 0, sit: 8 },
 };
 
 function gauss(rand) { return Math.sqrt(-2 * Math.log(Math.max(1e-12, rand()))) * Math.cos(2 * Math.PI * rand()); }
@@ -66,7 +67,7 @@ function player(G, S, skill, rand, exact) {
   const delay = exact ? 0 : 0.1 + (1 - skill) * 0.3, replan = exact ? 0.25 : 0.25 + (1 - skill) * 0.3;
   const wobble = exact ? 0 : 0.15 * (1 - skill), slip = exact ? 0 : 0.01 + 0.02 * (1 - skill);
   const seen = []; // where it saw the monster, a moment ago
-  const st = { plan: [], planT: 0, flee: false, cand: null, useT: 0, hideW: null, hidT: 0, throwPhase: 0, throwDir: null, lastOut: 0, outs: -1, door: null };
+  const st = { plan: [], planT: 0, flee: false, cand: null, useT: 0, hideW: null, hidT: 0, throwPhase: 0, throwDir: null, lastOut: 0, outs: -1, door: null, sat: 0, sitFor: S.sit, outT: 0, cover: -1 };
   return (obs, dt) => {
     const k = obs.kid, now = obs.t;
     st.planT -= dt; st.useT -= dt;
@@ -129,6 +130,15 @@ function player(G, S, skill, rand, exact) {
       }
     }
 
+    // sitting in cover with it right there: after a while, slip out of this crawl space (away from it)
+    if (k.crawl && danger && k.speed < 0.3) st.sat += dt; else st.sat = Math.max(0, st.sat - dt * 0.5);
+    if (st.outT > 0) st.outT -= dt;
+    else if (st.sat > st.sitFor) {
+      st.outT = 4; st.sat = 0; st.sitFor = S.sit * (0.7 + rand() * 0.6); st.planT = 0;
+      st.cover = L.passageAt(tf(k.x), tf(k.z));
+    }
+    const breaking = st.outT > 0;
+
     // plan: run for the spot furthest from it (crawl spaces count extra), or go for a candle
     if (st.planT <= 0 || danger !== st.flee) {
       st.planT = replan; st.flee = danger;
@@ -140,7 +150,8 @@ function player(G, S, skill, rand, exact) {
         for (let z = 0; z < L.h; z++) for (let x = 0; x < L.w; x++) {
           const i = z * L.w + x, kk = kd[i];
           if (!(kk <= 8)) continue;
-          const s = (isFinite(md[i]) ? md[i] : 40) - kk * 1.3 + (L.crawl(x, z) ? S.crawl : 0);
+          if (breaking && L.passageAt(x, z) === st.cover) continue; // not this hole again, for now
+          const s = (isFinite(md[i]) ? md[i] : breaking ? 0 : 40) - kk * 1.3 + (L.crawl(x, z) && !breaking ? S.crawl : 0);
           if (s > best) { best = s; goal = [x, z]; }
         }
       } else {

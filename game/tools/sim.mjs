@@ -7,7 +7,7 @@ const N = Number(process.argv[2]) || 100, SEED = Number(process.argv[3]) || 1;
 const persona = { type: process.env.PERSONA || 'classic' };
 const kid = { style: process.env.KID || 'probe', skill: Number(process.env.SKILL || 0.6) };
 
-const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, stuck: 0, rows: 0, catchT: [], by: {} };
+const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, stuck: 0, standoff: 0, rows: 0, catchT: [], by: {} };
 const t0 = Date.now();
 for (let g = 0; g < N; g++) {
   const config = { ...configFor(`probe-${SEED}`, g), persona, kid, start: process.env.START || 'fresh' };
@@ -23,6 +23,7 @@ for (let g = 0; g < N; g++) {
     },
   });
   const G = r.G, out = G.candles.filter((c) => !c.lit).length;
+  res.standoff += r.counts._standoff || 0;
   res[r.outcome]++;
   res.t.push(r.t); res.out.push(out);
   if (r.outcome === 'caught') res.catchT.push(r.t);
@@ -35,6 +36,6 @@ console.log(`${N} games (${persona.type} vs ${kid.style} ${kid.skill}) in ${((Da
 console.log(`won ${res.won}  caught ${res.caught}  timeout ${res.timeout}   (caught by ${JSON.stringify(res.by)})`);
 console.log(`avg length ${avg(res.t)} s, avg candles out ${avg(res.out)}, avg catch at ${avg(res.catchT)} s`);
 console.log(`candles-out histogram: ${[0, 1, 2, 3, 4, 5, 6].map((i) => res.out.filter((v) => v === i).length).join(' ')}`);
-console.log(`stuck ${((res.stuck / Math.max(1, res.rows)) * 100).toFixed(1)}%   spotted ${per('spotted')}/game, lunges ${per('lunge')}, yells ${per('yell')}, fury ${per('fury')}`);
+console.log(`stuck ${((res.stuck / Math.max(1, res.rows)) * 100).toFixed(1)}%   standoff ${((res.standoff / Math.max(1, res.rows)) * 100).toFixed(1)}%   spotted ${per('spotted')}/game, lunges ${per('lunge')}, yells ${per('yell')}, fury ${per('fury')}`);
 console.log('monster time: ' + Object.entries(res.modes).map(([k, v]) => `${k} ${((v / total) * 100).toFixed(0)}%`).join(', '));
 console.log('events/game: ' + Object.entries(res.ev).filter(([k]) => !['kstep', 'mstep', 'mode'].includes(k)).map(([k, v]) => `${k} ${(v / N).toFixed(1)}`).join(', '));

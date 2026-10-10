@@ -22,12 +22,15 @@ test('6 episodes on 2 workers, one forced to fail: 5 recorded, 1 error, sizes ma
   assert.equal(errors.length, 1); assert.equal(errors[0].i, 2); assert.ok(errors[0].config && errors[0].stack);
   const rows = eps.reduce((s, e) => s + e.rows, 0);
   const size = (f) => fs.statSync(path.join(dir, 'shard-000', f)).size;
-  assert.equal(size('states.f16'), (rows + eps.length) * STATE_SIZE * 2);
-  assert.equal(size('ki.f16'), rows * KI_SIZE * 2);
-  assert.equal(size('gi.f16'), rows * GI_SIZE * 2);
+  // float32: positions need better than float16's centimetre steps
+  assert.equal(size('states.f32'), (rows + eps.length) * STATE_SIZE * 4);
+  assert.equal(size('ki.f32'), rows * KI_SIZE * 4);
+  assert.equal(size('gi.f32'), rows * GI_SIZE * 4);
   const ev = fs.readFileSync(path.join(dir, 'shard-000', 'events.jsonl'), 'utf8').trim().split('\n');
   assert.equal(ev.length, 5);
   // each episode knows where its rows start
   for (const e of eps) assert.ok(e.stateRow >= 0 && e.inputRow >= 0 && e.counts);
+  // the monster's actual (jittered) traits travel with each episode
+  for (const e of eps) if (e.config.persona.type !== 'classic') assert.equal(typeof e.persona.smart, 'number');
   fs.rmSync(out, { recursive: true, force: true });
 });

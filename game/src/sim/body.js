@@ -39,7 +39,7 @@ function start(M, act, t, id = -1) { M.act = act; M.actT = t; M.actId = id; }
 
 export function stepBody(G, gi, dt) {
   const M = G.monster;
-  M.rage = Math.max(0, M.rage - dt); M.yellCool -= dt; M.cool -= dt; M.shoved = false;
+  M.rage = Math.max(0, M.rage - dt); M.yellCool -= dt; M.cool -= dt; // (M.shoved stays set until its mind looks)
   if (!M.awake) {
     if (G.t > MON.wake || G.sense.wake) { M.awake = true; G.events.push({ type: 'wake' }); }
     else { M.vx = M.vz = M.speed = 0; M.mode = 'sleep'; return; }

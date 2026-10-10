@@ -10,6 +10,9 @@ const ACTS = ['none', 'door', 'bash', 'check', 'windup', 'lunge', 'recover', 'ye
 const STATES = ['play', 'won', 'caught'];
 const BEAMS = ['idle', 'warn', 'on'];
 const HANDS = ['idle', 'shadow', 'down', 'hold', 'up'];
+const HEARD = ['other', 'kid', 'door', 'creak', 'squeak', 'land'];
+const FELT = ['candleOut', 'doorInFace', 'lungeMiss', 'gapEscape', 'lostSight', 'spotted', 'checkEmpty', 'beamSpot', 'grabMiss'];
+const last = (a) => a[a.length - 1];
 const age = (G, at, max) => Math.min(1, Math.max(0, (G.t - at) / max));
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
@@ -43,6 +46,15 @@ const TOKEN_DEFS = [
     px('lastSeenX', (G) => G.sense.lastSeen?.x ?? 0), pz('lastSeenZ', (G) => G.sense.lastSeen?.z ?? 0),
     num('lastSeenAge', (G) => age(G, G.sense.lastSeenT, 10)), num('sightT', (G) => G.sense.sightT, 40),
     num('unseenT', (G) => Math.min(1, G.sense.unseenT)), num('kidGap', (G) => G.sense.kidGap + 1, 11),
+  ] },
+  // what the monster sensed during the last step and has not read yet: its mind acts on it next step
+  { kind: 'pending', count: 1, fields: [
+    flag('heard', (G) => G.sense.heard.length > 0), px('heardX', (G) => last(G.sense.heard)?.x ?? 0), pz('heardZ', (G) => last(G.sense.heard)?.z ?? 0),
+    cat('heardKind', HEARD.length, (G) => Math.max(0, HEARD.indexOf(last(G.sense.heard)?.kind))),
+    flag('alert', (G) => G.sense.alertsSeen.length > 0), px('alertX', (G) => last(G.sense.alertsSeen)?.x ?? 0), pz('alertZ', (G) => last(G.sense.alertsSeen)?.z ?? 0),
+    flag('ping', (G) => !!G.sense.ping), px('pingX', (G) => G.sense.ping?.x ?? 0), pz('pingZ', (G) => G.sense.ping?.z ?? 0),
+    flag('hideSeen', (G) => G.sense.hideSeen >= 0), flag('gapSeen', (G) => G.sense.gapSeen >= 0), flag('shoved', (G) => G.monster.shoved),
+    ...FELT.map((k) => flag(`felt_${k}`, (G) => G.sense.felt.some((f) => f.kind === k))),
   ] },
   { kind: 'mind', count: 1, fields: [
     cat('mode', MODES.length, (G) => Math.max(0, MODES.indexOf(G.mind?.mode))), num('modeT', (G) => Math.min(G.mind?.modeT ?? 0, 30), 30),
@@ -95,6 +107,24 @@ export const GI_FIELDS = ['mx', 'mz', 'run', 'lunge', 'use', 'bash', 'yell', 'li
 export const KI_SIZE = KI_FIELDS.length, GI_SIZE = GI_FIELDS.length;
 
 // every event the world and the minds emit, in a fixed order
+// the details an event carries, as one short string (who, why, which way)
+export function eventDetail(e) {
+  switch (e.type) {
+    case 'door': return `${e.open ? 'open' : 'shut'}:${e.by}${e.bash ? ':bash' : ''}`;
+    case 'doorTry': return e.bash ? 'bash' : 'open';
+    case 'yell': case 'fury': return e.why || '';
+    case 'tactic': return `${e.name}:${e.why}`;
+    case 'mood': return `${e.anger.toFixed(2)},${e.frustration.toFixed(2)},${e.why || ''}`;
+    case 'mode': return e.mode;
+    case 'caught': return e.by;
+    case 'land': return e.wall ? 'wall' : 'floor';
+    case 'squeak': case 'pickup': return e.kind || '';
+    case 'kstep': return [e.run && 'run', e.crawl && 'crawl', e.duct && 'duct'].filter(Boolean).join(',');
+    case 'mstep': return e.run ? 'run' : '';
+    default: return '';
+  }
+}
+
 export const EVENT_TYPES = [
   'kstep', 'blowStart', 'blowStop', 'blowNothing', 'candleOut', 'slam', 'won', 'caught',
   'door', 'useNothing', 'shutRefused', 'hide', 'unhide', 'unhideRefused',
@@ -136,6 +166,7 @@ export function schemaJSON(L) {
     tokens: TOKENS.map((t) => ({ kind: t.kind, count: t.count, width: t.width, offset: t.offset,
       fields: t.fields.map((f) => (f.type === 'cat' ? { name: f.name, type: f.type, n: f.n } : { name: f.name, type: f.type, scale: f.scale ?? 1 })) })),
     kiFields: KI_FIELDS, giFields: GI_FIELDS, eventTypes: EVENT_TYPES,
-    categories: { act: ACTS, state: STATES, beam: BEAMS, hand: HANDS, mode: MODES },
+    categories: { act: ACTS, state: STATES, beam: BEAMS, hand: HANDS, mode: MODES, heardKind: HEARD },
+    personaTraits: ['smart', 'aggression', 'patience', 'ears', 'guard', 'thorough', 'temper', 'tools', 'temp'],
   };
 }

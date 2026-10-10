@@ -63,18 +63,21 @@ Any episode replays exactly in the browser: `http://localhost:5190/?watch=v0:780
 - `schema.json`: the row layout (pieces, their fields, input fields, event types).
 - `errors.jsonl`: episodes that crashed (skipped).
 - `shard-NNN/`, 256 episodes each:
-  - `episodes.jsonl`: one line per episode: config, outcome, seconds, rows, replay hash, rule counts, `stateRow`,
-    `inputRow`.
-  - `states.f16`: float16 states. Each episode has `rows + 1` (its start, then after each 50 ms step).
-  - `ki.f16`, `gi.f16`: the kid's and the giant's inputs, one row per step. Step r takes state r to state r + 1.
-  - `events.jsonl`: per episode, `[row, type, x, z, id]` for every event (types in `schema.json`).
+  - `episodes.jsonl`: one line per episode: config, the monster's actual traits (`persona`), outcome, seconds, rows,
+    replay hash, rule counts, `stateRow`, `inputRow`.
+  - `states.f32`: float32 states. Each episode has `rows + 1` (its start, then after each 50 ms step).
+    - The `pending` piece holds what the monster sensed but has not yet acted on, so each state alone explains the
+      next step.
+  - `ki.f32`, `gi.f32`: the kid's and the giant's inputs, one row per step. Step r takes state r to state r + 1.
+  - `events.jsonl`: per episode, `[row, type, x, z, id, detail]` for every event (types in `schema.json`).
+    - `detail` says who or why: `shut:kid`, `open:monster:bash`, a yell's cause, a tactic and its reason.
 
 ```python
 import json, numpy as np
 d = 'data/v0'
 s = json.load(open(f'{d}/schema.json'))
-X = np.fromfile(f'{d}/shard-000/states.f16', np.float16).reshape(-1, s['stateSize'])
-K = np.fromfile(f'{d}/shard-000/ki.f16', np.float16).reshape(-1, len(s['kiFields']))
+X = np.fromfile(f'{d}/shard-000/states.f32', np.float32).reshape(-1, s['stateSize'])
+K = np.fromfile(f'{d}/shard-000/ki.f32', np.float32).reshape(-1, len(s['kiFields']))
 eps = [json.loads(l) for l in open(f'{d}/shard-000/episodes.jsonl')]
 e = eps[0]; states = X[e['stateRow']: e['stateRow'] + e['rows'] + 1]; kid = K[e['inputRow']: e['inputRow'] + e['rows']]
 ```

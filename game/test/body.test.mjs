@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { parseLevel } from '../src/sim/level.js';
 import { createGame, stepWorld, IDLE_GI } from '../src/sim/game.js';
 import { MON, BEAM } from '../src/sim/rules.js';
+import { observe } from '../src/sim/senses.js';
 
 const L = parseLevel(), DT = 1 / 60;
 const KI = { mx: 0, mz: 0 };
@@ -184,4 +185,12 @@ test('throwing into the wall in front of you is refused', () => {
   const ev = run(G, {}, 0.1, { mx: 0, mz: 0, throw: true });
   assert.equal(G.kid.held, 0);
   assert.ok(ev.some((e) => e.type === 'throwRefused'));
+});
+
+// a shove on any sub-tick is still there when the mind next looks, and only once
+test('a stuck shove is latched until the mind looks', () => {
+  const G = scene(1.6, 20.5); G.monster.hx = -1;
+  for (let i = 0; i < 120; i++) { stepWorld(G, KI, { ...IDLE_GI, mx: -1 }, DT); G.events.length = 0; }
+  assert.equal(observe(G).self.shoved, true, 'the shove is remembered');
+  assert.equal(observe(G).self.shoved, false, 'and read once');
 });

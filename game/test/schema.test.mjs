@@ -3,6 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { STATE_SIZE, KI_SIZE, GI_SIZE, EVENT_TYPES, encode, schemaJSON } from '../src/sim/schema.js';
 import { configFor, runEpisode } from '../src/sim/episode.js';
+import { parseLevel } from '../src/sim/level.js';
+import { createGame, stepWorld, makeNoise, IDLE_GI } from '../src/sim/game.js';
+import { observe } from '../src/sim/senses.js';
 
 // 200 states from a running episode, encoded
 function sample() {
@@ -72,4 +75,33 @@ test('recording returns states, inputs and known events for every row', () => {
     assert.ok(row >= 0 && row < r.rows);
     assert.ok(type >= 0 && type < EVENT_TYPES.length);
   }
+});
+
+test('events keep their details: who shut a door, why it yelled', () => {
+  let doors = 0;
+  for (let i = 0; i < 6; i++) {
+    const r = runEpisode({ ...configFor('detail', i), maxT: 120 }, { record: true });
+    for (const e of r.events) {
+      assert.equal(e.length, 6);
+      if (EVENT_TYPES[e[1]] === 'door') { doors++; assert.match(e[5], /^(open|shut):(kid|monster)(:bash)?$/); }
+      if (EVENT_TYPES[e[1]] === 'yell') assert.ok(e[5].length > 0, 'a yell says why');
+      if (EVENT_TYPES[e[1]] === 'caught') assert.match(e[5], /^(touch|found|grab)$/);
+    }
+  }
+  assert.ok(doors > 0);
+});
+test("an episode reports the monster's actual traits", () => {
+  const r = runEpisode({ ...configFor('traits', 1), persona: { type: 'hound' }, maxT: 5 });
+  assert.equal(r.persona.type, 'hound'); assert.equal(typeof r.persona.ears, 'number');
+});
+test('what the monster sensed but has not yet read is part of the state', () => {
+  const L = parseLevel(), G = createGame(L, 1);
+  Object.assign(G.monster, { x: 5.5, z: 20.5, awake: true });
+  const pend = S.tokens.find((t) => t.kind === 'pending');
+  assert.ok(pend, 'a pending-senses piece');
+  const heardAt = 1 + pend.offset + pend.fields.findIndex((f) => f.name === 'heard');
+  const out = new Float32Array(STATE_SIZE + 2);
+  makeNoise(G, 9.5, 20.5, 10, 'creak'); stepWorld(G, { mx: 0, mz: 0 }, IDLE_GI, 1 / 60);
+  encode(G, out, 1); assert.equal(out[heardAt], 1);
+  observe(G); encode(G, out, 1); assert.equal(out[heardAt], 0);
 });

@@ -10,7 +10,7 @@ import { randomStart } from './bots/start.js';
 import { PERSONA_TYPES } from './mind/personas.js';
 import { countCases } from './coverage.js';
 import { rng, hash } from './rng.js';
-import { STATE_SIZE, KI_SIZE, GI_SIZE, encode, encodeKI, encodeGI, eventId } from './schema.js';
+import { STATE_SIZE, KI_SIZE, GI_SIZE, encode, encodeKI, encodeGI, eventId, eventDetail } from './schema.js';
 
 export const DT = 1 / 60, SUB = 3, STEP = DT * SUB;
 const L = parseLevel();
@@ -86,7 +86,7 @@ function grower(Type, n) {
 
 // onRecord(row, G, ki, gi, events): called after every step with what happened in it.
 // record: also return the encoded rows: states (rows + 1: the start, then after every step; step r takes states[r]
-// to states[r + 1]), the inputs ki and gi of every step, and its events [row, type, x, z, id].
+// to states[r + 1]), the inputs ki and gi of every step, and its events [row, type, x, z, id, detail].
 export function runEpisode(config, { onRecord, record = false } = {}) {
   const ep = startEpisode(config), G = ep.G;
   const st = record && grower(Float32Array, STATE_SIZE * 512), k = record && grower(Float32Array, KI_SIZE * 512), g = record && grower(Float32Array, GI_SIZE * 512);
@@ -99,14 +99,14 @@ export function runEpisode(config, { onRecord, record = false } = {}) {
       st.push((a, o) => encode(G, a, o), STATE_SIZE);
       k.push((a, o) => encodeKI(ep.ki, a, o), KI_SIZE);
       g.push((a, o) => encodeGI(ep.gi, a, o), GI_SIZE);
-      for (const e of G.events) events.push([row, eventId(e.type), e.x ?? -1, e.z ?? -1, e.id ?? -1]);
+      for (const e of G.events) events.push([row, eventId(e.type), e.x ?? -1, e.z ?? -1, e.id ?? -1, eventDetail(e)]);
     }
     countCases(G, G.events, ep.ki, ep.gi, row, counts);
     onRecord?.(row, G, ep.ki, ep.gi, G.events);
     G.events.length = 0;
   }
   // t: seconds played in this episode; clock: the game's clock at the end
-  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t - ep.t0, clock: G.t, counts, hash: episodeHash(ep), rows: ep.rows, G };
+  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t - ep.t0, clock: G.t, counts, persona: { ...G.mind.persona }, hash: episodeHash(ep), rows: ep.rows, G };
   if (record) Object.assign(out, { states: st.done(), ki: k.done(), gi: g.done(), events });
   return out;
 }

@@ -20,3 +20,16 @@ test('a minute of play counts running and blowing', () => {
   }
   assert.ok(r.counts.K1 > 0 && r.counts.C1 > 0, JSON.stringify(r.counts));
 });
+
+import { countCases } from '../src/sim/coverage.js';
+import { parseLevel } from '../src/sim/level.js';
+import { createGame } from '../src/sim/game.js';
+test('a standoff (the kid still in cover, the monster awake beside it) is counted', () => {
+  const G = createGame(parseLevel(), 1);
+  Object.assign(G.kid, { x: 18.5, z: 15.5, crawl: true, speed: 0 });
+  Object.assign(G.monster, { x: 18.5, z: 13.9, awake: true });
+  const counts = countCases(G, [], { mx: 0, mz: 0 }, { run: false }, 5, {});
+  assert.equal(counts._standoff, 1);
+  G.kid.speed = 1;
+  assert.equal(countCases(G, [], { mx: 0, mz: 0 }, { run: false }, 6, {})._standoff, undefined);
+});

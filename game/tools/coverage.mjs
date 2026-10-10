@@ -24,6 +24,7 @@ const total = {};
 for (const e of eps) for (const [k, v] of Object.entries(e.counts)) total[k] = (total[k] || 0) + v;
 const rows = eps.reduce((s, e) => s + e.rows, 0), hours = eps.reduce((s, e) => s + e.t, 0) / 3600;
 console.log(`${batch}: ${eps.length} episodes (${errors} failed), ${rows} rows, ${hours.toFixed(1)} h of play`);
+console.log(`standoff rows (kid still in cover, the monster right there): ${(((total._standoff || 0) / Math.max(1, rows)) * 100).toFixed(1)}%`);
 
 // outcomes by group
 function table(title, key) {
