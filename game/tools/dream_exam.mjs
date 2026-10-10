@@ -10,7 +10,7 @@ import { encode, encodeKI, STATE_SIZE, KI_SIZE } from '../src/sim/schema.js';
 import { decode } from '../src/model/decode.js';
 import { layout, patchIds, personaVec } from '../src/model/layout.js';
 import { apply, events } from '../src/model/dream.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
@@ -18,7 +18,18 @@ const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seco
 const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8');
 ort.env.wasm.numThreads = 8;
 const meta = JSON.parse(readFileSync(`${dir}/play.json`, 'utf8'));
-const session = await ort.InferenceSession.create(`${dir}/${INT8 ? 'packed_int8' : 'packed'}.onnx`);
+// packed.onnx (one row in, one out); older exports have only play.onnx (the same graph with its inputs apart)
+const packed = existsSync(`${dir}/packed.onnx`);
+const session = await ort.InferenceSession.create(`${dir}/${packed ? (INT8 ? 'packed_int8' : 'packed') : 'play'}.onnx`);
+async function run(x) {
+  if (packed) return (await session.run({ x: new ort.Tensor('float32', x, [1, x.length]) })).y.data;
+  const T = (i, dims) => new ort.Tensor('float32', x.slice(at[i], at[i] + sizes[i]), dims);
+  const o = await session.run({ cur: T(0, [1, sizes[0]]), persona: T(1, [1, sizes[1]]), ids: T(2, [1, 9, 5, 5]), ki: T(3, [1, sizes[3]]),
+    gnoise: T(4, [1, sizes[4]]), gtemp: T(5, [1]), gu: T(6, [1, 7]) });
+  const y = new Float32Array(13 + meta.world + meta.events);
+  y.set(o.gi.data, 0); y.set(o.world.data, 13); y.set(o.events.data, 13 + meta.world);
+  return y;
+}
 const col = layout(), NG = 4 * 21 + 2 * 32;
 const sizes = [STATE_SIZE, meta.persona, 225, KI_SIZE, NG, 1, 7], at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
 
@@ -66,7 +77,7 @@ async function dream(config) {
     x.set(row, at[0]); x.set(ids, at[2]); x.set(ki, at[3]);
     for (let i = 0; i < NG; i++) x[at[4] + i] = -Math.log(-Math.log(Math.random() + 1e-12) + 1e-12);
     for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();
-    const y = (await session.run({ x: new ort.Tensor('float32', x, [1, x.length]) })).y.data;
+    const y = await run(x);
     const prev = row;
     row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i]));
