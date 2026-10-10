@@ -1,8 +1,0 @@
-{
-  "name": "walkhome-concepts",
-  "private": true,
-  "type": "module",
-  "scripts": { "dev": "vite --port 5183 --strictPort" },
-  "dependencies": { "three": "^0.186.1" },
-  "devDependencies": { "vite": "^8.3.3" }
-}

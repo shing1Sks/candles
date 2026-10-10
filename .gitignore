@@ -2,12 +2,5 @@ node_modules/
 dist/
 __pycache__/
 *.pyc
-# throwaway screenshots from the scenario runner (curated ones live in research/img)
-spike/walk/shots*/
-assets/audio/_downloads/
 .DS_Store
 Thumbs.db
-# plan execution scratch (ledgers, briefs)
-.superpowers/
-# gameplay clips (large; kept locally)
-assets/art/walkhome/game2/clips/
