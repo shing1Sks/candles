@@ -94,6 +94,10 @@ class Data:
                 chosen[torch.tensor(keep_eps)[perm]] = True
                 ix = ix[chosen.to(dev)[self.ep_of[ix]]]
             self.idx[name] = ix
+        # rows whose next row is the same game's next step (two steps in a row, for rollout training)
+        same = torch.zeros(len(self.ep_of), dtype=torch.bool, device=dev)
+        same[:-1] = self.ep_of[1:] == self.ep_of[:-1]
+        self.idx2 = {k: v[same[v]] for k, v in self.idx.items()}
         self.weight = self._weights()
         self.gen = torch.Generator(device=dev).manual_seed(seed)
 
@@ -114,6 +118,17 @@ class Data:
     def batch(self, split, B):
         ix = self.idx[split]
         pick = ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)]
+        c = self.cur[pick]
+        return dict(cur=self.states[c], nxt=self.states[c + 1], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
+                    persona=self.persona[self.ep_of[pick]], w=self.weight[pick])
+
+    def batch2(self, split, B):
+        """two steps in a row of the same games: (step 1, step 2); step 2's cur is step 1's nxt"""
+        ix = self.idx2[split]
+        pick = ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)]
+        return [self._rows(pick), self._rows(pick + 1)]
+
+    def _rows(self, pick):
         c = self.cur[pick]
         return dict(cur=self.states[c], nxt=self.states[c + 1], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
                     persona=self.persona[self.ep_of[pick]], w=self.weight[pick])

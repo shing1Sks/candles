@@ -93,6 +93,10 @@ def main():
     ap.add_argument('--lr', type=float, default=0); ap.add_argument('--bench', action='store_true')
     ap.add_argument('--report', type=int, default=200); ap.add_argument('--evalevery', type=int, default=2000)
     ap.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
+    # rollout training: from this share of the schedule on, every batch is two steps in a row and the second starts
+    # from the model's own guess of the first (drawn, as the game draws), so it learns to carry on from its own errors
+    ap.add_argument('--rollout_from', type=float, default=1.0)
+    ap.add_argument('--init', help='start from these weights (a best.pt or ckpt.pt), with a fresh optimizer')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -113,6 +117,8 @@ def main():
     if a.bench: total = 60
     ck = os.path.join(a.out, 'ckpt.pt')
     step, best = 0, float('inf')
+    if a.init and not os.path.exists(ck):
+        model.load_state_dict(torch.load(a.init, map_location=a.device)['model']); say(event='init', path=a.init)
     if os.path.exists(ck) and not a.bench:
         st = torch.load(ck, map_location=a.device)
         model.load_state_dict(st['model']); opt.load_state_dict(st['opt']); step, best = st['step'], st['best']
@@ -129,12 +135,18 @@ def main():
         sched_total = total or 10 ** 9
         if step >= sched_total or time.time() > deadline: break
         for g in opt.param_groups: g['lr'] = cosine(step, sched_total, 500, peak)
-        b = data.batch('train', a.batch)
-        with torch.autocast('cuda', dtype=torch.bfloat16, enabled=a.device.startswith('cuda')):
-            out = model(b['cur'], b['ki'], b['gi'], b['persona'])
-        L = losses(model, out, b)
-        per = sum(LOSS_W[k] * L[k] for k in L)
-        loss = (per * b['w']).sum() / b['w'].sum()
+        rolling = step >= a.rollout_from * sched_total
+        steps = data.batch2('train', a.batch // 2) if rolling else [data.batch('train', a.batch)]
+        loss, prev = 0.0, None
+        for b in steps:
+            if prev is not None:  # the second step starts where the model said the first would end
+                b['cur'] = predict_next(model, prev[0], prev[1], sample=True)
+            with torch.autocast('cuda', dtype=torch.bfloat16, enabled=a.device.startswith('cuda')):
+                out = model(b['cur'], b['ki'], b['gi'], b['persona'])
+            L = losses(model, out, b)
+            per = sum(LOSS_W[k] * L[k] for k in L)
+            loss = loss + (per * b['w']).sum() / b['w'].sum() / len(steps)
+            prev = ({'world': {k: v.detach() for k, v in out['world'].items()}}, b['cur'])
         if not torch.isfinite(loss):
             say(event='nan', step=step); raise SystemExit('loss is not finite')
         opt.zero_grad(set_to_none=True)
@@ -144,7 +156,7 @@ def main():
         step += 1; seen += a.batch
         if step % a.report == 0:
             el = time.time() - tick
-            say(event='train', step=step, loss=round(loss.item(), 4), **{k: round(v.mean().item(), 4) for k, v in L.items()},
+            say(event='train', step=step, loss=round(loss.item(), 4), rollout=rolling, **{k: round(v.mean().item(), 4) for k, v in L.items()},
                 lr=round(opt.param_groups[0]['lr'], 6), samples_per_s=round(seen / el), epoch=round(step * a.batch / train_rows, 3))
         if a.bench and step == total:
             torch.cuda.synchronize() if a.device.startswith('cuda') else None
