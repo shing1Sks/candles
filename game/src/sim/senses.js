@@ -10,7 +10,7 @@ const tileOf = Math.floor;
 
 export function createSense() {
   return {
-    pingT: MON.pingEvery[0] * 0.5, heard: [], alerts: [], alertsSeen: [], ping: null, hideSeen: -1, gapSeen: -1,
+    pingT: MON.pingEvery[0] * 0.5, heard: [], alerts: [], alertsSeen: [], felt: [], ping: null, hideSeen: -1, gapSeen: -1, lastAct: 'none',
     lastSeen: null, lastSeenT: -99, sightT: 0, unseenT: 0, kidGap: -1, wake: false,
   };
 }
@@ -46,12 +46,28 @@ export function sense(G, dt, hidNow) {
     S.lastSeen = { x: k.x, z: k.z, vx: k.vx, vz: k.vz }; S.lastSeenT = G.t;
     S.sightT += dt; S.unseenT = 0;
   } else if ((S.unseenT += dt) > 1) S.sightT = 0;
+  const felt = S.felt;
+  if (M.sees && !sees) felt.push({ kind: 'lostSight' });
   M.sees = sees;
+  // what it feels: setbacks and wins it can tell happened (its mind's sense of how it is doing)
+  for (const e of G.events) {
+    if (e.felt) continue;
+    e.felt = true;
+    if (e.type === 'candleOut' || e.type === 'checkEmpty' || e.type === 'beamSpot' || e.type === 'spotted') felt.push({ kind: e.type });
+    else if (e.type === 'grab' && G.state === 'play') felt.push({ kind: 'grabMiss' });
+    else if (e.type === 'door' && !e.open && e.by === 'kid') {
+      // shut in its face: close, and in front of it
+      const d = G.doors[e.id], dx = d.x - M.x, dz = d.z - M.z, dd = Math.hypot(dx, dz);
+      if (dd < 3 && (dx * M.hx + dz * M.hz) / (dd || 1) > 0.3) felt.push({ kind: 'doorInFace' });
+    }
+  }
+  if (S.lastAct === 'lunge' && M.act === 'recover') felt.push({ kind: 'lungeMiss' });
+  S.lastAct = M.act;
   // the kid slipping into a gap: it saw that if it had sight a moment ago. Taking a gap breaks bloodlust.
   const kp = L.passageAt(tileOf(k.x), tileOf(k.z));
   if (kp >= 0 && kp !== S.kidGap) {
     S.sightT = 0;
-    if (G.t - S.lastSeenT < 0.5) S.gapSeen = kp; // it saw you go in
+    if (G.t - S.lastSeenT < 0.5) { S.gapSeen = kp; felt.push({ kind: 'gapEscape' }); } // it saw you go in
   }
   S.kidGap = kp;
   // seen getting into a wardrobe
@@ -84,14 +100,14 @@ export function sense(G, dt, hidNow) {
 export function observe(G) {
   const M = G.monster, S = G.sense, k = G.kid, B = G.beam, R = G.reach;
   const out = G.candles.filter((c) => !c.lit).length;
-  const heard = S.heard, alerts = S.alertsSeen, ping = S.ping, hideSeen = S.hideSeen, gapSeen = S.gapSeen;
-  S.heard = []; S.alertsSeen = []; S.ping = null; S.hideSeen = -1; S.gapSeen = -1;
+  const heard = S.heard, alerts = S.alertsSeen, ping = S.ping, hideSeen = S.hideSeen, gapSeen = S.gapSeen, felt = S.felt;
+  S.heard = []; S.alertsSeen = []; S.ping = null; S.hideSeen = -1; S.gapSeen = -1; S.felt = [];
   return {
     t: G.t,
     self: { x: M.x, z: M.z, hx: M.hx, hz: M.hz, vx: M.vx, vz: M.vz, act: M.act, actT: M.actT, speed: M.speed, awake: M.awake, shoved: M.shoved, cool: M.cool, yellCool: M.yellCool, rage: M.rage, lust: M.lust },
     sees: M.sees, kid: M.sees ? { x: k.x, z: k.z, vx: k.vx, vz: k.vz } : null,
     lastSeen: S.lastSeen, lastSeenT: S.lastSeenT,
-    heard, ping, alerts, hideSeen, gapSeen,
+    heard, ping, alerts, hideSeen, gapSeen, felt,
     candles: G.candles, doors: G.doors, wardrobes: G.wardrobes, candlesOut: out,
     canLight: B.state === 'idle' && B.cool <= 0,
     canReach: out >= 2 && R.state === 'idle' && R.cool >= 0 && R.cool <= 0 && B.state === 'idle',
