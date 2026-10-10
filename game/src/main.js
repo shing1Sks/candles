@@ -4,7 +4,7 @@ import { createGame, step, actionHint } from './sim/game.js';
 import { createMind } from './sim/mind/index.js';
 import { createView } from './render/view.js';
 import { createAudio } from './audio.js';
-import { los } from './sim/grid.js';
+import { configFor, startEpisode, stepEpisode, episodeOver, episodeHash, STEP } from './sim/episode.js';
 
 const q = new URLSearchParams(location.search);
 const L = parseLevel();
@@ -13,9 +13,18 @@ const audio = createAudio();
 const $ = (id) => document.getElementById(id);
 
 let G, phase = 'title', endT = 0, endTimer = 0, seed = Number(q.get('seed')) || (Date.now() % 100000);
+// ?watch=batch:i plays a recorded episode (its bots drive both sides) instead of your controller
+const watch = q.get('watch');
+let ep = null, watchSpeed = 1;
 function newGame() {
-  G = createGame(L, seed++);
-  G.mind = createMind(G, { type: 'classic' });
+  if (watch) {
+    const [batch, i] = watch.split(':');
+    ep = startEpisode(configFor(batch, Number(i)));
+    G = ep.G;
+  } else {
+    G = createGame(L, seed++);
+    G.mind = createMind(G, { type: 'classic' });
+  }
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }
   view.st.flash = 0; view.st.dark = 0;
@@ -86,7 +95,7 @@ function end(kind) {
   phase = kind; endT = performance.now();
   clearTimeout(endTimer);
   endTimer = setTimeout(() => {
-    $('endTitle').textContent = kind === 'won' ? 'The house is dark.' : 'It caught you.';
+    $('endTitle').textContent = kind === 'won' ? 'The house is dark.' : kind === 'timeout' ? 'Time ran out.' : 'It caught you.';
     const out = G.candles.filter((c) => !c.lit).length;
     $('endSub').textContent = kind === 'won' ? `Every candle out in ${Math.round(G.t)} seconds.` : `${out} of ${G.candles.length} candles out, ${Math.round(G.t)} seconds.`;
     $('end').classList.remove('hide');
@@ -101,7 +110,13 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
   last = now; t += dt;
-  if (phase === 'play') {
+  if (phase === 'play' && ep) {
+    // a recorded episode: the bots decide every step, exactly as when it was made
+    acc += dt * watchSpeed;
+    while (acc >= STEP && !episodeOver(ep)) { stepEpisode(ep); acc -= STEP; }
+    if (episodeOver(ep) && G.state === 'play') end('timeout');
+    readInput();
+  } else if (phase === 'play') {
     acc += dt;
     const inp = readInput();
     const w = view.toWorld(inp);
@@ -126,11 +141,32 @@ function frame(now) {
   if (phase === 'won') view.st.dark = Math.min(0.6, view.st.dark + dt * 0.3);
   const hint = phase === 'play' ? actionHint(G).join('   ·   ') : '';
   if (hint !== lastHint) { $('prompt').textContent = hint; lastHint = hint; }
+  if (ep) drawWatch();
   audio.setRight(view.right);
   audio.update(G, dt, near);
   view.frame(G, dt, t, input);
 }
 requestAnimationFrame(frame);
 
+// what the recorded episode is: the monster type, the kid bot, the monster's mood, and the replay hash
+let watchEl = null;
+function drawWatch() {
+  if (!watchEl) {
+    watchEl = document.createElement('div');
+    watchEl.style.cssText = 'position:fixed;right:14px;top:12px;font:13px/1.5 monospace;color:#bbb;text-align:right;white-space:pre;pointer-events:none';
+    document.body.appendChild(watchEl);
+  }
+  const m = G.mind, c = ep.config, over = episodeOver(ep);
+  watchEl.textContent = `${c.id}  ${c.persona.type} vs ${c.kid.style} ${c.kid.skill.toFixed(2)}  x${watchSpeed}
+` +
+    `${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}  t ${G.t.toFixed(1)}
+` +
+    (over ? `ended: ${G.state === 'play' ? 'timeout' : G.state}  hash ${episodeHash(ep)}` : `[ ] speed`);
+}
+if (watch) addEventListener('keydown', (e) => {
+  if (e.code === 'BracketRight') watchSpeed = Math.min(8, watchSpeed * 2);
+  if (e.code === 'BracketLeft') watchSpeed = Math.max(0.25, watchSpeed / 2);
+});
+
 // for test tools
-window.__g = { get G() { return G; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };
+window.__g = { get G() { return G; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };

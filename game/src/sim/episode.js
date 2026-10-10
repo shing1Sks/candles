@@ -7,6 +7,7 @@ import { observe } from './senses.js';
 import { createMind, think } from './mind/index.js';
 import { createKidBot, observeKid } from './bots/kid.js';
 import { rng, hash } from './rng.js';
+import { STATE_SIZE, KI_SIZE, GI_SIZE, encode, encodeKI, encodeGI, eventId } from './schema.js';
 
 export const DT = 1 / 60, SUB = 3, STEP = DT * SUB;
 const L = parseLevel();
@@ -37,21 +38,54 @@ function stateKey(G) {
   return [r4(k.x), r4(k.z), r4(M.x), r4(M.z), lit, open, k.hidden, k.held, M.act, G.mind.mode, G.state].join(',');
 }
 
-// onRecord(row, G, ki, gi, events): called after every 3-tick step with what happened in it
-export function runEpisode(config, { onRecord } = {}) {
+// An episode stepped one record at a time (the browser viewer drives it frame by frame; runEpisode loops it).
+export function startEpisode(config) {
   const { G, kidBot } = createEpisode(config);
-  const events = [];
-  let h = hash(config.seed), row = 0, ticks = 0;
-  while (G.state === 'play' && G.t < config.maxT - 1e-9) {
-    const ki = kidBot(observeKid(G), STEP), gi = think(G, G.mind, observe(G), STEP);
-    for (let s = 0; s < SUB && G.state === 'play'; s++) {
-      stepWorld(G, s ? held(ki, KID_PRESS) : ki, s ? held(gi, GIANT_PRESS) : gi, DT);
-      events.push(...G.events); G.events.length = 0;
-      if (++ticks % 60 === 0) h = hash(h, stateKey(G));
-    }
-    onRecord?.(row, G, ki, gi, events);
-    row++; events.length = 0;
+  return { config, G, kidBot, h: hash(config.seed), ticks: 0, rows: 0, ki: null, gi: null };
+}
+// both controllers decide, then 3 ticks run; the events stay in G.events for the caller
+export function stepEpisode(ep) {
+  const G = ep.G;
+  const ki = ep.kidBot(observeKid(G), STEP), gi = think(G, G.mind, observe(G), STEP);
+  for (let s = 0; s < SUB && G.state === 'play'; s++) {
+    stepWorld(G, s ? held(ki, KID_PRESS) : ki, s ? held(gi, GIANT_PRESS) : gi, DT);
+    if (++ep.ticks % 60 === 0) ep.h = hash(ep.h, stateKey(G));
   }
-  h = hash(h, stateKey(G));
-  return { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t, counts: {}, hash: h, rows: row, G };
+  ep.ki = ki; ep.gi = gi; ep.rows++;
+}
+export const episodeOver = (ep) => ep.G.state !== 'play' || ep.G.t >= ep.config.maxT - 1e-9;
+export const episodeHash = (ep) => hash(ep.h, stateKey(ep.G));
+
+// a growing typed array (doubles when full)
+function grower(Type, n) {
+  let a = new Type(n), len = 0;
+  return {
+    push(fill, size) { if (len + size > a.length) { const b = new Type(Math.max(a.length * 2, len + size)); b.set(a); a = b; } len = fill(a, len); },
+    done: () => a.slice(0, len),
+  };
+}
+
+// onRecord(row, G, ki, gi, events): called after every step with what happened in it.
+// record: also return the encoded rows: states (rows + 1: the start, then after every step; step r takes states[r]
+// to states[r + 1]), the inputs ki and gi of every step, and its events [row, type, x, z, id].
+export function runEpisode(config, { onRecord, record = false } = {}) {
+  const ep = startEpisode(config), G = ep.G;
+  const st = record && grower(Float32Array, STATE_SIZE * 512), k = record && grower(Float32Array, KI_SIZE * 512), g = record && grower(Float32Array, GI_SIZE * 512);
+  const events = [];
+  if (record) st.push((a, o) => encode(G, a, o), STATE_SIZE); // the state before the first step
+  while (!episodeOver(ep)) {
+    const row = ep.rows;
+    stepEpisode(ep);
+    if (record) {
+      st.push((a, o) => encode(G, a, o), STATE_SIZE);
+      k.push((a, o) => encodeKI(ep.ki, a, o), KI_SIZE);
+      g.push((a, o) => encodeGI(ep.gi, a, o), GI_SIZE);
+      for (const e of G.events) events.push([row, eventId(e.type), e.x ?? -1, e.z ?? -1, e.id ?? -1]);
+    }
+    onRecord?.(row, G, ep.ki, ep.gi, G.events);
+    G.events.length = 0;
+  }
+  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t, counts: {}, hash: episodeHash(ep), rows: ep.rows, G };
+  if (record) Object.assign(out, { states: st.done(), ki: k.done(), gi: g.done(), events });
+  return out;
 }
