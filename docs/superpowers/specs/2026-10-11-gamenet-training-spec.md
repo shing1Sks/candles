@@ -211,3 +211,72 @@ game state the renderer and sound already read.
 1. **A GPU budget and go-ahead to rent:** a $10 cap (expected $3–5 on an RTX 4090).
 2. **Bloodlust:** shorten 15 s → 6 s so it actually happens, or leave it as a rare rule?
 3. **Playing speed:** is 10 ticks a second (smoothed to 60 fps) acceptable as the fallback?
+
+## 10. First results (night of 2026-10-11)
+
+**What ran.** Data v2 (5,000 games, 7.3 M steps) on an RTX 5090. Each size trained for 1 epoch. The pod was lost at
+76 minutes when the Runpod balance reached $0; the account needs funds before the next run. Spend was about $0.9.
+
+**The size sweep, 1 epoch each** (exam split):
+
+| Size | Parameters | Minutes | Check loss | Kid error | Monster error | Candle-out F1 | Events F1 | Giant stick |
+|---|---|---|---|---|---|---|---|---|
+| S | 8.5 M | 6 | 1.043 | 2.0 mm | 3.3 mm | 0.89 | 0.82 | 86.5% |
+| M | 24.5 M | 13 | 1.013 | 1.6 mm | 2.7 mm | 0.93 | 0.83 | 87.2% |
+| L | 54.8 M | 22 | 1.007 | 1.6 mm | 2.6 mm | 0.95 | 0.83 | 87.6% |
+
+- In one step, no size put the kid inside a wall.
+- Bigger is better, with returns shrinking after M at 1 epoch. Most of the loss is the number floor (~0.73): the
+  real randomness of the world.
+- The giant's light and reach F1 are 0 because they are pressed on under 0.1% of steps. The exam now reports how
+  often each is pressed (predicted against real) instead.
+- XL and the data-amount check did not finish before the pod was lost.
+
+**Run on its own output** (`tools/dream_exam.mjs`: the same seeded games played by the rules and inside the model's
+world). Model S, 10 games of 120 s, kid bots:
+
+| | Rules | Model's world |
+|---|---|---|
+| Kid wins | 1 of 10 | 8 of 10 |
+| Candles out per minute | 2.7 | 5.2 |
+| Kid speed | 1.02 m/s | 1.72 m/s |
+| Monster chasing / in "check" | 8.1% / 0.9% | 0.3% / 26% |
+| Lunges per minute | 1.32 | 0.53 |
+| Kid in a wall (bots) | 0% | 0% |
+| Monster in a wall | 0% | 3.6% |
+
+- One step at a time the kid is predicted about 5% fast (1.33 against 1.26 m/s); run on its own output, that
+  compounds.
+- The monster falls into checking and stops committing to chases, so the game gets easy.
+- One win came with 5 candles out: the "win only with all candles out" rule is not held.
+- The decode setting is not the cause. With expected values only (mix 0), draws only (mix 1) or the default blend
+  (0.3), the kid wins 7, 6 and 8 of 10.
+  - Expected values only: the monster almost never lunges (0.07 a minute).
+  - Draws only: the monster acts most like the rules (chases, fury), but is inside a wall 11% of the time.
+- This is the drift phase 2 (rollouts) exists for. `train.py --rollout_from 0.7` now trains the last 30% on two
+  steps, where the second starts from the model's own drawn guess.
+
+**Held keys walk through walls.** A person holding a key into a wall gets the kid inside it (7–14 of 46 samples),
+though the bots never do. The bot data has 0.6% of steps pushing against something, and only 13% of inputs look like
+keys. Data v3 adds kids played as on a keyboard (`gen.mjs --keys 0.35`): 8 directions at full tilt, shift to go
+quietly, and now and then a key held into whatever is there. That gives 2.9% blocked pushes.
+
+**Speed on this laptop (Iris Xe), in the game:**
+- The model runs in its own thread (a worker), and the house draws at 30 fps in `?model=` mode. At 60 fps the
+  renderer starves the model.
+- S: 14–16 steps a second (WebGPU, or wasm with int8). M: about 10. Real time is 20.
+- What it took:
+  - no integer ops in the graph, since WebGPU runs them on the CPU;
+  - the sampling moved out of the graph into JS, since hundreds of tiny GPU kernels cost 7×;
+  - one packed input and one packed output, since ORT pays about 4 ms per tensor moved.
+- What's left is real compute: about 57 pieces through 8–12 layers. The next real speedup is fewer pieces: merge the
+  ten passages, five squeaky toys, three wardrobes and four beliefs into one piece each (about 54 → 33). That needs a
+  retrain.
+- int8 weights help 1.3–1.4× on the CPU, with small drift.
+
+**The next run (once the account has funds, about $2 on a 4090):**
+1. Data v3: 10,000 games with `--keys 0.35`, generated on the pod (about 2 min).
+2. L for 3 epochs with `--rollout_from 0.7`; copy best.pt off the pod after every run.
+3. Export, then run the rollout exam on L against the rules. The targets: outcome mix and candle rate within 25% of
+   the rules, kid speed within 10%, no win short of 6 candles, wall clipping under 0.1% with keyboard kids.
+4. If L is too slow for the laptop, distil it into a merged-piece S.
