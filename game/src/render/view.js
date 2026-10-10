@@ -122,7 +122,12 @@ export function createView(canvas, L) {
 
   const target = new THREE.Vector3(), tmp = new THREE.Vector3(), bufSize = new THREE.Vector2();
   let impact = 0, hide = 0, shake = 0, first = true, zoom = 0.9, zoomWant = 0.9, mode = 'in', yaw = 0, inDist = 4.4;
+  // the opening: the whole board and the giant for a moment, then down behind the kid (no way back to it later)
+  let intro = -1;
+  const INTRO_HOLD = 3, INTRO_FLY = 1.2;
   const camPos = new THREE.Vector3(), look = new THREE.Vector3(), right = { x: 1, z: 0 };
+  const tPos = new THREE.Vector3(), iLook = new THREE.Vector3();
+  let tFov = 35;
   const st = { flash: 0, dark: 0 };
 
   function resize() {
@@ -146,7 +151,8 @@ export function createView(canvas, L) {
     // a new game: the giant sits back, doors snap to their starting places
     reset(G) { table.giant.reset(); props.reset(G); first = true; },
     get mode() { return mode; },
-    toggleMode() { mode = mode === 'in' ? 'table' : 'in'; if (mode === 'table') zoomWant = zoom = 0.15; first = true; },
+    intro() { intro = 0; zoom = zoomWant = 0.15; first = true; },
+    get introducing() { return intro >= 0; },
     turn(a) { yaw += a; },
     right,
     // table view: 0 whole board and the giant, 1 down in the board. In the house: how far behind the kid.
@@ -163,7 +169,9 @@ export function createView(canvas, L) {
       const k = G.kid, M = G.monster;
       zoom += (zoomWant - zoom) * Math.min(1, dt * 3);
       shake = Math.max(0, shake - dt * 2.5);
-      if (mode === 'table') {
+      const opening = intro >= 0 && mode === 'in';
+      if (opening) { intro += dt; if (intro > INTRO_HOLD + INTRO_FLY) intro = -1; }
+      if (mode === 'table' || opening) {
       // your head: leaning in, it drops low over your piece and looks across the board toward the giant,
       // the board's edges running off past the sides of your view
       tmp.set(k.x + k.vx * 0.3, 0, k.z + k.vz * 0.3).lerp(center, lerp(0.7, 0, zoom));
@@ -171,23 +179,33 @@ export function createView(canvas, L) {
       if (first) { target.copy(tmp); first = false; }
       target.lerp(tmp, Math.min(1, dt * 3));
       const D = lerp(62, 13, zoom), pitch = lerp(0.6, 0.68, zoom), fov = lerp(35, 58, zoom);
+      tFov = fov;
       if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
       camera.position.set(target.x, Math.sin(pitch) * D, target.z + Math.cos(pitch) * D);
       camera.position.x += Math.sin(t * 0.31) * 0.25 * (1 - zoom); camera.position.y += Math.sin(t * 0.43) * 0.15;
       camera.position.x += (Math.random() - 0.5) * shake * 0.3;
       camera.position.z += (Math.random() - 0.5) * shake * 0.3;
       camera.lookAt(target);
+      tPos.copy(camera.position);
       }
       if (mode === 'in') {
         const fx = -Math.sin(yaw), fz = -Math.cos(yaw), H = 0.9 + inDist * 0.36;
         tmp.set(k.x - fx * inDist, H, k.z - fz * inDist);
-        if (first) { camPos.copy(tmp); first = false; }
+        if (first || opening) { camPos.copy(tmp); first = false; }
         camPos.lerp(tmp, Math.min(1, dt * 7));
         camera.position.copy(camPos);
         camera.position.x += (Math.random() - 0.5) * shake * 0.12; camera.position.y += Math.sin(t * 1.7) * 0.02;
-        look.set(k.x + fx * 2.2, 0.55, k.z + fz * 2.2);
+        look.set(k.x + fx * 2.2, 0.95, k.z + fz * 2.2);
+        let fov = 62;
+        if (opening) {
+          // hold on the board, then sweep down: position, aim and lens all ease from the table view to the kid's
+          const b = Math.min(1, Math.max(0, (intro - INTRO_HOLD) / INTRO_FLY)), e = b * b * (3 - 2 * b);
+          camera.position.lerpVectors(tPos, camera.position, e);
+          look.copy(iLook.copy(target).lerp(look, e));
+          fov = lerp(tFov, 62, e);
+        }
         camera.lookAt(look);
-        if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
+        if (camera.fov !== fov) { camera.fov = fov; camera.updateProjectionMatrix(); }
       }
       right.x = mode === 'in' ? Math.cos(yaw) : 1; right.z = mode === 'in' ? -Math.sin(yaw) : 0;
       {

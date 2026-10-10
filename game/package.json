@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "check": "node tools/check.mjs",
-    "sim": "node tools/sim.mjs"
+    "sim": "node tools/sim.mjs",
+    "test": "node --test \"test/*.test.mjs\""
   },
   "devDependencies": {
     "vite": "^8.3.4"
