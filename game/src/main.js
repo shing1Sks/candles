@@ -1,6 +1,7 @@
 import './style.css';
 import { parseLevel } from './sim/level.js';
 import { createGame, step, actionHint } from './sim/game.js';
+import { createMind } from './sim/mind/index.js';
 import { createView } from './render/view.js';
 import { createAudio } from './audio.js';
 import { los } from './sim/grid.js';
@@ -14,6 +15,7 @@ const $ = (id) => document.getElementById(id);
 let G, phase = 'title', endT = 0, endTimer = 0, seed = Number(q.get('seed')) || (Date.now() % 100000);
 function newGame() {
   G = createGame(L, seed++);
+  G.mind = createMind(G, { type: 'classic' });
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }
   view.st.flash = 0; view.st.dark = 0;

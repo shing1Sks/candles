@@ -3,6 +3,7 @@
 // usage: node tools/sim.mjs [games] [seed]
 import { parseLevel } from '../src/sim/level.js';
 import { createGame, step } from '../src/sim/game.js';
+import { createMind } from '../src/sim/mind/index.js';
 import { distField, findPath, clearLine, los } from '../src/sim/grid.js';
 import { KID } from '../src/sim/rules.js';
 
@@ -65,6 +66,7 @@ const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, 
 const t0 = Date.now();
 for (let g = 0; g < N; g++) {
   const G = createGame(L, SEED + g);
+  G.mind = createMind(G, { type: 'classic' });
   while (G.state === 'play' && G.t < MAXT) {
     const inp = kidBot(G);
     if (process.env.TRACE && Math.round(G.t * 60) % 300 === 0) console.log(`t=${G.t.toFixed(0)} kid=(${G.kid.x.toFixed(2)},${G.kid.z.toFixed(2)}) in=(${inp.mx.toFixed(2)},${inp.mz.toFixed(2)}) blow=${inp.blow} plan=${JSON.stringify((G.bot.plan || []).slice(0, 2))} cand=${G.bot.cand?.id}`);

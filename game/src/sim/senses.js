@@ -84,7 +84,7 @@ export function observe(G) {
   const out = G.candles.filter((c) => !c.lit).length;
   return {
     t: G.t,
-    self: { x: M.x, z: M.z, hx: M.hx, hz: M.hz, vx: M.vx, vz: M.vz, act: M.act, actT: M.actT, speed: M.speed, awake: M.awake, shoved: M.shoved, cool: M.cool, yellCool: M.yellCool },
+    self: { x: M.x, z: M.z, hx: M.hx, hz: M.hz, vx: M.vx, vz: M.vz, act: M.act, actT: M.actT, speed: M.speed, awake: M.awake, shoved: M.shoved, cool: M.cool, yellCool: M.yellCool, rage: M.rage, lust: M.lust },
     sees: M.sees, kid: M.sees ? { x: k.x, z: k.z, vx: k.vx, vz: k.vz } : null,
     lastSeen: S.lastSeen, lastSeenT: S.lastSeenT,
     heard: S.heard, ping: S.ping, alerts: S.alertsSeen || [], hideSeen: S.hideSeen, gapSeen: S.gapSeen,
