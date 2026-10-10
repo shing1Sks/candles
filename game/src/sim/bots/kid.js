@@ -30,9 +30,9 @@ const IDLE = Object.freeze({ mx: 0, mz: 0, creep: false, blow: false, use: false
 
 // flee when it is this close (m), creep when it is within this, crawl spaces' worth when fleeing
 const STYLE = {
-  sneaker: { flee: 7, creep: 14, crawl: 3, hide: 0, lure: 0, shut: 0.3, greed: 0 },
+  sneaker: { flee: 7, creep: 14, crawl: 3, hide: 0, lure: 0, shut: 0.5, greed: 0 },
   sprinter: { flee: 5, creep: 0, crawl: 1, hide: 0, lure: 0, shut: 0, greed: 0.2 },
-  hider: { flee: 8, creep: 9, crawl: 2, hide: 1, lure: 0, shut: 0.2, greed: 0 },
+  hider: { flee: 8, creep: 9, crawl: 2, hide: 1, lure: 0, shut: 0.4, greed: 0 },
   trickster: { flee: 7, creep: 9, crawl: 2, hide: 0.2, lure: 1, shut: 1, greed: 0.1 },
   greedy: { flee: 4.5, creep: 6, crawl: 2, hide: 0, lure: 0, shut: 0, greed: 1 },
   probe: { flee: 7, creep: 10, crawl: 2, hide: 0, lure: 0, shut: 0, greed: 0 },

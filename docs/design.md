@@ -23,7 +23,14 @@ small gaps. Across the table, a giant version of the monster is the one playing 
 - **The look:** only shades of grey. Candles are the only light; each one you blow out makes the house darker.
 - **The monster:** a bot that plays like a person with a controller. There is no local multiplayer.
 - **Winning and losing:** one touch loses; all six candles out wins. It should be very hard but fair.
-- **Next stage, not this one:** bots playing each other and generating datasets. The rules already run without graphics (`game/src/sim`), so that stage can plug in without a rewrite.
+- **Now: data for a learned game.**
+  - Bots play each other: kid styles against five monster personas with moods, driven through the giant's
+    controller.
+  - Every game is recorded (`README.md`, "Making data").
+  - The plan is in `docs/superpowers/specs/2026-10-10-gamenet-training-design.md`, and every rule is in
+    `docs/mechanics.md`.
+  - v0 is 2,000 games (67 h of play, 4.8 M steps).
+  - Next: training the main model.
 
 ## Mechanics, and why each is there
 

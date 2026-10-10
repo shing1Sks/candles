@@ -16,14 +16,23 @@ export const DT = 1 / 60, SUB = 3, STEP = DT * SUB;
 const L = parseLevel();
 const KID_PRESS = ['use', 'throw'], GIANT_PRESS = ['lunge', 'use', 'bash', 'yell', 'light', 'reach'];
 
+// how often each kid style plays: hiders and tricksters a little more, for the rarer rules (wardrobes, doors, lures)
+const STYLE_WEIGHT = { sneaker: 1, sprinter: 1, hider: 2, trickster: 1.5, greedy: 1 };
+function pickStyle(r) {
+  const total = KID_STYLES.reduce((s, k) => s + STYLE_WEIGHT[k], 0);
+  let x = r() * total;
+  for (const k of KID_STYLES) { x -= STYLE_WEIGHT[k]; if (x <= 0) return k; }
+  return KID_STYLES[0];
+}
+
 // episode i of a batch: everything about it comes from (batch, i) - one of the five monster types, a kid style
-// (5% chaos) and skill, and 30% of the time a random mid-game start
+// (5% chaos) and skill, and 40% of the time a random mid-game start
 export function configFor(batch, i) {
   const seed = hash(batch, i), r = rng(hash(seed, 'config'));
   const persona = { type: PERSONA_TYPES[Math.floor(r() * PERSONA_TYPES.length)] };
   const chaos = r() < 0.05;
-  const kid = { style: chaos ? 'chaos' : KID_STYLES[Math.floor(r() * KID_STYLES.length)], skill: 0.2 + 0.8 * r() };
-  const start = r() < 0.3 ? 'mid' : 'fresh';
+  const kid = { style: chaos ? 'chaos' : pickStyle(r), skill: 0.2 + 0.8 * r() };
+  const start = r() < 0.4 ? 'mid' : 'fresh';
   return { id: `${batch}:${i}`, seed, persona, kid, start, maxT: 300 };
 }
 

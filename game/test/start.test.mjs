@@ -51,6 +51,6 @@ test('configs mix the five monster types, the kid styles, skills and starts', ()
   }
   assert.deepEqual([...seen.persona].sort(), ['brute', 'hound', 'pathfinder', 'stalker', 'warden']);
   assert.deepEqual([...seen.style].sort(), ['chaos', 'greedy', 'hider', 'sneaker', 'sprinter', 'trickster']);
-  assert.ok(mid > 90 && mid < 150, `mid starts ${mid}/400`);
+  assert.ok(mid > 130 && mid < 190, `mid starts ${mid}/400`);
   assert.ok(chaos > 8 && chaos < 35, `chaos ${chaos}/400`);
 });
