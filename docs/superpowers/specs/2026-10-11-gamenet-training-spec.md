@@ -253,6 +253,11 @@ world). Model S, 10 games of 120 s, kid bots:
   (0.3), the kid wins 7, 6 and 8 of 10.
   - Expected values only: the monster almost never lunges (0.07 a minute).
   - Draws only: the monster acts most like the rules (chases, fury), but is inside a wall 11% of the time.
+- **The bigger model drifts much less.** M on the same 10 games: the kid wins 3 and is caught 3 (rules 1 and 6). It
+  puts out 2.6 candles a minute (rules 2.7), moves at 1.28 m/s (rules 1.02), and stays 8.0 m from the monster (rules
+  7.9). What M still gets wrong:
+  - in one game the kid slid into a wall and stayed in it (45% of that game);
+  - the monster still checks too much (34%) and never chases.
 - This is the drift phase 2 (rollouts) exists for. `train.py --rollout_from 0.7` now trains the last 30% on two
   steps, where the second starts from the model's own drawn guess.
 
