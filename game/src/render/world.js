@@ -230,7 +230,7 @@ export function buildWorld(L, scene) {
   for (const g of groups(L, T.LOW)) furn.push(...low(g));
   for (const g of groups(L, T.TALL)) tallParts.push(...tall(g));
   furn.push(...decor(L));
-  scene.add(new THREE.Mesh(mergeGeometries(furn.map(clean)), mat({ color: 0.4, vcol: true })));
+  scene.add(new THREE.Mesh(mergeGeometries(furn.map(clean)), mat({ color: 0.4, vcol: true, cut: 2 })));
   scene.add(new THREE.Mesh(mergeGeometries(tallParts.map(clean)), mat({ color: 0.4, vcol: true, cut: true })));
 }
 

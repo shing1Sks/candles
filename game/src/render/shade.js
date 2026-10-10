@@ -70,9 +70,10 @@ const frag = /* glsl */ `
 
   void main() {
     if (uCut > 0.5) {
-      float c = smoothstep(uCutR, uCutR * 0.55, length(gl_FragCoord.xy - uKidPx)) * smoothstep(0.15, 0.8, dot(vW.xz - uKid.xz, uCamDir)) * step(0.25, vW.y);
+      float c = smoothstep(uCutR, uCutR * 0.65, length((gl_FragCoord.xy - uKidPx) * vec2(1.0, 0.7))) * smoothstep(0.15, 0.8, dot(vW.xz - uKid.xz, uCamDir)) * step(0.25, vW.y);
       c = max(c, smoothstep(1.1, 0.5, length(vW - cameraPosition))); // nothing right in front of the lens
-      if (c * 0.9 > bayer(gl_FragCoord.xy)) discard;
+      if (uCut > 1.5) c = max(c, smoothstep(1.3, 0.7, length(vW.xz - uKid.xz)) * step(0.6, vW.y)); // furniture: see the kid under a table or bed
+      if (c * 1.02 > bayer(gl_FragCoord.xy)) discard;
     }
     if (uFade < 0.999 && uFade < bayer(gl_FragCoord.xy)) discard;
     if (vW.y < uClipY) discard; // the monster behind a wall: only what pokes above it
@@ -102,7 +103,7 @@ export function mat({ color = 0.5, emis = 0, pattern = 0, cut = false, vcol = fa
     uniforms: {
       ...U,
       uColor: { value: new THREE.Color(color, color, color) }, uEmis: { value: new THREE.Color(emis, emis, emis) },
-      uPattern: { value: pattern }, uCut: { value: cut ? 1 : 0 }, uFade: { value: 1 }, uLit: { value: lit }, uClipY: { value: -100 },
+      uPattern: { value: pattern }, uCut: { value: cut === true ? 1 : cut || 0 }, uFade: { value: 1 }, uLit: { value: lit }, uClipY: { value: -100 },
     },
     vertexShader: vert, fragmentShader: frag, vertexColors: vcol, side,
   });

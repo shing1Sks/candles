@@ -1,7 +1,8 @@
 // Ties the renderer together. The maze is a board on a table; the giant playing the monster sits across it.
 // Two ways to look (Z switches):
-//   in    - you are in the house: a low camera just behind the kid, nearly level, turning with you
-//           (drag the mouse to look round). Walls block what is ahead; you only see what the kid would.
+//   in    - you are in the house: a low camera just behind the kid, nearly level, always facing across the
+//           board toward the giant (it never turns). Walls block what is ahead; the board's far edge is the
+//           horizon and the giant rises beyond it.
 //   table - sit back at the table and see the whole board and the giant.
 // Then a grey film pass (gamma, vignette, grain, fear).
 import * as THREE from 'three';
@@ -79,7 +80,7 @@ export function createView(canvas, L) {
     rt.setSize(Math.round(w * pr), Math.round(h * pr));
     camera.aspect = w / h; camera.updateProjectionMatrix();
     post.uniforms.uAspect.value = w / h; post.uniforms.uRes.value.set(w * pr, h * pr);
-    U.uCutR.value = h * pr * 0.16;
+    U.uCutR.value = h * pr * 0.2;
   }
   window.addEventListener('resize', resize);
   resize();
@@ -120,12 +121,6 @@ export function createView(canvas, L) {
       camera.lookAt(target);
       }
       if (mode === 'in') {
-        // turn lazily toward where you run, but never swing round when you run back toward the camera
-        if (k.speed > 0.6) {
-          const hy = Math.atan2(-k.vx, -k.vz);
-          let df = hy - yaw; df = Math.atan2(Math.sin(df), Math.cos(df));
-          if (Math.abs(df) < 1.9) yaw += df * Math.min(1, dt * 1.3) * (1 - Math.abs(df) / 1.9);
-        }
         const fx = -Math.sin(yaw), fz = -Math.cos(yaw), H = 0.9 + inDist * 0.36;
         tmp.set(k.x - fx * inDist, H, k.z - fz * inDist);
         if (first) { camPos.copy(tmp); first = false; }

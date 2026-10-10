@@ -34,7 +34,6 @@ addEventListener('keydown', (e) => {
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('wheel', (e) => view.zoomBy(-Math.sign(e.deltaY) * 0.12), { passive: true });
 addEventListener('keydown', (e) => { if (e.code === 'KeyZ') view.toggleMode(); });
-addEventListener('pointermove', (e) => { if (e.buttons & 1) view.turn(-e.movementX * 0.006); });
 addEventListener('pointerdown', () => { if (phase === 'title') begin(); });
 addEventListener('blur', () => keys.clear());
 
