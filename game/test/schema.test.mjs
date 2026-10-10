@@ -105,3 +105,9 @@ test('what the monster sensed but has not yet read is part of the state', () => 
   encode(G, out, 1); assert.equal(out[heardAt], 1);
   observe(G); encode(G, out, 1); assert.equal(out[heardAt], 0);
 });
+test('the schema carries the house: tile types and which door each tile belongs to', () => {
+  const L = parseLevel(), M = schemaJSON(L).map;
+  assert.equal(M.tiles.length, L.w * L.h); assert.equal(M.doorAt.length, L.w * L.h);
+  assert.equal(M.tiles[0], L.at(0, 0)); assert.equal(M.doorAt[10 * L.w + 13], L.doorAt(13, 10));
+  assert.ok(M.tileTypes.length >= 8);
+});

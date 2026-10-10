@@ -4,6 +4,7 @@
 //   num: a number, divided by its scale     flag: 0 or 1     cat: one of n, one-hot
 // Positions are divided by the map's size; timers by their longest.
 import { MODES } from './mind/index.js';
+import { T } from './level.js';
 
 const W = 37, H = 23; // the house (level.js); checked against the level in schemaJSON
 const ACTS = ['none', 'door', 'bash', 'check', 'windup', 'lunge', 'recover', 'yell'];
@@ -162,7 +163,9 @@ export function encodeGI(gi, out, o) {
 export function schemaJSON(L) {
   if (L && (L.w !== W || L.h !== H)) throw new Error('schema built for a 37 x 23 house');
   return {
-    version: 1, tickSeconds: 0.05, map: { w: W, h: H }, stateSize: STATE_SIZE,
+    version: 2, tickSeconds: 0.05, stateSize: STATE_SIZE,
+    // the house: every tile's type, and which door (if any) it belongs to (a shut door blocks like a wall)
+    map: L ? { w: W, h: H, tileTypes: Object.keys(T), tiles: Array.from(L.tiles), doorAt: Array.from({ length: W * H }, (_, i) => L.doorAt(i % W, Math.floor(i / W))) } : { w: W, h: H },
     tokens: TOKENS.map((t) => ({ kind: t.kind, count: t.count, width: t.width, offset: t.offset,
       fields: t.fields.map((f) => (f.type === 'cat' ? { name: f.name, type: f.type, n: f.n } : { name: f.name, type: f.type, scale: f.scale ?? 1 })) })),
     kiFields: KI_FIELDS, giFields: GI_FIELDS, eventTypes: EVENT_TYPES,
