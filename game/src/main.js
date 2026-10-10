@@ -5,6 +5,7 @@ import { createMind } from './sim/mind/index.js';
 import { createView } from './render/view.js';
 import { createAudio } from './audio.js';
 import { configFor, startEpisode, stepEpisode, episodeOver, episodeHash, STEP } from './sim/episode.js';
+import { eventDetail } from './sim/schema.js';
 
 const q = new URLSearchParams(location.search);
 const L = parseLevel();
@@ -13,9 +14,11 @@ const audio = createAudio();
 const $ = (id) => document.getElementById(id);
 
 let G, phase = 'title', endT = 0, endTimer = 0, seed = Number(q.get('seed')) || (Date.now() % 100000);
-// ?watch=batch:i plays a recorded episode (its bots drive both sides) instead of your controller
-const watch = q.get('watch');
-let ep = null, watchSpeed = 1;
+// ?watch=batch:i plays a recorded episode (its bots drive both sides) instead of your controller.
+// &from=ROW starts at that step (run silently up to it), &to=ROW stops there, &rec=1 starts at once (for recording)
+const watch = q.get('watch'), clipFrom = Number(q.get('from')) || 0, clipTo = Number(q.get('to')) || 0;
+let ep = null, watchSpeed = Number(q.get('speed')) || 1;
+const watchLog = [];
 function newGame() {
   if (watch) {
     const [batch, i] = watch.split(':');
@@ -23,6 +26,8 @@ function newGame() {
     if (q.has('persona')) config.persona = { type: q.get('persona') }; // watch a chosen monster type
     ep = startEpisode(config);
     G = ep.G;
+    while (ep.rows < clipFrom && !episodeOver(ep)) { stepEpisode(ep); G.events.length = 0; }
+    watchLog.length = 0;
   } else {
     G = createGame(L, seed++);
     G.mind = createMind(G, { type: q.get('persona') || 'classic' }); // ?persona=stalker (or brute, hound, warden, pathfinder)
@@ -36,7 +41,9 @@ function newGame() {
   drawCandles();
 }
 newGame();
+if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints
 if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
+if (q.has('reveal')) view.reveal();
 if (q.has('dist')) view.setDist(Number(q.get('dist')));
 
 // ---------- input ----------
@@ -108,15 +115,24 @@ function end(kind) {
 const DT = 1 / 60;
 let lastHint = null;
 let last = performance.now(), acc = 0, t = 0;
+// &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
+const manual = q.has('manual');
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
-  last = now; t += dt;
+  last = now;
+  if (!manual) tick(dt);
+}
+window.__frame = (dt) => tick(dt);
+function tick(dt) {
+  t += dt;
   if (phase === 'play' && ep) {
     // a recorded episode: the bots decide every step, exactly as when it was made
     acc += dt * watchSpeed;
-    while (acc >= STEP && !episodeOver(ep)) { stepEpisode(ep); acc -= STEP; }
-    if (episodeOver(ep) && G.state === 'play') end('timeout');
+    const stopAt = (e) => clipTo && e.rows >= clipTo;
+    while (acc >= STEP && !episodeOver(ep) && !stopAt(ep)) { stepEpisode(ep); acc -= STEP; }
+    if (stopAt(ep)) window.__clipDone = true;
+    else if (episodeOver(ep) && G.state === 'play') end('timeout');
     readInput();
   } else if (phase === 'play') {
     acc += dt;
@@ -131,6 +147,7 @@ function frame(now) {
   const k = G.kid, M = G.monster;
   const near = G.los(k.x, k.z, M.x, M.z);
   for (const e of G.events) {
+    if (ep && !QUIET.has(e.type)) { const d = eventDetail(e); watchLog.push(`${G.t.toFixed(1)}  ${e.type}${d ? ' ' + d : ''}`); if (watchLog.length > 8) watchLog.shift(); }
     audio.event(e, G, near);
     view.event(e);
     if (e.type === 'candleOut') drawCandles();
@@ -151,19 +168,23 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // what the recorded episode is: the monster type, the kid bot, the monster's mood, and the replay hash
+// the events worth seeing in a replay (footsteps and mode changes left out), with who and why
+const QUIET = new Set(['kstep', 'mstep', 'mode', 'mood']);
 let watchEl = null;
 function drawWatch() {
   if (!watchEl) {
     watchEl = document.createElement('div');
-    watchEl.style.cssText = 'position:fixed;right:14px;top:12px;font:13px/1.5 monospace;color:#bbb;text-align:right;white-space:pre;pointer-events:none';
+    watchEl.style.cssText = 'position:fixed;right:14px;top:12px;font:15px/1.5 monospace;color:#ccc;text-align:right;white-space:pre;pointer-events:none;text-shadow:0 0 4px #000';
     document.body.appendChild(watchEl);
   }
   const m = G.mind, c = ep.config, over = episodeOver(ep);
-  watchEl.textContent = `${c.id}  ${c.persona.type} vs ${c.kid.style} ${c.kid.skill.toFixed(2)}  x${watchSpeed}
-` +
-    `${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}  t ${G.t.toFixed(1)}
-` +
-    (over ? `ended: ${G.state === 'play' ? 'timeout' : G.state}  hash ${episodeHash(ep)}` : `[ ] speed`);
+  watchEl.textContent = [
+    `${c.id}  ${c.persona.type} vs ${c.kid.style} ${c.kid.skill.toFixed(2)}  x${watchSpeed}`,
+    `${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}  t ${G.t.toFixed(1)}`,
+    over ? `ended: ${G.state === 'play' ? 'timeout' : G.state}  hash ${episodeHash(ep)}` : `step ${ep.rows}   [ ] speed`,
+    '',
+    ...watchLog,
+  ].join(String.fromCharCode(10));
 }
 if (watch) addEventListener('keydown', (e) => {
   if (e.code === 'BracketRight') watchSpeed = Math.min(8, watchSpeed * 2);

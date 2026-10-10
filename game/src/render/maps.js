@@ -158,7 +158,10 @@ export function createMaps(renderer, L) {
   const clear = new THREE.Color(0, 0, 0);
   let doorKey = -1, t = 0, lastX = NaN, lastZ = NaN, lastWall = false;
   const oldColor = new THREE.Color(), ring16 = new Float32Array(32);
+  // reveal (review clips): the kid 'sees' the whole board
+  const all = new Float32Array([-2, -2, L.w + 2, -2, L.w + 2, L.h + 2, -2, L.h + 2, -2, -2]);
   return {
+    reveal: false,
     vis: vis.texture, light: light.texture, bounce: bounce.texture, ao: bakeAO(L), size, get segs() { return segs; }, candles,
     // G: the game (doors, candles, beam). inWall: in a vent you only see yourself.
     update(G, kx, kz, inWall, intensities, dt) {
@@ -175,7 +178,7 @@ export function createMaps(renderer, L) {
         if (inWall) {
           for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; ring16[i * 2] = kx + Math.cos(a) * 0.7; ring16[i * 2 + 1] = kz + Math.sin(a) * 0.7; }
           fillFan(visGeo, kx, kz, ring16);
-        } else fillFan(visGeo, kx, kz, visPolygon(segs, kx, kz, 16));
+        } else fillFan(visGeo, kx, kz, this.reveal ? all : visPolygon(segs, kx, kz, 16));
       }
       visMat.uniforms.uO.value.set(kx, kz);
       visMat.uniforms.uGlow.value = inWall ? 1.2 : 3.2;

@@ -165,6 +165,8 @@ export function createView(canvas, L) {
     get zoom() { return zoomWant; },
     setZoom(z) { zoom = zoomWant = z; mode = 'table'; },
     setDist(d) { inDist = d; },
+    // review clips: show the whole board and the monster wherever it is
+    reveal() { maps.reveal = true; },
     frame(G, dt, t, input = {}) {
       const k = G.kid, M = G.monster;
       zoom += (zoomWant - zoom) * Math.min(1, dt * 3);
@@ -229,7 +231,7 @@ export function createView(canvas, L) {
       monster.update(M, k, dt, t);
       // you only see it if the kid could
       // behind walls you still see its eye on the stalk poking up over them
-      const seen = !inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && G.los(k.x, k.z, M.x, M.z);
+      const seen = maps.reveal || (!inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && G.los(k.x, k.z, M.x, M.z));
       monster.setSeen(seen, WALL_H + 0.02);
       const lit = intensities.reduce((s, v) => s + v, 0) / intensities.length;
       // from inside the house the giant is a dark mass overhead; at the table you see it lit by the board
