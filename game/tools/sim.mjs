@@ -1,98 +1,40 @@
-// Balance probe: a rough kid bot plays many headless games against the monster.
-// Not the data-generation bots (that is the next stage) - just a check that the rules hold up.
-// usage: node tools/sim.mjs [games] [seed]
-import { parseLevel } from '../src/sim/level.js';
-import { createGame, step } from '../src/sim/game.js';
-import { createMind } from '../src/sim/mind/index.js';
-import { distField, findPath, clearLine, los } from '../src/sim/grid.js';
-import { KID } from '../src/sim/rules.js';
+// Balance probe: kid bots play many headless episodes against a monster mind, exactly as the data generator runs
+// them, and we read the outcome rates.
+// usage: node tools/sim.mjs [games] [seed]      env: PERSONA=classic|... KID=probe|... SKILL=0.6 DIAG=1
+import { configFor, runEpisode, STEP } from '../src/sim/episode.js';
 
-const N = Number(process.argv[2]) || 100, SEED = Number(process.argv[3]) || 1, DT = 1 / 60, MAXT = 300;
-const L = parseLevel();
+const N = Number(process.argv[2]) || 100, SEED = Number(process.argv[3]) || 1;
+const persona = { type: process.env.PERSONA || 'classic' };
+const kid = { style: process.env.KID || 'probe', skill: Number(process.env.SKILL || 0.6) };
 
-function kidBot(G) {
-  const k = G.kid, M = G.monster, tf = (v) => Math.floor(v);
-  const st = (G.bot ||= { plan: null, planT: 0, flee: false, known: null });
-  st.planT -= DT;
-  // fair information: it sees the monster only in line of sight; closer than 6 m it hears it
-  const realD = Math.hypot(M.x - k.x, M.z - k.z);
-  // OMNI=1: the monster's eye shows over the walls, so the player always knows where it is
-  if (process.env.OMNI || (realD < 14 && los(L, k.x, k.z, M.x, M.z)) || realD < 6) st.known = { x: M.x, z: M.z, t: G.t };
-  const K = st.known && G.t - st.known.t < 4 ? st.known : null;
-  const d = K ? Math.hypot(K.x - k.x, K.z - k.z) : 99;
-  const danger = M.mode !== 'sleep' && d < 7;
-  const Rh = G.reach;
-  if (Rh.state === 'shadow' && !k.crawl && Math.hypot(k.x - Rh.x, k.z - Rh.z) < 2.2) {
-    const dx = k.x - Rh.x, dz = k.z - Rh.z, n = Math.hypot(dx, dz) || 1;
-    return { mx: dx / n, mz: dz / n, creep: false, blow: false };
-  }
-  if (st.planT <= 0 || danger !== st.flee) {
-    st.planT = 0.25; st.flee = danger;
-    const kd = distField(L, tf(k.x), tf(k.z), L.kidBlocked);
-    let goal = null;
-    if (danger) {
-      const md = distField(L, tf(K.x), tf(K.z), L.monBlocked);
-      let best = -Infinity;
-      for (let z = 0; z < L.h; z++) for (let x = 0; x < L.w; x++) {
-        const i = z * L.w + x, kk = kd[i];
-        if (!(kk <= 8)) continue;
-        const m = isFinite(md[i]) ? md[i] : 40;
-        const s = m - kk * 1.3 + (L.crawl(x, z) ? 2 : 0);
-        if (s > best) { best = s; goal = [x, z]; }
-      }
-    } else {
-      let bd = Infinity;
-      for (const c of G.candles) if (c.lit && kd[c.tz * L.w + c.tx] < bd) { bd = kd[c.tz * L.w + c.tx]; goal = [c.tx, c.tz]; st.cand = c; }
-    }
-    st.plan = goal ? findPath(L, tf(k.x), tf(k.z), goal[0], goal[1], L.kidBlocked) || [] : [];
-  }
-  const inp = { mx: 0, mz: 0, creep: false, blow: false };
-  if (!danger && st.cand && st.cand.lit && Math.hypot(st.cand.x - k.x, st.cand.z - k.z) < KID.blowReach * 0.9) { inp.blow = true; return inp; }
-  const p = st.plan;
-  while (p.length > 1 && clearLine(L, k.x, k.z, p[1].x, p[1].z, KID.radius, L.kidBlocked)) p.shift();
-  if (p.length && Math.hypot(p[0].x - k.x, p[0].z - k.z) < 0.2) p.shift();
-  const tgt = p[0] || (st.cand && !danger ? st.cand : null);
-  // a shut door in the way: open it
-  st.useT = (st.useT || 0) - DT;
-  if (tgt && st.useT <= 0) for (const dr of G.doors) {
-    if (!dr.open && Math.hypot(dr.x - k.x, dr.z - k.z) < 1.2 && (dr.x - k.x) * (tgt.x - k.x) + (dr.z - k.z) * (tgt.z - k.z) > 0) { inp.use = true; st.useT = 1; break; }
-  }
-  if (tgt) { const dx = tgt.x - k.x, dz = tgt.z - k.z, n = Math.hypot(dx, dz) || 1; inp.mx = dx / n; inp.mz = dz / n; }
-  inp.creep = !danger && d < 10;
-  return inp;
-}
-
-const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, spotted: 0, lunges: 0, catchT: [] };
+const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, stuck: 0, rows: 0, catchT: [], by: {} };
 const t0 = Date.now();
 for (let g = 0; g < N; g++) {
-  const G = createGame(L, SEED + g);
-  G.mind = createMind(G, { type: 'classic' });
-  while (G.state === 'play' && G.t < MAXT) {
-    const inp = kidBot(G);
-    if (process.env.TRACE && Math.round(G.t * 60) % 300 === 0) console.log(`t=${G.t.toFixed(0)} kid=(${G.kid.x.toFixed(2)},${G.kid.z.toFixed(2)}) in=(${inp.mx.toFixed(2)},${inp.mz.toFixed(2)}) blow=${inp.blow} plan=${JSON.stringify((G.bot.plan || []).slice(0, 2))} cand=${G.bot.cand?.id}`);
-    step(G, inp, DT);
-    res.modes[G.monster.mode] = (res.modes[G.monster.mode] || 0) + DT;
-    for (const e of G.events) {
-      if (e.type === 'spotted') res.spotted++; if (e.type === 'lunge') res.lunges++;
-      res.ev[e.type] = (res.ev[e.type] || 0) + 1;
-    }
-    G.events.length = 0;
-  }
-  const out = G.candles.filter((c) => !c.lit).length;
-  res[G.state === 'play' ? 'timeout' : G.state]++;
-  res.t.push(G.t); res.out.push(out);
-  if (G.state === 'caught') res.catchT.push(G.t);
-  if (process.env.DIAG) {
-    const lit = G.candles.filter((c) => c.lit).map((c) => c.id).join(',');
-    console.log(`game ${g}: ${G.state} t=${G.t.toFixed(0)} lit=[${lit}] kid=(${G.kid.x.toFixed(1)},${G.kid.z.toFixed(1)}) crawl=${G.kid.crawl} mon=(${G.monster.x.toFixed(1)},${G.monster.z.toFixed(1)}) mode=${G.monster.mode} blowing=${G.kid.blowing}`);
-  }
+  const config = { ...configFor(`probe-${SEED}`, g), persona, kid };
+  const r = runEpisode(config, {
+    onRecord(row, G, ki, gi, events) {
+      res.rows++;
+      res.modes[G.monster.mode] = (res.modes[G.monster.mode] || 0) + STEP;
+      if (G.monster.stuckT > 0.3) res.stuck++;
+      for (const e of events) {
+        res.ev[e.type] = (res.ev[e.type] || 0) + 1;
+        if (e.type === 'caught') res.by[e.by] = (res.by[e.by] || 0) + 1;
+      }
+    },
+  });
+  const G = r.G, out = G.candles.filter((c) => !c.lit).length;
+  res[r.outcome]++;
+  res.t.push(r.t); res.out.push(out);
+  if (r.outcome === 'caught') res.catchT.push(r.t);
+  if (process.env.DIAG) console.log(`game ${g}: ${r.outcome} t=${r.t.toFixed(0)} out=${out} kid=(${G.kid.x.toFixed(1)},${G.kid.z.toFixed(1)}) mon=(${G.monster.x.toFixed(1)},${G.monster.z.toFixed(1)}) mode=${G.monster.mode}`);
 }
 const avg = (a) => (a.reduce((s, v) => s + v, 0) / Math.max(1, a.length)).toFixed(1);
 const total = Object.values(res.modes).reduce((s, v) => s + v, 0);
-console.log(`${N} games in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
-console.log(`won ${res.won}  caught ${res.caught}  timeout ${res.timeout}`);
+const per = (k) => ((res.ev[k] || 0) / N).toFixed(2);
+console.log(`${N} games (${persona.type} vs ${kid.style} ${kid.skill}) in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+console.log(`won ${res.won}  caught ${res.caught}  timeout ${res.timeout}   (caught by ${JSON.stringify(res.by)})`);
 console.log(`avg length ${avg(res.t)} s, avg candles out ${avg(res.out)}, avg catch at ${avg(res.catchT)} s`);
 console.log(`candles-out histogram: ${[0, 1, 2, 3, 4, 5, 6].map((i) => res.out.filter((v) => v === i).length).join(' ')}`);
-console.log(`spotted ${(res.spotted / N).toFixed(1)}/game, lunges ${(res.lunges / N).toFixed(1)}/game`);
+console.log(`stuck ${((res.stuck / Math.max(1, res.rows)) * 100).toFixed(1)}%   spotted ${per('spotted')}/game, lunges ${per('lunge')}, yells ${per('yell')}, fury ${per('fury')}`);
 console.log('monster time: ' + Object.entries(res.modes).map(([k, v]) => `${k} ${((v / total) * 100).toFixed(0)}%`).join(', '));
 console.log('events/game: ' + Object.entries(res.ev).filter(([k]) => !['kstep', 'mstep', 'mode'].includes(k)).map(([k, v]) => `${k} ${(v / N).toFixed(1)}`).join(', '));

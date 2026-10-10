@@ -10,7 +10,7 @@ const tileOf = Math.floor;
 
 export function createSense() {
   return {
-    pingT: MON.pingEvery[0] * 0.5, heard: [], alerts: [], ping: null, hideSeen: -1, gapSeen: -1,
+    pingT: MON.pingEvery[0] * 0.5, heard: [], alerts: [], alertsSeen: [], ping: null, hideSeen: -1, gapSeen: -1,
     lastSeen: null, lastSeenT: -99, sightT: 0, unseenT: 0, kidGap: -1, wake: false,
   };
 }
@@ -34,11 +34,12 @@ export function canSee(G) {
   return G.los(M.x, M.z, k.x, k.z);
 }
 
-// End of a tick: what it saw, heard and sensed this tick, for its mind to read on the next.
+// End of a tick: what it saw, heard and sensed this tick. It piles up until its mind next looks (observe), so a
+// mind that decides every few ticks still hears everything.
 export function sense(G, dt, hidNow) {
   const S = G.sense, M = G.monster, k = G.kid, L = G.L;
-  const alerts = S.alerts; // alerts raised during this tick
-  S.heard = []; S.ping = null; S.hideSeen = -1; S.gapSeen = -1;
+  const alerts = S.alerts, heard = []; // raised during this tick
+  S.alerts = [];
   const sees = M.awake && canSee(G);
   if (sees) {
     if (!M.sees && G.t - S.lastSeenT > 3) G.events.push({ type: 'spotted' });
@@ -50,7 +51,7 @@ export function sense(G, dt, hidNow) {
   const kp = L.passageAt(tileOf(k.x), tileOf(k.z));
   if (kp >= 0 && kp !== S.kidGap) {
     S.sightT = 0;
-    if (G.t - S.lastSeenT < 0.5) S.gapSeen = kp;
+    if (G.t - S.lastSeenT < 0.5) S.gapSeen = kp; // it saw you go in
   }
   S.kidGap = kp;
   // seen getting into a wardrobe
@@ -62,32 +63,35 @@ export function sense(G, dt, hidNow) {
   const d = Math.hypot(k.x - M.x, k.z - M.z);
   if (k.noise > 0) {
     const r = G.los(M.x, M.z, k.x, k.z) ? k.noise : k.noise * 0.6;
-    if (d < r) S.heard.push({ x: k.x + (G.rand() - 0.5), z: k.z + (G.rand() - 0.5), kind: 'kid' });
+    if (d < r) heard.push({ x: k.x + (G.rand() - 0.5), z: k.z + (G.rand() - 0.5), kind: 'kid' });
   }
   for (const n of G.noises) {
     const nd = Math.hypot(n.x - M.x, n.z - M.z), r = G.los(M.x, M.z, n.x, n.z) ? n.r : n.r * 0.65;
-    if (nd < r) S.heard.push({ x: n.x, z: n.z, kind: n.kind });
+    if (nd < r) heard.push({ x: n.x, z: n.z, kind: n.kind });
   }
   // the fuzzy sense of you, when nothing else told it anything this tick
   S.pingT -= dt;
-  if (!alerts.length && !S.heard.length && S.pingT <= 0) {
+  if (!alerts.length && !heard.length && S.pingT <= 0) {
     const left = G.candles.filter((c) => c.lit).length, f = (left - 1) / Math.max(1, G.candles.length - 1);
     S.pingT = (MON.pingEvery[1] + (MON.pingEvery[0] - MON.pingEvery[1]) * f) * (0.8 + G.rand() * 0.4);
     const a = G.rand() * Math.PI * 2, e = G.rand() * MON.pingErr;
     S.ping = { x: k.x + Math.cos(a) * e, z: k.z + Math.sin(a) * e };
   }
-  S.alertsSeen = alerts; S.alerts = [];
+  S.heard.push(...heard); S.alertsSeen.push(...alerts);
 }
 
+// What the giant's mind gets to know now. Reading it takes what piled up since the last look.
 export function observe(G) {
   const M = G.monster, S = G.sense, k = G.kid, B = G.beam, R = G.reach;
   const out = G.candles.filter((c) => !c.lit).length;
+  const heard = S.heard, alerts = S.alertsSeen, ping = S.ping, hideSeen = S.hideSeen, gapSeen = S.gapSeen;
+  S.heard = []; S.alertsSeen = []; S.ping = null; S.hideSeen = -1; S.gapSeen = -1;
   return {
     t: G.t,
     self: { x: M.x, z: M.z, hx: M.hx, hz: M.hz, vx: M.vx, vz: M.vz, act: M.act, actT: M.actT, speed: M.speed, awake: M.awake, shoved: M.shoved, cool: M.cool, yellCool: M.yellCool, rage: M.rage, lust: M.lust },
     sees: M.sees, kid: M.sees ? { x: k.x, z: k.z, vx: k.vx, vz: k.vz } : null,
     lastSeen: S.lastSeen, lastSeenT: S.lastSeenT,
-    heard: S.heard, ping: S.ping, alerts: S.alertsSeen || [], hideSeen: S.hideSeen, gapSeen: S.gapSeen,
+    heard, ping, alerts, hideSeen, gapSeen,
     candles: G.candles, doors: G.doors, wardrobes: G.wardrobes, candlesOut: out,
     canLight: B.state === 'idle' && B.cool <= 0,
     canReach: out >= 2 && R.state === 'idle' && R.cool >= 0 && R.cool <= 0 && B.state === 'idle',
