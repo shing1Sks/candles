@@ -25,7 +25,7 @@ function newGame() {
     G = ep.G;
   } else {
     G = createGame(L, seed++);
-    G.mind = createMind(G, { type: 'classic' });
+    G.mind = createMind(G, { type: q.get('persona') || 'classic' }); // ?persona=stalker (or brute, hound, warden, pathfinder)
   }
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }
