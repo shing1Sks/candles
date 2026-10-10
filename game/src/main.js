@@ -6,6 +6,7 @@ import { createView } from './render/view.js';
 import { createAudio } from './audio.js';
 import { configFor, startEpisode, stepEpisode, episodeOver, episodeHash, STEP } from './sim/episode.js';
 import { eventDetail } from './sim/schema.js';
+import { createDream } from './model/dream.js';
 
 const q = new URLSearchParams(location.search);
 const L = parseLevel();
@@ -18,6 +19,7 @@ let G, phase = 'title', endT = 0, endTimer = 0, seed = Number(q.get('seed')) || 
 // &from=ROW starts at that step (run silently up to it), &to=ROW stops there, &rec=1 starts at once (for recording)
 const watch = q.get('watch'), clipFrom = Number(q.get('from')) || 0, clipTo = Number(q.get('to')) || 0;
 let ep = null, watchSpeed = Number(q.get('speed')) || 1;
+let dream = null; // ?model=: the main model runs the world (below)
 const watchLog = [];
 function newGame() {
   if (watch) {
@@ -38,9 +40,16 @@ function newGame() {
   clearTimeout(endTimer);
   $('end').classList.add('hide');
   view.reset?.(G);
+  dream?.reset(G);
   drawCandles();
 }
 newGame();
+// ?model=play_M: the main model plays the whole game (src/model/dream.js); &ep=wasm to run it on the CPU
+if (q.has('model')) {
+  $('prompt').textContent = 'loading the model...';
+  createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3) })
+    .then((d) => { dream = d; }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
+}
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints
 if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
 if (q.has('reveal')) view.reveal();
@@ -134,6 +143,16 @@ function tick(dt) {
     if (stopAt(ep)) window.__clipDone = true;
     else if (episodeOver(ep) && G.state === 'play') end('timeout');
     readInput();
+  } else if (phase === 'play' && q.has('model')) {
+    // the model's world: a step every 1/20 s when the last one is done (slower if the model is slower), glided between
+    const inp = readInput();
+    if (dream) {
+      const w = view.toWorld(inp);
+      acc = Math.min(acc + dt, STEP);
+      if (!dream.busy && acc >= STEP) { acc = 0; dream.step(w); }
+      else { if (w.use) pressUse = true; if (w.throw) pressThrow = true; }
+      dream.blend();
+    }
   } else if (phase === 'play') {
     acc += dt;
     const inp = readInput();
@@ -192,4 +211,4 @@ if (watch) addEventListener('keydown', (e) => {
 });
 
 // for test tools
-window.__g = { get G() { return G; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };
+window.__g = { get G() { return G; }, get dream() { return dream; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };
