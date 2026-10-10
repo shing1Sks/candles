@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Candles</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="candles"></div>
+    <div id="hints">
+      <b>WASD</b> run &nbsp;·&nbsp; <b>Shift</b> creep (quiet)<br />
+      hold <b>E</b> / <b>Space</b> at a candle to blow it out<br />
+      only you fit through vents, cracks and under beds
+    </div>
+    <div id="title">
+      <h1>Candles</h1>
+      <p>Blow out every candle in the house.<br />Don't let it touch you.</p>
+      <p class="small">press any key</p>
+    </div>
+    <div id="end" class="hide">
+      <h1 id="endTitle"></h1>
+      <p id="endSub"></p>
+      <p class="small">R to try again</p>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "name": "gamenet-maze",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "node tools/check.mjs",
+    "sim": "node tools/sim.mjs"
+  },
+  "devDependencies": {
+    "vite": "^8.3.4"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  }
+}
