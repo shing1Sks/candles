@@ -64,10 +64,17 @@ export function visPolygon(segs, ox, oz, R) {
   return out;
 }
 
+function segNear(x1, z1, x2, z2, x, z, r) {
+  const dx = x2 - x1, dz = z2 - z1, t = Math.max(0, Math.min(1, ((x - x1) * dx + (z - z1) * dz) / (dx * dx + dz * dz)));
+  return Math.hypot(x1 + dx * t - x, z1 + dz * t - z) < r;
+}
+
 // A fan of triangles from the origin through the polygon.
 function fanGeometry(cap) {
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(cap * 9), 3));
+  const a = new THREE.BufferAttribute(new Float32Array(cap * 9), 3);
+  a.setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('position', a);
   g.setDrawRange(0, 0);
   return g;
 }
@@ -81,7 +88,9 @@ function fillFan(g, ox, oz, poly) {
     p[o++] = poly[j * 2]; p[o++] = 0; p[o++] = poly[j * 2 + 1];
   }
   g.setDrawRange(0, o / 3);
-  g.attributes.position.needsUpdate = true;
+  const a = g.attributes.position;
+  a.clearUpdateRanges(); a.addUpdateRange(0, o);
+  a.needsUpdate = true;
 }
 
 const fanVert = /* glsl */ `
@@ -147,19 +156,27 @@ export function createMaps(renderer, L) {
   lightScene.add(beamMesh);
 
   const clear = new THREE.Color(0, 0, 0);
-  let doorKey = '', t = 0;
+  let doorKey = -1, t = 0, lastX = NaN, lastZ = NaN, lastWall = false;
+  const oldColor = new THREE.Color(), ring16 = new Float32Array(32);
   return {
     vis: vis.texture, light: light.texture, bounce: bounce.texture, ao: bakeAO(L), size, get segs() { return segs; }, candles,
     // G: the game (doors, candles, beam). inWall: in a vent you only see yourself.
     update(G, kx, kz, inWall, intensities, dt) {
       t += dt;
-      const key = G.doors.map((d) => (d.open ? 1 : 0)).join('');
-      if (key !== doorKey) { doorKey = key; segs = wallSegments(L, G.sightBlocked); }
-      if (inWall) {
-        const poly = new Float32Array(32);
-        for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; poly[i * 2] = kx + Math.cos(a) * 0.7; poly[i * 2 + 1] = kz + Math.sin(a) * 0.7; }
-        fillFan(visGeo, kx, kz, poly);
-      } else fillFan(visGeo, kx, kz, visPolygon(segs, kx, kz, 16));
+      let key = 0;
+      for (let i = 0; i < G.doors.length; i++) if (G.doors[i].open) key += 2 ** i;
+      const doorsChanged = key !== doorKey;
+      if (doorsChanged) {
+        doorKey = key; segs = wallSegments(L, G.sightBlocked);
+        for (const cd of candles) cd.near = segs.filter(([x1, z1, x2, z2]) => Math.min(Math.hypot(x1 - cd.c.x, z1 - cd.c.z), Math.hypot(x2 - cd.c.x, z2 - cd.c.z), Math.abs(x1 - x2) + Math.abs(z1 - z2)) < CANDLE.light + 1.5 || segNear(x1, z1, x2, z2, cd.c.x, cd.c.z, CANDLE.light + 0.5));
+      }
+      if (doorsChanged || inWall !== lastWall || Math.abs(kx - lastX) > 0.005 || Math.abs(kz - lastZ) > 0.005) {
+        lastX = kx; lastZ = kz; lastWall = inWall;
+        if (inWall) {
+          for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; ring16[i * 2] = kx + Math.cos(a) * 0.7; ring16[i * 2 + 1] = kz + Math.sin(a) * 0.7; }
+          fillFan(visGeo, kx, kz, ring16);
+        } else fillFan(visGeo, kx, kz, visPolygon(segs, kx, kz, 16));
+      }
       visMat.uniforms.uO.value.set(kx, kz);
       visMat.uniforms.uGlow.value = inWall ? 1.2 : 3.2;
       candles.forEach((cd, i) => {
@@ -170,7 +187,7 @@ export function createMaps(renderer, L) {
         // the flame wanders a couple of centimetres and every shadow in the room breathes with it
         const ox = cd.c.x + Math.sin(t * 7.3 + i * 3) * 0.025 + Math.sin(t * 13.1 + i) * 0.012;
         const oz = cd.c.z + Math.cos(t * 6.1 + i * 2) * 0.025;
-        fillFan(cd.geo, ox, oz, visPolygon(segs, ox, oz, CANDLE.light));
+        fillFan(cd.geo, ox, oz, visPolygon(cd.near, ox, oz, CANDLE.light));
         cd.u.uO.value.set(ox, oz);
       });
       const B = G.beam;
@@ -181,7 +198,7 @@ export function createMaps(renderer, L) {
       beamMesh.scale.setScalar(BEAM.radius * (B.state === 'warn' ? 1.3 - 0.3 * (B.t / BEAM.warn) : 1));
       beamMat.uniforms.uO.value.set(B.x, B.z);
       beamMat.uniforms.uR.value = BEAM.radius * beamMesh.scale.x / BEAM.radius;
-      const old = renderer.getRenderTarget(), oc = renderer.getClearColor(new THREE.Color()), oa = renderer.getClearAlpha();
+      const old = renderer.getRenderTarget(), oc = renderer.getClearColor(oldColor), oa = renderer.getClearAlpha();
       renderer.setClearColor(clear, 1);
       renderer.setRenderTarget(vis); renderer.clear(); renderer.render(visScene, cam);
       renderer.setRenderTarget(light); renderer.clear(); renderer.render(lightScene, cam);

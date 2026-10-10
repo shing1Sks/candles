@@ -20,7 +20,7 @@ export function createCandles(scene, candles) {
     flame.position.y = FLAME_Y - c.id * 0.02;
     const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
     halo.position.y = flame.position.y; halo.scale.setScalar(1.6);
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.4, 48, 1, Math.PI / 2, 0), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.34, 0.4, 48, 1, Math.PI / 2, -Math.PI * 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75, depthWrite: false, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
     g.add(saucer, stick, flame, halo, ring);
     scene.add(g);
@@ -43,10 +43,11 @@ export function createCandles(scene, candles) {
     }
   };
 
+  const out = [];
   return {
     // returns each candle's light intensity for the light map
     update(G, dt, t) {
-      const out = [];
+      out.length = 0;
       for (const it of items) {
         const lit = it.c.id < G.candles.length && G.candles[it.c.id].lit;
         if (!lit && it.out === 0) smoke(it.c.x, it.flame.position.y, it.c.z);
@@ -59,11 +60,7 @@ export function createCandles(scene, candles) {
         it.halo.material.opacity = 0.16 * k;
         it.flame.visible = it.halo.visible = k > 0.01;
         const p = G.candles[it.c.id].progress;
-        if (Math.abs(p - it.shown) > 0.02 || (p === 0) !== (it.shown === 0)) {
-          it.ring.geometry.dispose();
-          it.ring.geometry = new THREE.RingGeometry(0.34, 0.4, 48, 1, Math.PI / 2, -p * Math.PI * 2);
-          it.shown = p;
-        }
+        if (p !== it.shown) { it.ring.geometry.setDrawRange(0, Math.round(p * 48) * 6); it.shown = p; } // the ring grows as you blow
         it.ring.visible = lit && p > 0;
         it.ring.position.set(G.kid.x - it.c.x, 0.03, G.kid.z - it.c.z); // drawn round the kid's feet, never behind a wall
         out.push(k);

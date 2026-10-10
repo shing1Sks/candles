@@ -42,7 +42,7 @@ export function createView(canvas, L) {
   const center = new THREE.Vector3(L.w / 2, 0, L.h / 2);
 
   // film pass
-  const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+  const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
   const post = new THREE.ShaderMaterial({
     uniforms: { tScene: { value: rt.texture }, tBloom: { value: null }, uTime: { value: 0 }, uFear: { value: 0 }, uFlash: { value: 0 }, uDark: { value: 0 }, uHide: { value: 0 }, uAspect: { value: 1 }, uRes: { value: new THREE.Vector2() } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
@@ -50,11 +50,28 @@ export function createView(canvas, L) {
       uniform sampler2D tScene, tBloom; uniform float uTime, uFear, uFlash, uDark, uAspect, uHide; uniform vec2 uRes;
       varying vec2 vUv;
       float hash(vec2 p) { p = fract(p * vec2(443.897, 441.423)); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }
+      // FXAA: soften stair-stepped edges along their direction (cheaper than MSAA on this GPU)
+      float lum(vec3 c) { return sqrt(dot(c, vec3(0.299, 0.587, 0.114))); }
+      vec3 fxaa(vec2 uv) {
+        vec2 px = 1.0 / uRes;
+        vec3 cM = texture2D(tScene, uv).rgb;
+        float nw = lum(texture2D(tScene, uv + vec2(-1.0, -1.0) * px).rgb), ne = lum(texture2D(tScene, uv + vec2(1.0, -1.0) * px).rgb);
+        float sw = lum(texture2D(tScene, uv + vec2(-1.0, 1.0) * px).rgb), se = lum(texture2D(tScene, uv + vec2(1.0, 1.0) * px).rgb), m = lum(cM);
+        float lo = min(m, min(min(nw, ne), min(sw, se))), hi = max(m, max(max(nw, ne), max(sw, se)));
+        if (hi - lo < max(0.04, hi * 0.15)) return cM;
+        vec2 dir = vec2(-((nw + ne) - (sw + se)), (nw + sw) - (ne + se));
+        float red = max((nw + ne + sw + se) * 0.03125, 1.0 / 128.0);
+        dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + red), -8.0, 8.0) * px;
+        vec3 a = 0.5 * (texture2D(tScene, uv + dir * (1.0 / 3.0 - 0.5)).rgb + texture2D(tScene, uv + dir * (2.0 / 3.0 - 0.5)).rgb);
+        vec3 b = a * 0.5 + 0.25 * (texture2D(tScene, uv - dir * 0.5).rgb + texture2D(tScene, uv + dir * 0.5).rgb);
+        float lb = lum(b);
+        return (lb < lo || lb > hi) ? a : b;
+      }
       void main() {
         // fear squeezes the picture a little toward the middle
         vec2 q = vUv - 0.5;
         vec2 uv = 0.5 + q * (1.0 - uFear * 0.015 * (0.5 + 0.5 * sin(uTime * 9.0)));
-        vec3 c = texture2D(tScene, uv).rgb + texture2D(tBloom, uv).rgb * 0.55;
+        vec3 c = fxaa(uv) + texture2D(tBloom, uv).rgb * 0.55;
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         l = pow(max(l, 0.0), 1.0 / 2.2);
         l = l * l * (3.0 - 2.0 * l) * 0.35 + l * 0.65;
@@ -103,7 +120,7 @@ export function createView(canvas, L) {
   }
   const postCam = new THREE.Camera();
 
-  const target = new THREE.Vector3(), tmp = new THREE.Vector3();
+  const target = new THREE.Vector3(), tmp = new THREE.Vector3(), bufSize = new THREE.Vector2();
   let impact = 0, hide = 0, shake = 0, first = true, zoom = 0.9, zoomWant = 0.9, mode = 'in', yaw = 0, inDist = 4.4;
   const camPos = new THREE.Vector3(), look = new THREE.Vector3(), right = { x: 1, z: 0 };
   const st = { flash: 0, dark: 0 };
@@ -203,7 +220,7 @@ export function createView(canvas, L) {
       U.uTime.value = t;
       U.uKid.value.set(k.x, 0, k.z);
       tmp.set(k.x, 0.5, k.z).project(camera);
-      const sz = renderer.getDrawingBufferSize(new THREE.Vector2());
+      const sz = renderer.getDrawingBufferSize(bufSize);
       U.uKidPx.value.set((tmp.x * 0.5 + 0.5) * sz.x, (tmp.y * 0.5 + 0.5) * sz.y);
 
       post.uniforms.uTime.value = t;

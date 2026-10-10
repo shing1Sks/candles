@@ -20,8 +20,8 @@ function universe() {
       void main() {
         vec3 d = normalize(vD);
         // slow grey dust drifting in the void
-        float neb = n3(d * 3.0 + uTime * 0.01) * 0.6 + n3(d * 7.0 - uTime * 0.02) * 0.4;
-        float c = pow(neb, 3.0) * 0.035;
+        float neb = n3(d * 4.0 + uTime * 0.01);
+        float c = pow(neb, 3.0) * 0.03;
         // stars: one per cell, a few of them bright, all faintly breathing
         vec3 p = d * 140.0, cell = floor(p);
         float h = h3(cell);
