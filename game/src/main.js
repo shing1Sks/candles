@@ -33,7 +33,8 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('wheel', (e) => view.zoomBy(-Math.sign(e.deltaY) * 0.12), { passive: true });
-addEventListener('keydown', (e) => { if (e.code === 'KeyZ') view.zoomBy(view.zoom > 0.5 ? -1 : 1); });
+addEventListener('keydown', (e) => { if (e.code === 'KeyZ') view.toggleMode(); });
+addEventListener('pointermove', (e) => { if (e.buttons & 1) view.turn(-e.movementX * 0.006); });
 addEventListener('pointerdown', () => { if (phase === 'title') begin(); });
 addEventListener('blur', () => keys.clear());
 
@@ -84,7 +85,8 @@ function frame(now) {
   if (phase === 'play') {
     acc += dt;
     const inp = readInput();
-    while (acc >= DT) { step(G, inp, DT); acc -= DT; }
+    const w = view.toWorld(inp);
+    while (acc >= DT) { step(G, w, DT); acc -= DT; }
   } else { readInput(); acc = 0; }
 
   const k = G.kid, M = G.monster;
@@ -99,6 +101,7 @@ function frame(now) {
   G.events.length = 0;
   if (phase === 'caught') { view.st.flash = Math.max(0, view.st.flash - dt * 3); view.st.dark = Math.min(0.85, view.st.dark + dt * 0.8); }
   if (phase === 'won') view.st.dark = Math.min(0.6, view.st.dark + dt * 0.3);
+  audio.setRight(view.right);
   audio.update(G, dt, near);
   view.frame(G, dt, t, input);
 }

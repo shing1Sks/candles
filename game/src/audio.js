@@ -1,7 +1,7 @@
 // All sound is synthesised: a low drone, your heartbeat (faster as it gets close), its footsteps and
 // breathing placed left/right where it really is (muffled behind walls), and the candle hiss.
 export function createAudio() {
-  let ctx = null, out, noise, drone, breath, breathPan, breathGain, blowGain, nextBeat = 0;
+  let R = { x: 1, z: 0 }, ctx = null, out, noise, drone, breath, breathPan, breathGain, blowGain, nextBeat = 0;
 
   function noiseBuffer() {
     const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0);
@@ -33,6 +33,7 @@ export function createAudio() {
 
   return {
     get on() { return !!ctx; },
+    setRight(r) { R = r; },
     start() {
       if (ctx) return;
       ctx = new AudioContext();
@@ -69,7 +70,7 @@ export function createAudio() {
     update(G, dt, near) {
       if (!ctx) return;
       const t = ctx.currentTime, k = G.kid, M = G.monster;
-      const d = Math.hypot(M.x - k.x, M.z - k.z), fear = k.fear || 0, pan = Math.max(-1, Math.min(1, (M.x - k.x) / 7));
+      const d = Math.hypot(M.x - k.x, M.z - k.z), fear = k.fear || 0, pan = Math.max(-1, Math.min(1, ((M.x - k.x) * R.x + (M.z - k.z) * R.z) / 7));
       const playing = G.state === 'play';
       if (playing && fear > 0.02 && t >= nextBeat) {
         const bpm = 62 + fear * 100, gap = 60 / bpm, g = 0.12 + fear * 0.55;
@@ -87,7 +88,7 @@ export function createAudio() {
     event(e, G, near) {
       if (!ctx) return;
       const k = G.kid, M = G.monster, t = ctx.currentTime;
-      const d = Math.hypot(M.x - k.x, M.z - k.z), pan = Math.max(-1, Math.min(1, (M.x - k.x) / 7));
+      const d = Math.hypot(M.x - k.x, M.z - k.z), pan = Math.max(-1, Math.min(1, ((M.x - k.x) * R.x + (M.z - k.z) * R.z) / 7));
       const vol = 1 / (1 + d * 0.35);
       switch (e.type) {
         case 'kstep':

@@ -6,7 +6,7 @@ import * as THREE from 'three';
 export const U = {
   uVis: { value: null }, uLight: { value: null }, uRoom: { value: null }, uSize: { value: new THREE.Vector2(1, 1) },
   uAmb: { value: 0.012 }, uTime: { value: 0 }, uKid: { value: new THREE.Vector3() }, uKidPx: { value: new THREE.Vector2() },
-  uCutR: { value: 120 },
+  uCutR: { value: 120 }, uCamDir: { value: new THREE.Vector2(0, 1) },
 };
 
 const vert = /* glsl */ `
@@ -23,7 +23,7 @@ const vert = /* glsl */ `
   }`;
 
 const frag = /* glsl */ `
-  uniform sampler2D uVis, uLight, uRoom; uniform vec2 uSize, uKidPx;
+  uniform sampler2D uVis, uLight, uRoom; uniform vec2 uSize, uKidPx, uCamDir;
   uniform float uAmb, uTime, uCutR, uCut, uPattern, uFade, uLit, uClipY;
   uniform vec3 uColor, uEmis, uKid;
   varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
@@ -70,7 +70,8 @@ const frag = /* glsl */ `
 
   void main() {
     if (uCut > 0.5) {
-      float c = smoothstep(uCutR, uCutR * 0.55, length(gl_FragCoord.xy - uKidPx)) * smoothstep(0.15, 0.8, vW.z - uKid.z) * step(0.25, vW.y);
+      float c = smoothstep(uCutR, uCutR * 0.55, length(gl_FragCoord.xy - uKidPx)) * smoothstep(0.15, 0.8, dot(vW.xz - uKid.xz, uCamDir)) * step(0.25, vW.y);
+      c = max(c, smoothstep(1.1, 0.5, length(vW - cameraPosition))); // nothing right in front of the lens
       if (c * 0.9 > bayer(gl_FragCoord.xy)) discard;
     }
     if (uFade < 0.999 && uFade < bayer(gl_FragCoord.xy)) discard;

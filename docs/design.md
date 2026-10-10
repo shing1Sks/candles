@@ -9,9 +9,10 @@ through the small gaps.
 - **The table (the user's sketch, clarified):** the maze is a small diorama board on a dark table in an endless
   dark universe. Across the table sits a giant version of the monster, hunched over the board with a controller.
   It is the one playing: its thumbs move the sticks as its piece moves, its eye follows the game and leans in when
-  it hunts, and it looks up at you when it wins. You sit on the near side. The default view is low and tilted,
-  down in the board with its edges running off the sides; Z or the mouse wheel sits you back to see the whole
-  board and the giant. Everything outside the board is lit only by the board's glow, so the giant sinks into the
+  it hunts, and it looks up at you when it wins. - **The camera puts you in the game.** The default is a low camera just behind the kid, nearly level, turning
+  with you (drag the mouse to look round, wheel for closer or further). Walls block what is ahead, because
+  seeing the whole room kills the thrill. Facing the giant's side, it looms over the walls as a dark mass with
+  one eye. Z steps you back out to the table to see the whole board. Everything outside the board is lit only by the board's glow, so the giant sinks into the
   dark as the candles go out, until only its eye is left.
 
 - One hand-built level: six rooms (nursery, bathroom, kitchen, bedroom, playroom, cellar) inside a ring corridor.

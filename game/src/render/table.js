@@ -180,12 +180,6 @@ export function createTable(scene, camera, L) {
   giant.add(eye);
   scene.add(giant);
 
-  // your own controller, held low in front of you
-  const mine = gamepad(0.24, outMat(0.42), outMat(0.1));
-  mine.group.position.set(0, -0.58, -1.25);
-  mine.group.rotation.x = 0.95;
-  camera.add(mine.group);
-  scene.add(camera);
 
   const base = new THREE.Vector3(cx, 17, BZ + 3), ctrl = new THREE.Vector3(cx, 24, BZ + 11);
   const eyePos = new THREE.Vector3(cx, 10, -2), want = new THREE.Vector3(), look = new THREE.Vector3(), tmp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
@@ -253,13 +247,6 @@ export function createTable(scene, camera, L) {
         a.hand.position.copy(tmp); a.claws.position.copy(tmp);
         a.claws.rotation.y = s * (i === 0 ? mag : 0) * 0.08;
       }
-
-      // your controller mirrors your hands
-      mine.sticks[0].rotation.set((input.mz || 0) * 0.45, 0, -(input.mx || 0) * 0.45);
-      mine.buttons[0].position.y = 0.2 - (input.blow ? 0.07 : 0);
-      // your controller sits low in your view; leaning in, it drops out of sight
-      mine.group.position.y = -0.58 - zoom * 0.45;
-      mine.group.visible = !over && zoom < 0.7;
     },
   };
 }
