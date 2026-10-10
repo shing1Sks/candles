@@ -1,6 +1,6 @@
 // Balance probe: kid bots play many headless episodes against a monster mind, exactly as the data generator runs
 // them, and we read the outcome rates.
-// usage: node tools/sim.mjs [games] [seed]      env: PERSONA=classic|... KID=probe|... SKILL=0.6 DIAG=1
+// usage: node tools/sim.mjs [games] [seed]      env: PERSONA=classic|... KID=probe|... SKILL=0.6 START=fresh|mid DIAG=1
 import { configFor, runEpisode, STEP } from '../src/sim/episode.js';
 
 const N = Number(process.argv[2]) || 100, SEED = Number(process.argv[3]) || 1;
@@ -10,7 +10,7 @@ const kid = { style: process.env.KID || 'probe', skill: Number(process.env.SKILL
 const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, stuck: 0, rows: 0, catchT: [], by: {} };
 const t0 = Date.now();
 for (let g = 0; g < N; g++) {
-  const config = { ...configFor(`probe-${SEED}`, g), persona, kid };
+  const config = { ...configFor(`probe-${SEED}`, g), persona, kid, start: process.env.START || 'fresh' };
   const r = runEpisode(config, {
     onRecord(row, G, ki, gi, events) {
       res.rows++;

@@ -14,7 +14,7 @@ export const PERSONAS = {
   brute: { smart: 0.3, aggression: 0.9, patience: 0.2, ears: 0.4, guard: 0.3, thorough: 0.2, temper: 0.75, tools: 0.5, temp: 0.6 },
   stalker: { smart: 0.9, aggression: 0.5, patience: 0.9, ears: 0.6, guard: 0.5, thorough: 0.6, temper: 0.2, tools: 0.6, temp: 0.6 },
   hound: { smart: 0.5, aggression: 0.6, patience: 0.5, ears: 0.95, guard: 0.2, thorough: 0.4, temper: 0.5, tools: 0.4, temp: 0.6 },
-  warden: { smart: 0.6, aggression: 0.4, patience: 0.8, ears: 0.4, guard: 0.9, thorough: 0.8, temper: 0.4, tools: 0.8, temp: 0.6 },
+  warden: { smart: 0.6, aggression: 0.5, patience: 0.8, ears: 0.4, guard: 0.9, thorough: 0.8, temper: 0.25, tools: 0.8, temp: 0.6 },
 };
 export const PERSONA_TYPES = Object.keys(PERSONAS);
 const TRAITS = ['smart', 'aggression', 'patience', 'ears', 'guard', 'thorough', 'temper', 'tools'];

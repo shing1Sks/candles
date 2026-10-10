@@ -5,7 +5,9 @@ import { parseLevel } from './level.js';
 import { createGame, stepWorld } from './game.js';
 import { observe } from './senses.js';
 import { createMind, think } from './mind/index.js';
-import { createKidBot, observeKid } from './bots/kid.js';
+import { createKidBot, observeKid, KID_STYLES } from './bots/kid.js';
+import { randomStart } from './bots/start.js';
+import { PERSONA_TYPES } from './mind/personas.js';
 import { rng, hash } from './rng.js';
 import { STATE_SIZE, KI_SIZE, GI_SIZE, encode, encodeKI, encodeGI, eventId } from './schema.js';
 
@@ -13,10 +15,15 @@ export const DT = 1 / 60, SUB = 3, STEP = DT * SUB;
 const L = parseLevel();
 const KID_PRESS = ['use', 'throw'], GIANT_PRESS = ['lunge', 'use', 'bash', 'yell', 'light', 'reach'];
 
-// episode i of a batch: everything about it comes from (batch, i)
+// episode i of a batch: everything about it comes from (batch, i) - one of the five monster types, a kid style
+// (5% chaos) and skill, and 30% of the time a random mid-game start
 export function configFor(batch, i) {
-  const seed = hash(batch, i);
-  return { id: `${batch}:${i}`, seed, persona: { type: 'classic' }, kid: { style: 'probe', skill: 0.6 }, start: 'fresh', maxT: 300 };
+  const seed = hash(batch, i), r = rng(hash(seed, 'config'));
+  const persona = { type: PERSONA_TYPES[Math.floor(r() * PERSONA_TYPES.length)] };
+  const chaos = r() < 0.05;
+  const kid = { style: chaos ? 'chaos' : KID_STYLES[Math.floor(r() * KID_STYLES.length)], skill: 0.2 + 0.8 * r() };
+  const start = r() < 0.3 ? 'mid' : 'fresh';
+  return { id: `${batch}:${i}`, seed, persona, kid, start, maxT: 300 };
 }
 
 // three random streams: the world rng(seed), the mind's, and the kid bot's
@@ -24,6 +31,7 @@ export function createEpisode(config) {
   const G = createGame(L, config.seed);
   G.mind = createMind(G, config.persona, hash(config.seed, 1));
   const kidBot = createKidBot(G, config.kid, rng(config.kidSeed ?? hash(config.seed, 2)));
+  if (config.start === 'mid') randomStart(G, rng(hash(config.seed, 3)));
   return { G, kidBot };
 }
 
@@ -41,7 +49,7 @@ function stateKey(G) {
 // An episode stepped one record at a time (the browser viewer drives it frame by frame; runEpisode loops it).
 export function startEpisode(config) {
   const { G, kidBot } = createEpisode(config);
-  return { config, G, kidBot, h: hash(config.seed), ticks: 0, rows: 0, ki: null, gi: null };
+  return { config, G, kidBot, h: hash(config.seed), ticks: 0, rows: 0, ki: null, gi: null, t0: G.t }; // t0: a mid-game start's clock
 }
 // both controllers decide, then 3 ticks run; the events stay in G.events for the caller
 export function stepEpisode(ep) {
@@ -53,7 +61,8 @@ export function stepEpisode(ep) {
   }
   ep.ki = ki; ep.gi = gi; ep.rows++;
 }
-export const episodeOver = (ep) => ep.G.state !== 'play' || ep.G.t >= ep.config.maxT - 1e-9;
+// maxT is how long the episode may run (a mid-game start begins with the clock already at 60-200 s)
+export const episodeOver = (ep) => ep.G.state !== 'play' || ep.G.t - ep.t0 >= ep.config.maxT - 1e-9;
 export const episodeHash = (ep) => hash(ep.h, stateKey(ep.G));
 
 // a growing typed array (doubles when full)
@@ -85,7 +94,8 @@ export function runEpisode(config, { onRecord, record = false } = {}) {
     onRecord?.(row, G, ep.ki, ep.gi, G.events);
     G.events.length = 0;
   }
-  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t, counts: {}, hash: episodeHash(ep), rows: ep.rows, G };
+  // t: seconds played in this episode; clock: the game's clock at the end
+  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t - ep.t0, clock: G.t, counts: {}, hash: episodeHash(ep), rows: ep.rows, G };
   if (record) Object.assign(out, { states: st.done(), ki: k.done(), gi: g.done(), events });
   return out;
 }

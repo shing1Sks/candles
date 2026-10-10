@@ -7,14 +7,16 @@ import { configFor, runEpisode } from '../src/sim/episode.js';
 // 200 states from a running episode, encoded
 function sample() {
   const rows = [];
-  runEpisode({ ...configFor('schema', 1), maxT: 100 }, {
-    onRecord(row, G) {
-      if (row % 10) return;
-      const out = new Float32Array(STATE_SIZE + 2).fill(NaN);
-      encode(G, out, 1);
-      rows.push({ out, kidX: G.kid.x, L: G.L });
-    },
-  });
+  for (let i = 1; rows.length < 200; i++) {
+    runEpisode({ ...configFor('schema', i), maxT: 100 }, {
+      onRecord(row, G) {
+        if (row % 10) return;
+        const out = new Float32Array(STATE_SIZE + 2).fill(NaN);
+        encode(G, out, 1);
+        rows.push({ out, kidX: G.kid.x, L: G.L });
+      },
+    });
+  }
   return rows.slice(0, 200);
 }
 const rows = sample(), S = schemaJSON();
