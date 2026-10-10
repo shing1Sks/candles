@@ -42,7 +42,12 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
     get ms() { return ms; }, get rate() { return rate; },
     reset,
     // your input (any time; held keys replace, presses wait for the next step); active: the game is on
-    input(inp, active) { encodeKI(inp, ki, 0); worker.postMessage({ type: 'input', ki, active: active && G.state === 'play' }); },
+    input(inp, active) {
+      encodeKI(inp, ki, 0);
+      const m = Math.hypot(ki[0], ki[1]);
+      if (m > 1) { ki[0] /= m; ki[1] /= m; } // a diagonal on keys is (1, 1); the rules (and so the model) see length 1
+      worker.postMessage({ type: 'input', ki, active: active && G.state === 'play' });
+    },
     // movers glide from the last row to the new one over the 1/20 s after it lands
     blend() {
       if (!from) return;

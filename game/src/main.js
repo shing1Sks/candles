@@ -28,7 +28,7 @@ const watchLog = [];
 function newGame() {
   if (watch) {
     const [batch, i] = watch.split(':');
-    const config = configFor(batch, Number(i));
+    const config = configFor(batch, Number(i), { keys: Number(q.get('keys') || 0) }); // &keys=: as the batch was made
     if (q.has('persona')) config.persona = { type: q.get('persona') }; // watch a chosen monster type
     ep = startEpisode(config);
     G = ep.G;

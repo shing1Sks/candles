@@ -5,7 +5,7 @@ import { parseLevel } from './level.js';
 import { createGame, stepWorld } from './game.js';
 import { observe } from './senses.js';
 import { createMind, think } from './mind/index.js';
-import { createKidBot, observeKid, KID_STYLES } from './bots/kid.js';
+import { createKidBot, observeKid, keyboard, KID_STYLES } from './bots/kid.js';
 import { randomStart } from './bots/start.js';
 import { PERSONA_TYPES } from './mind/personas.js';
 import { countCases } from './coverage.js';
@@ -26,13 +26,15 @@ function pickStyle(r) {
 }
 
 // episode i of a batch: everything about it comes from (batch, i) - one of the five monster types, a kid style
-// (5% chaos) and skill, and 40% of the time a random mid-game start
-export function configFor(batch, i) {
+// (5% chaos) and skill, and 40% of the time a random mid-game start; keys: the share of kids played as on a keyboard
+// (data v3 on; 0 keeps the earlier batches as they were)
+export function configFor(batch, i, { keys = 0 } = {}) {
   const seed = hash(batch, i), r = rng(hash(seed, 'config'));
   const persona = { type: PERSONA_TYPES[Math.floor(r() * PERSONA_TYPES.length)] };
   const chaos = r() < 0.05;
   const kid = { style: chaos ? 'chaos' : pickStyle(r), skill: 0.2 + 0.8 * r() };
   const start = r() < 0.4 ? 'mid' : 'fresh';
+  if (r() < keys) kid.keys = true;
   return { id: `${batch}:${i}`, seed, persona, kid, start, maxT: 300 };
 }
 
@@ -40,7 +42,8 @@ export function configFor(batch, i) {
 export function createEpisode(config) {
   const G = createGame(L, config.seed);
   G.mind = createMind(G, config.persona, hash(config.seed, 1));
-  const kidBot = createKidBot(G, config.kid, rng(config.kidSeed ?? hash(config.seed, 2)));
+  let kidBot = createKidBot(G, config.kid, rng(config.kidSeed ?? hash(config.seed, 2)));
+  if (config.kid.keys) kidBot = keyboard(kidBot, rng(hash(config.seed, 4)));
   if (config.start === 'mid') randomStart(G, rng(hash(config.seed, 3)));
   return { G, kidBot };
 }

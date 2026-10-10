@@ -47,3 +47,18 @@ test('cornered under a table, a kid slips out the far side after a while', () =>
     assert.ok(left, `${style} never left the table`);
   }
 });
+
+test('a keyboard kid presses 8 directions at full tilt or nothing, and walks into walls more', async () => {
+  const { keyboard } = await import('../src/sim/bots/kid.js');
+  let blocked = 0, n = 0;
+  const r = runEpisode({ ...configFor('kb', 1, { keys: 1 }), maxT: 60 }, {
+    onRecord(row, G, ki) {
+      const m = Math.hypot(ki.mx, ki.mz);
+      assert.ok(m === 0 || Math.abs(m - 1) < 1e-5, `|input| ${m}`);
+      if (m) { const a = Math.atan2(ki.mz, ki.mx) / (Math.PI / 4); assert.ok(Math.abs(a - Math.round(a)) < 1e-5); }
+      n++; if (m && Math.hypot(G.kid.vx, G.kid.vz) < 0.3) blocked++;
+    },
+  });
+  assert.equal(typeof keyboard, 'function');
+  assert.ok(r.rows > 50 && blocked / n > 0.01, `blocked pushes ${blocked}/${n}`);
+});

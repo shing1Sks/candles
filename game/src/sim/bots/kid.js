@@ -49,6 +49,26 @@ export function createKidBot(G, { style = 'probe', skill = 0.6 } = {}, rand = Ma
 }
 
 // random sticks held for a while, random buttons
+// A player on a keyboard, around any kid bot: 8 directions at full tilt, a key kept down a moment after the bot lets
+// go, and now and then one direction held for a while whatever is in the way (players walk into walls; the bots
+// rarely do, so the model had little to learn walls from).
+export function keyboard(bot, rand) {
+  let key = null, holdT = 0, pushT = 0, push = null;
+  return (obs, dt) => {
+    const inp = bot(obs, dt);
+    holdT -= dt; pushT -= dt;
+    if (pushT <= 0 && rand() < dt / 12) { push = Math.floor(rand() * 8); pushT = 0.4 + rand() * 1.6; } // ~10% of the time
+    let dir = null;
+    if (pushT > 0) dir = push;
+    else if (Math.hypot(inp.mx, inp.mz) > 0.3) dir = ((Math.round(Math.atan2(inp.mz, inp.mx) / (Math.PI / 4)) % 8) + 8) % 8;
+    if (dir !== null) { key = dir; holdT = 0.05 + rand() * 0.2; } else if (holdT <= 0) key = null;
+    const a = key * Math.PI / 4;
+    // keys have no half-press: where the bot eases off to go quietly, the player holds shift
+    const creep = inp.creep || (pushT <= 0 && dir !== null && Math.hypot(inp.mx, inp.mz) < 0.7);
+    return { ...inp, creep, mx: key === null ? 0 : Math.round(Math.cos(a) * 1e6) / 1e6, mz: key === null ? 0 : Math.round(Math.sin(a) * 1e6) / 1e6 };
+  };
+}
+
 function chaos(rand) {
   let inp = { ...IDLE }, left = 0;
   return (obs, dt) => {
