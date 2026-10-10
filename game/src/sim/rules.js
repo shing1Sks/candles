@@ -70,3 +70,17 @@ export const BEAM = {
 
 export const HEART = { radius: 15 };
 export const CANDLE = { light: 5.5, litAt: 0.22 };
+
+// The giant's hand: once you have blown out a couple of candles it gets impatient and reaches down into the
+// house near where it thinks you are. A shadow spreads first; then the hand comes down. Be under something.
+export const REACH = {
+  after: 2, // candles out before it starts
+  first: 35, // seconds after that until the first reach
+  every: [75, 40], // seconds between reaches, few candles out .. one left
+  aim: 2.5, // it aims about this far off you
+  shadow: 2.2, // the warning
+  down: 0.35,
+  hold: 0.9,
+  up: 1.0,
+  radius: 1.35,
+};

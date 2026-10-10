@@ -155,3 +155,28 @@ export function createDetails(scene, L, U) {
   }
   return { dust };
 }
+
+// The giant's hand coming down: its shadow spreads on the floor, darkest just before it lands.
+export function createReachShadow(scene) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(1, 40), new THREE.ShaderMaterial({
+    uniforms: { uA: { value: 0 } },
+    vertexShader: 'varying vec2 vP; void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform float uA; varying vec2 vP; void main() { float d = length(vP); gl_FragColor = vec4(0.0, 0.0, 0.0, uA * smoothstep(1.0, 0.25, d)); }',
+    transparent: true, depthWrite: false,
+  }));
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.02;
+  m.visible = false;
+  scene.add(m);
+  return {
+    update(G, REACH) {
+      const R = G.reach;
+      m.visible = R.state !== 'idle';
+      if (!m.visible) return;
+      m.position.x = R.x; m.position.z = R.z;
+      const f = R.state === 'shadow' ? Math.min(1, R.t / REACH.shadow) : R.state === 'up' ? Math.max(0, 1 - R.t / REACH.up) : 1;
+      m.scale.setScalar(REACH.radius * (2.4 - 1.2 * f));
+      m.material.uniforms.uA.value = 0.95 * f;
+    },
+  };
+}

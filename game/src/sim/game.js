@@ -1,7 +1,7 @@
 // The whole game, with no graphics: a kid, six candles and a monster on a tile grid, plus doors, wardrobes,
 // creaky boards, squeaky toys, toys to throw and the giant's searchlight.
 // Runs the same in the browser and in Node, so bots can play it later.
-import { KID, MON, BEAM } from './rules.js';
+import { KID, MON, BEAM, REACH } from './rules.js';
 import { T } from './level.js';
 import { resolve, los } from './grid.js';
 import { createMonster, stepMonster } from './monster.js';
@@ -30,6 +30,7 @@ export function createGame(L, seed = 1) {
     items: L.items.map((it, id) => ({ ...it, id, held: false, fly: null })),
     squeaks: L.squeaks.map((s, id) => ({ ...s, id, cool: 0 })),
     beam: { state: 'idle', next: BEAM.first, t: 0, x: 0, z: 0, dx: 0, dz: 0, spotted: false },
+    reach: { state: 'idle', next: -1, t: 0, x: 0, z: 0 },
   };
   // what blocks whom changes as doors open and shut
   const shut = (x, z) => { const id = L.doorAt(x, z); return id >= 0 && !G.doors[id].open; };
@@ -53,6 +54,7 @@ export function step(G, input, dt) {
   stepKid(G, input, dt);
   stepItems(G, dt);
   stepBeam(G, dt);
+  stepReach(G, dt);
   stepMonster(G, dt);
   G.noises.length = 0;
   checkCatch(G);
@@ -250,6 +252,41 @@ function stepBeam(G, dt) {
       B.state = 'idle'; B.t = 0;
       B.next = (BEAM.every[1] + (BEAM.every[0] - BEAM.every[1]) * f) * (0.8 + G.rand() * 0.4);
     }
+  }
+}
+
+// The giant's hand. idle -> shadow (it is coming) -> down (grabs) -> hold -> up.
+function stepReach(G, dt) {
+  const R = G.reach, k = G.kid;
+  const out = G.candles.filter((c) => !c.lit).length;
+  if (out < REACH.after) return;
+  if (R.next < 0) R.next = REACH.first;
+  R.t += dt;
+  if (R.state === 'idle') {
+    R.next -= dt;
+    if (R.next > 0 || G.beam.state !== 'idle') return;
+    const a = G.rand() * Math.PI * 2, e = G.rand() * REACH.aim;
+    R.x = Math.max(1.5, Math.min(G.L.w - 1.5, k.x + Math.cos(a) * e));
+    R.z = Math.max(1.5, Math.min(G.L.h - 1.5, k.z + Math.sin(a) * e));
+    R.state = 'shadow'; R.t = 0;
+    G.events.push({ type: 'reach', x: R.x, z: R.z });
+  } else if (R.state === 'shadow') {
+    if (R.t > REACH.shadow) { R.state = 'down'; R.t = 0; }
+  } else if (R.state === 'down') {
+    if (R.t > REACH.down) {
+      R.state = 'hold'; R.t = 0;
+      G.events.push({ type: 'grab', x: R.x, z: R.z });
+      if (Math.hypot(k.x - R.x, k.z - R.z) < REACH.radius && !covered(G)) {
+        G.events.push({ type: 'grabbed' });
+        caught(G);
+      }
+    }
+  } else if (R.state === 'hold') {
+    if (R.t > REACH.hold) { R.state = 'up'; R.t = 0; }
+  } else if (R.t > REACH.up) {
+    const left = G.candles.filter((c) => c.lit).length, f = (left - 1) / Math.max(1, G.candles.length - 1);
+    R.state = 'idle'; R.t = 0;
+    R.next = (REACH.every[1] + (REACH.every[0] - REACH.every[1]) * f) * (0.8 + G.rand() * 0.4);
   }
 }
 

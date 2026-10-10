@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { outMat } from './outlit.js';
 import { fur, ik, bone, place } from './rig.js';
+import { REACH } from '../sim/rules.js';
 import { glowTexture } from './actors.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -132,7 +133,7 @@ export function createGiant(L, camera) {
   });
 
   // ---------------- animation
-  const st = { lean: 0, hunt: 0, slam: -1, lookUp: 0, close: 0, roar: 0, beam: 0, blink: 0, nextBlink: 3 };
+  const st = { reach: 0, reachSide: 1, lean: 0, hunt: 0, slam: -1, lookUp: 0, close: 0, roar: 0, beam: 0, blink: 0, nextBlink: 3 };
   const nodes = Array.from({ length: N + 1 }, () => new THREE.Vector3());
   const dirs = Array.from({ length: N }, () => new THREE.Vector3());
   const eyePos = new THREE.Vector3(cx, 8, -2), want = new THREE.Vector3(), look = new THREE.Vector3();
@@ -142,7 +143,7 @@ export function createGiant(L, camera) {
 
   function spine(t) {
     // total forward curl: ~100 degrees, more when it hunts, less when it sits back
-    const curl = 1.55 + st.lean * 0.38 - st.close * 0.5 - st.lookUp * 0.35 + st.roar * 0.15;
+    const curl = 1.55 + st.lean * 0.38 - st.close * 0.5 - st.lookUp * 0.35 + st.roar * 0.15 + st.reach * 0.45;
     const sway = Math.sin(t * 0.37) * 0.04;
     nodes[0].copy(BASE);
     for (let i = 0; i < N; i++) {
@@ -157,7 +158,7 @@ export function createGiant(L, camera) {
     }
   }
 
-  function arm(A, t, M, grip) {
+  function arm(A, t, M, grip, R) {
     // shoulder hangs off the 4th spine node, out to the side and a little forward
     const sh = v1.copy(nodes[4]).add(v3.set(A.s * 10, -1.5, 0)).addScaledVector(dirs[3], -1).add(v2.set(0, 0, 1.5));
     const target = A.wrist;
@@ -170,19 +171,38 @@ export function createGiant(L, camera) {
       else if (s < 0.95) target.copy(down);
       else target.lerpVectors(down, grip, Math.min(1, (s - 0.95) / 0.6) ** 0.7);
       holding = s > 1.5;
+    } else if (R.state !== 'idle' && A.s === st.reachSide) {
+      // the reach: the hand lifts off the controller, swings out over the house, hangs open over the spot
+      // while its shadow spreads, then drops, closes, and goes back
+      const over = v2.set(R.x, 3.4 + Math.sin(t * 2.3) * 0.15, R.z), at = v3.set(R.x, 0.55, R.z); // hovering just over the walls
+      if (R.state === 'shadow') target.lerpVectors(grip, over, Math.min(1, R.t / (REACH.shadow * 0.8)) ** 0.6);
+      else if (R.state === 'down') target.lerpVectors(over, at, Math.min(1, R.t / REACH.down) ** 2);
+      else if (R.state === 'hold') target.copy(at).add(v2.set(0, Math.sin(t * 30) * 0.05, 0));
+      else target.lerpVectors(at, grip, Math.min(1, R.t / REACH.up) ** 0.7);
+      holding = false;
     } else target.copy(grip);
     const pole = v2.copy(sh).add(v3.set(A.s * 9, -2.5, -4));
-    ik(sh, target, 8.2, 7.6, pole, A.elbow);
+    // the arm stretches as far as it has to - further than an arm should
+    const need = sh.distanceTo(target) * 1.04, k = Math.max(1, need / 15.8);
+    ik(sh, target, 8.2 * k, 7.6 * k, pole, A.elbow);
     place(A.upper, sh, A.elbow); place(A.fore, A.elbow, target);
     A.elbowBall.position.copy(A.elbow);
     A.upperFur.position.copy(sh).lerp(A.elbow, 0.5);
     A.upperFur.quaternion.setFromUnitVectors(UP, v3.subVectors(A.elbow, sh).normalize());
     A.upperFur.scale.set(1, sh.distanceTo(A.elbow) / 1.2, 1);
+    A.upperFur.visible = k < 1.12; // a stretched arm would drag its fur into streaks
     // the hand sits on the grip, matching the controller's tilt; a fist when it lets go
     A.hand.position.copy(target);
     if (holding) A.hand.quaternion.copy(pad.group.quaternion);
     else A.hand.quaternion.setFromUnitVectors(UP, v3.subVectors(target, A.elbow).normalize().negate()).multiply(q1.setFromAxisAngle(UP, A.s * 0.5));
-    A.fingers.forEach((f, i) => { f.rotation.x = holding ? 0 : -0.6 - i * 0.05; });
+    if (!holding && A.s === st.reachSide && R.state !== 'idle' && R.state !== 'up') A.hand.quaternion.setFromAxisAngle(v3.set(1, 0, 0), Math.PI); // palm down over the house
+    // fingers: wrapped round the grip; a fist after the slam; splayed wide over the house, snapping shut on the grab
+    const open = R.state === 'shadow' || R.state === 'down' ? 1 : 0;
+    A.fingers.forEach((f, i) => {
+      if (holding) f.rotation.set(0, 0, 0);
+      else if (A.s === st.reachSide && R.state !== 'idle') f.rotation.set(open ? 0.9 : -0.9, 0, (i - 1.5) * (open ? 0.35 : 0.08));
+      else f.rotation.set(-0.6 - i * 0.05, 0, 0);
+    });
     // thumb: from the side of the hand to the top of its stick
     const base = v1.set(-A.s * 1.2, 0.6, 0.6).applyQuaternion(A.hand.quaternion).add(A.hand.position);
     const tip = holding ? pad.sticks[A.s > 0 ? 0 : 1].localToWorld(v2.set(0, 0.3, 0)) : v2.copy(base).add(v3.set(A.s * 0.4, 0.5, 1.2));
@@ -214,6 +234,9 @@ export function createGiant(L, camera) {
         if (was < 0.6 && st.slam >= 0.6) onImpact?.();
         if (st.slam > 1.7) st.slam = -1;
       }
+      const R = G.reach;
+      if (R.state === 'shadow' && R.t < 0.05) st.reachSide = R.x < cx ? -1 : 1;
+      st.reach += ((R.state !== 'idle' && R.state !== 'up' ? 1 : 0) - st.reach) * Math.min(1, dt * 2.5);
       spine(t);
 
       // head at the top of the spine, facing down over the board; it tracks its piece, or you
@@ -275,7 +298,7 @@ export function createGiant(L, camera) {
       for (const A of arms) {
         // the controller is turned round to face it, so its local -x is our +x
         const grip = pad.group.localToWorld(new THREE.Vector3(-A.s * 0.85, -0.1, 0.5));
-        arm(A, t, M, grip);
+        arm(A, t, M, grip, G.reach);
       }
       // fur bristles when it hunts or roars
       furMat.uniforms.uSway.value = 0.12 + st.hunt * 0.12 + st.roar * 0.25;

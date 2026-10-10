@@ -10,12 +10,12 @@ import { U } from './shade.js';
 import { createMaps } from './maps.js';
 import { buildWorld } from './world.js';
 import { createKid, createMonster } from './actors.js';
-import { createCandles, createDetails } from './fx.js';
+import { createCandles, createDetails, createReachShadow } from './fx.js';
 import { createTable } from './table.js';
 import { createProps } from './props.js';
 import { WALL_H } from './world.js';
 import { los } from '../sim/grid.js';
-import { HEART } from '../sim/rules.js';
+import { HEART, REACH } from '../sim/rules.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -34,6 +34,7 @@ export function createView(canvas, L) {
   scene.add(kid.root, monster.root);
   const candles = createCandles(scene, L.candles);
   createDetails(scene, L, U);
+  const reachShadow = createReachShadow(scene);
   const table = createTable(scene, camera, L);
   const props = createProps(scene, L);
   // the giant's fist hits the table: the whole board jumps
@@ -179,6 +180,7 @@ export function createView(canvas, L) {
       const intensities = candles.update(G, dt, t);
       maps.update(G, k.x, k.z, inWall, intensities, dt);
       props.update(G, dt, t);
+      reachShadow.update(G, REACH);
       kid.root.visible = k.hidden < 0;
       hide += ((k.hidden >= 0 ? 1 : 0) - hide) * Math.min(1, dt * 5);
       post.uniforms.uHide.value = hide;

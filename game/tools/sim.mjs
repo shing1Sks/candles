@@ -20,6 +20,11 @@ function kidBot(G) {
   const K = st.known && G.t - st.known.t < 4 ? st.known : null;
   const d = K ? Math.hypot(K.x - k.x, K.z - k.z) : 99;
   const danger = M.mode !== 'sleep' && d < 7;
+  const Rh = G.reach;
+  if (Rh.state === 'shadow' && !k.crawl && Math.hypot(k.x - Rh.x, k.z - Rh.z) < 2.2) {
+    const dx = k.x - Rh.x, dz = k.z - Rh.z, n = Math.hypot(dx, dz) || 1;
+    return { mx: dx / n, mz: dz / n, creep: false, blow: false };
+  }
   if (st.planT <= 0 || danger !== st.flee) {
     st.planT = 0.25; st.flee = danger;
     const kd = distField(L, tf(k.x), tf(k.z), L.kidBlocked);
