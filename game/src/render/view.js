@@ -1,15 +1,18 @@
-// Ties the renderer together: a tilted top-down camera that follows the kid, the maps, the maze,
-// the actors, and a grey film pass (gamma, vignette, grain, fear).
+// Ties the renderer together. You sit at a table with the maze on it like a board game; the giant playing
+// the monster sits across from you. The camera is your head: it leans in over the board toward your piece
+// (zoom with the mouse wheel or Z). Then a grey film pass (gamma, vignette, grain, fear).
 import * as THREE from 'three';
 import { U } from './shade.js';
 import { createMaps } from './maps.js';
 import { buildWorld } from './world.js';
 import { createKid, createMonster } from './actors.js';
 import { createCandles } from './fx.js';
+import { createTable } from './table.js';
+import { WALL_H } from './world.js';
 import { los } from '../sim/grid.js';
 import { HEART } from '../sim/rules.js';
 
-const OFFSET = new THREE.Vector3(0, 15.5, 9.4);
+const lerp = (a, b, t) => a + (b - a) * t;
 
 export function createView(canvas, L) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
@@ -17,7 +20,7 @@ export function createView(canvas, L) {
   renderer.autoClear = true;
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0, 0, 0);
-  const camera = new THREE.PerspectiveCamera(36, 1, 0.5, 60);
+  const camera = new THREE.PerspectiveCamera(35, 1, 0.3, 1500);
 
   const maps = createMaps(renderer, L);
   U.uVis.value = maps.vis; U.uLight.value = maps.light;
@@ -25,6 +28,8 @@ export function createView(canvas, L) {
   const kid = createKid(), monster = createMonster();
   scene.add(kid.root, monster.root);
   const candles = createCandles(scene, L.candles);
+  const table = createTable(scene, camera, L);
+  const center = new THREE.Vector3(L.w / 2, 0, L.h / 2);
 
   // film pass
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
@@ -59,7 +64,7 @@ export function createView(canvas, L) {
   const postCam = new THREE.Camera();
 
   const target = new THREE.Vector3(), tmp = new THREE.Vector3();
-  let shake = 0, fade = 0, first = true;
+  let shake = 0, first = true, zoom = 0.9, zoomWant = 0.9;
   const st = { flash: 0, dark: 0 };
 
   function resize() {
@@ -78,13 +83,23 @@ export function createView(canvas, L) {
   return {
     renderer, camera, st,
     shake(a) { shake = Math.max(shake, a); },
-    frame(G, dt, t) {
+    // 0: sit back and see the whole board and the giant; 1: down in the board, close and tilted
+    zoomBy(d) { zoomWant = Math.max(0, Math.min(1, zoomWant + d)); },
+    get zoom() { return zoomWant; },
+    setZoom(z) { zoom = zoomWant = z; },
+    frame(G, dt, t, input = {}) {
       const k = G.kid, M = G.monster;
-      // camera: follow with a little look-ahead
-      tmp.set(k.x + k.vx * 0.3, 0, k.z + k.vz * 0.3);
+      zoom += (zoomWant - zoom) * Math.min(1, dt * 3);
+      // your head: leaning in, it drops low over your piece and looks across the board toward the giant,
+      // the board's edges running off past the sides of your view
+      tmp.set(k.x + k.vx * 0.3, 0, k.z + k.vz * 0.3).lerp(center, lerp(0.7, 0, zoom));
+      tmp.z -= (1 - zoom) * 4 + zoom * 2.2; tmp.y += (1 - zoom) * 2;
       if (first) { target.copy(tmp); first = false; }
-      target.lerp(tmp, Math.min(1, dt * 4));
-      camera.position.copy(target).add(OFFSET);
+      target.lerp(tmp, Math.min(1, dt * 3));
+      const D = lerp(62, 13, zoom), pitch = lerp(0.6, 0.68, zoom), fov = lerp(35, 58, zoom);
+      if (Math.abs(camera.fov - fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
+      camera.position.set(target.x, Math.sin(pitch) * D, target.z + Math.cos(pitch) * D);
+      camera.position.x += Math.sin(t * 0.31) * 0.25 * (1 - zoom); camera.position.y += Math.sin(t * 0.43) * 0.15;
       shake = Math.max(0, shake - dt * 2.5);
       camera.position.x += (Math.random() - 0.5) * shake * 0.3;
       camera.position.z += (Math.random() - 0.5) * shake * 0.3;
@@ -100,10 +115,11 @@ export function createView(canvas, L) {
       kid.update(k, dt, t);
       monster.update(M, k, dt, t);
       // you only see it if the kid could
+      // behind walls you still see its eye on the stalk poking up over them
       const seen = !inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && los(L, k.x, k.z, M.x, M.z);
-      fade += ((seen ? 1 : 0) - fade) * Math.min(1, dt * 10);
-      monster.setFade(fade);
-      monster.root.visible = fade > 0.02;
+      monster.setSeen(seen, WALL_H + 0.02);
+      const lit = intensities.reduce((s, v) => s + v, 0) / intensities.length;
+      table.update(G, dt, t, input, 0.25 + 0.75 * lit, zoom);
 
       U.uTime.value = t;
       U.uKid.value.set(k.x, 0, k.z);

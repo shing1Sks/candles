@@ -2,7 +2,7 @@ html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
 body { font-family: Georgia, 'Times New Roman', serif; color: #cfcfcf; user-select: none; }
 #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
 
-#candles { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; }
+#candles { position: fixed; top: 22px; left: 22px; display: flex; gap: 14px; }
 #candles i { width: 8px; height: 18px; border-radius: 2px; background: #3a3a3a; position: relative; }
 #candles i.lit::after {
   content: ''; position: absolute; left: -3px; top: -16px; width: 14px; height: 14px; border-radius: 50%;

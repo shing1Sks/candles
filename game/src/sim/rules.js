@@ -34,8 +34,8 @@ export const MON = {
   sightClose: 2.2, // sees you this close even behind it
   fov: 0.0, // cos of the half-angle: 180 degrees ahead
   hiddenSeen: 1.4, // under a bed or table you are only seen this close
-  pingEvery: [10, 5], // a fuzzy sense of where you are, every 10 s with all candles lit, 5 s with one left...
-  pingErr: 4, // ...about a room off
+  pingEvery: [7, 3.5], // it almost always knows roughly where you are: every 7 s, every 3.5 s with one candle left...
+  pingErr: 3, // ...about 3 m off (you, in turn, can always see its eye over the walls)
   sameGap: 3, // use the same gap this often in one chase and it waits at the other end instead
   menaceMax: 25, // seconds of close pressure before it backs off...
   breather: 9, // ...for this long

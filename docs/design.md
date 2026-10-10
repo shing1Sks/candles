@@ -6,6 +6,14 @@ through the small gaps.
 
 ## Decisions (agreed 2026-10-10)
 
+- **The table (the user's sketch, clarified):** the maze is a small diorama board on a dark table in an endless
+  dark universe. Across the table sits a giant version of the monster, hunched over the board with a controller.
+  It is the one playing: its thumbs move the sticks as its piece moves, its eye follows the game and leans in when
+  it hunts, and it looks up at you when it wins. You sit on the near side. The default view is low and tilted,
+  down in the board with its edges running off the sides; Z or the mouse wheel sits you back to see the whole
+  board and the giant. Everything outside the board is lit only by the board's glow, so the giant sinks into the
+  dark as the candles go out, until only its eye is left.
+
 - One hand-built level: six rooms (nursery, bathroom, kitchen, bedroom, playroom, cellar) inside a ring corridor.
 - Only shades of grey. Candles are the only light; each one you blow out makes the house darker.
 - The monster is a bot that plays like a person with a controller. There is no local multiplayer.
@@ -27,7 +35,7 @@ Numbers live in `game/src/sim/rules.js`. Starting values came from research into
 | Heartbeat | starts 15 m away, faster and louder as it closes | DbD terror radius |
 | It hears you | running 10 m (6 m through walls), vent rattle 3 m, blowing 6 m; creeping is silent | |
 | A candle going out | it hears exactly where | DbD generator alert: finishing an objective starts a chase |
-| Fuzzy sense of you | every 10 s (every 5 s with one candle left), about 4 m off | Alien: Isolation's director points the alien at your area but never your spot; Pac-Man speeds up near the end |
+| Both of you almost know where the other is | you always see its eye on its stalk over the walls; it senses you every 7 s (3.5 s with one candle left), about 3 m off | the user's original rule. Alien: Isolation's director points the alien at your area but never your exact spot; Pac-Man speeds up near the end |
 | Breather | after 25 s of close pressure it backs off to a far room for 9 s | Alien's menace gauge, Pac-Man's scatter phases |
 | It never sees through walls | dark sight 8 m, candlelight 13 m; under a bed you are seen only within 1.4 m | Hello Neighbor and other "cheating AI" complaints |
 | Blowing a candle | 1.5 s; progress is kept if you let go | the risk is getting there and away, not the button |
@@ -37,9 +45,12 @@ a candle with no escape route (the balance probe found the cellar candle was a d
 
 ## Balance probe
 
-`npm run sim` runs a rough kid bot (fair information: it knows where the monster is only by sight or within
-6 m) against the monster. Latest: 60 games → 8 won, 17 caught, 35 stand-offs where the cautious bot hides
-and never commits. That reads as "very hard" for a careful player. Tune by playing.
+`npm run sim` runs a rough kid bot against the monster (`OMNI=1` lets it always know where the monster is,
+matching the eye over the walls).
+- Showing the monster's eye over the walls lifted the bot's wins from 8 to 33 of 60.
+- So the monster's sense of you was raised to match. Every 4 s won 1 of 60, every 8 s won 18; we kept every 7 s.
+- Latest, 100 games: 13 won, 44 caught, 43 stand-offs where the cautious bot hides and never commits.
+- That is "ridiculously difficult but beatable". Tune by playing.
 
 ## Look
 

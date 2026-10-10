@@ -24,7 +24,7 @@ const vert = /* glsl */ `
 
 const frag = /* glsl */ `
   uniform sampler2D uVis, uLight, uRoom; uniform vec2 uSize, uKidPx;
-  uniform float uAmb, uTime, uCutR, uCut, uPattern, uFade, uLit;
+  uniform float uAmb, uTime, uCutR, uCut, uPattern, uFade, uLit, uClipY;
   uniform vec3 uColor, uEmis, uKid;
   varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
 
@@ -74,6 +74,7 @@ const frag = /* glsl */ `
       if (c * 0.9 > bayer(gl_FragCoord.xy)) discard;
     }
     if (uFade < 0.999 && uFade < bayer(gl_FragCoord.xy)) discard;
+    if (vW.y < uClipY) discard; // the monster behind a wall: only what pokes above it
     vec3 n = normalize(vN);
     if (uPattern > 3.5 && n.y > 0.7 && fract(vW.x * 5.0) < 0.55 && fract(vW.z * 5.0) < 0.55) discard; // vent grate
     vec2 p = vW.xz + n.xz * 0.07;
@@ -88,6 +89,7 @@ const frag = /* glsl */ `
     if (uPattern > 0.5 && uPattern < 1.5) base *= floorShade(vW.xz);
     else if (uPattern > 1.5 && uPattern < 3.5) base *= wallShade(vW, n);
     vec3 col = base * L * ao * mix(0.14, 1.0, vs.r);
+    if (p.x < 0.0 || p.y < 0.0 || p.x > uSize.x || p.y > uSize.y) col = base * 0.25 * uLit; // outside faces of the board: the table's glow
     if (uPattern > 2.5 && n.y > 0.7) col = vec3(0.016 + 0.014 * vs.r); // wall tops: the map, always readable
     col += uEmis;
     gl_FragColor = vec4(col, 1.0);
@@ -99,7 +101,7 @@ export function mat({ color = 0.5, emis = 0, pattern = 0, cut = false, vcol = fa
     uniforms: {
       ...U,
       uColor: { value: new THREE.Color(color, color, color) }, uEmis: { value: new THREE.Color(emis, emis, emis) },
-      uPattern: { value: pattern }, uCut: { value: cut ? 1 : 0 }, uFade: { value: 1 }, uLit: { value: lit },
+      uPattern: { value: pattern }, uCut: { value: cut ? 1 : 0 }, uFade: { value: 1 }, uLit: { value: lit }, uClipY: { value: -100 },
     },
     vertexShader: vert, fragmentShader: frag, vertexColors: vcol, side,
   });

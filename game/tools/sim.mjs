@@ -15,7 +15,8 @@ function kidBot(G) {
   st.planT -= DT;
   // fair information: it sees the monster only in line of sight; closer than 6 m it hears it
   const realD = Math.hypot(M.x - k.x, M.z - k.z);
-  if ((realD < 14 && los(L, k.x, k.z, M.x, M.z)) || realD < 6) st.known = { x: M.x, z: M.z, t: G.t };
+  // OMNI=1: the monster's eye shows over the walls, so the player always knows where it is
+  if (process.env.OMNI || (realD < 14 && los(L, k.x, k.z, M.x, M.z)) || realD < 6) st.known = { x: M.x, z: M.z, t: G.t };
   const K = st.known && G.t - st.known.t < 4 ? st.known : null;
   const d = K ? Math.hypot(K.x - k.x, K.z - k.z) : 99;
   const danger = M.mode !== 'sleep' && d < 7;

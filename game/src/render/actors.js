@@ -64,14 +64,14 @@ export function createKid() {
 }
 
 // fur: a shell of dark spikes on an egg-shaped body
-function spikes(n, rx, ry, rz, len) {
+export function spikes(n, rx, ry, rz, len, base = 0.045) {
   const geos = [];
   const up = new THREE.Vector3(0, 1, 0);
   for (let i = 0; i < n; i++) {
     const y = 1 - (i / (n - 1)) * 1.7, r = Math.sqrt(Math.max(0, 1 - y * y)), a = i * 2.399963;
     const dir = new THREE.Vector3(Math.cos(a) * r, y, Math.sin(a) * r).normalize();
     const L = len * (0.6 + ((i * 7919) % 100) / 100 * 0.8);
-    const c = new THREE.ConeGeometry(0.045, L, 5);
+    const c = new THREE.ConeGeometry(base, L, 5);
     c.translate(0, L / 2, 0);
     c.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir.clone().add(new THREE.Vector3(0, 0.25, 0)).normalize()));
     c.translate(dir.x * rx, dir.y * ry, dir.z * rz);
@@ -155,7 +155,8 @@ export function createMonster() {
       eye.lookAt(look);
       eye.scale.setScalar(M.mode === 'windup' ? 1.35 : 1);
     },
-    setFade(f) { for (const m of this.materials) m.uniforms.uFade.value = f; halo.material.opacity = 0.35 * f; },
+    // seen: the whole body; hidden behind walls: only what pokes above them (the eye on its stalk)
+    setSeen(seen, clipY) { for (const m of this.materials) m.uniforms.uClipY.value = seen ? -100 : clipY; },
   };
 }
 

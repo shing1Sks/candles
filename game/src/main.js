@@ -20,6 +20,7 @@ function newGame() {
   drawCandles();
 }
 newGame();
+if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
 
 // ---------- input ----------
 const keys = new Set();
@@ -31,6 +32,8 @@ addEventListener('keydown', (e) => {
   else if ((phase === 'caught' || phase === 'won') && performance.now() - endT > 1200 && (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter')) { newGame(); begin(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('wheel', (e) => view.zoomBy(-Math.sign(e.deltaY) * 0.12), { passive: true });
+addEventListener('keydown', (e) => { if (e.code === 'KeyZ') view.zoomBy(view.zoom > 0.5 ? -1 : 1); });
 addEventListener('pointerdown', () => { if (phase === 'title') begin(); });
 addEventListener('blur', () => keys.clear());
 
@@ -97,7 +100,7 @@ function frame(now) {
   if (phase === 'caught') { view.st.flash = Math.max(0, view.st.flash - dt * 3); view.st.dark = Math.min(0.85, view.st.dark + dt * 0.8); }
   if (phase === 'won') view.st.dark = Math.min(0.6, view.st.dark + dt * 0.3);
   audio.update(G, dt, near);
-  view.frame(G, dt, t);
+  view.frame(G, dt, t, input);
 }
 requestAnimationFrame(frame);
 
