@@ -101,7 +101,7 @@ export const EVENT_TYPES = [
   'creak', 'squeak', 'pickup', 'throw', 'throwRefused', 'land',
   'beam', 'beamSpot', 'reach', 'grab', 'grabbed',
   'wake', 'mstep', 'spotted', 'windup', 'lunge', 'doorTry', 'checkOpen', 'checkEmpty', 'found', 'yell',
-  'mode', 'lost', 'mood', 'tactic', 'fury', 'spent',
+  'mode', 'lost', 'mood', 'tactic', 'fury', 'spent', 'hideSeen',
 ];
 const EVENT_ID = new Map(EVENT_TYPES.map((t, i) => [t, i]));
 export function eventId(type) {

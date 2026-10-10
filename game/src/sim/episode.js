@@ -8,6 +8,7 @@ import { createMind, think } from './mind/index.js';
 import { createKidBot, observeKid, KID_STYLES } from './bots/kid.js';
 import { randomStart } from './bots/start.js';
 import { PERSONA_TYPES } from './mind/personas.js';
+import { countCases } from './coverage.js';
 import { rng, hash } from './rng.js';
 import { STATE_SIZE, KI_SIZE, GI_SIZE, encode, encodeKI, encodeGI, eventId } from './schema.js';
 
@@ -80,7 +81,7 @@ function grower(Type, n) {
 export function runEpisode(config, { onRecord, record = false } = {}) {
   const ep = startEpisode(config), G = ep.G;
   const st = record && grower(Float32Array, STATE_SIZE * 512), k = record && grower(Float32Array, KI_SIZE * 512), g = record && grower(Float32Array, GI_SIZE * 512);
-  const events = [];
+  const events = [], counts = {};
   if (record) st.push((a, o) => encode(G, a, o), STATE_SIZE); // the state before the first step
   while (!episodeOver(ep)) {
     const row = ep.rows;
@@ -91,11 +92,12 @@ export function runEpisode(config, { onRecord, record = false } = {}) {
       g.push((a, o) => encodeGI(ep.gi, a, o), GI_SIZE);
       for (const e of G.events) events.push([row, eventId(e.type), e.x ?? -1, e.z ?? -1, e.id ?? -1]);
     }
+    countCases(G, G.events, ep.ki, ep.gi, row, counts);
     onRecord?.(row, G, ep.ki, ep.gi, G.events);
     G.events.length = 0;
   }
   // t: seconds played in this episode; clock: the game's clock at the end
-  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t - ep.t0, clock: G.t, counts: {}, hash: episodeHash(ep), rows: ep.rows, G };
+  const out = { config, outcome: G.state === 'play' ? 'timeout' : G.state, t: G.t - ep.t0, clock: G.t, counts, hash: episodeHash(ep), rows: ep.rows, G };
   if (record) Object.assign(out, { states: st.done(), ki: k.done(), gi: g.done(), events });
   return out;
 }

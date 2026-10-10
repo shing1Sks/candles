@@ -73,7 +73,7 @@ export function sense(G, dt, hidNow) {
   // seen getting into a wardrobe
   if (hidNow >= 0 && G.t - S.lastSeenT < 1.5) {
     const w = G.wardrobes[hidNow];
-    if (Math.hypot(w.fx - S.lastSeen.x, w.fz - S.lastSeen.z) < 3) S.hideSeen = w.id;
+    if (Math.hypot(w.fx - S.lastSeen.x, w.fz - S.lastSeen.z) < 3) { S.hideSeen = w.id; G.events.push({ type: 'hideSeen', id: w.id }); }
   }
   // hearing: your own running, crawling and blowing (it hears roughly where), and every other noise exactly
   const d = Math.hypot(k.x - M.x, k.z - M.z);

@@ -117,6 +117,9 @@ Units: 1 tile = 1 m, times in seconds. The rules run at 60 ticks a second. Posit
 
 ## 6. What the monster senses
 
+The world works these out at the end of every tick (`senses.js`). They pile up until the giant's mind next looks
+(`observe`), so a mind that decides every few ticks misses nothing. The mind knows nothing else about the kid.
+
 - **S1 Sight.** It sees you when all of these hold:
   - you are not in a wardrobe, vent or crack;
   - under a table or bed, you are within 1.4 m of it;
@@ -128,10 +131,25 @@ Units: 1 tile = 1 m, times in seconds. The rules run at 60 ticks a second. Posit
   - up to 3 m off.
 - **S3 Alerts.** A candle going out (C4) or the searchlight catching you (L3) tell it exactly where.
 - **S4 Leads land on its floor.** Any lead inside a wall or furniture is moved to the nearest tile it can stand on.
+- **It also feels** its setbacks and wins, which drive the personas' moods (section 12):
+  - a door shut in its face (within 3 m, ahead);
+  - a missed lunge;
+  - you slipping into a gap it saw you reach;
+  - a candle going out;
+  - an empty wardrobe;
+  - losing sight of you;
+  - spotting you;
+  - the searchlight finding you;
+  - the hand missing.
 
-## 7. How the monster behaves (today's scripted brain)
+## 7. How the monster behaves
 
-Speeds: patrol 2.2, hunt 3.0, chase 3.55 m/s (111% of the kid's run), accelerating at 10 m/s².
+Two kinds of mind play the giant's controller (section 12):
+- **Classic** is the original brain. The rules below are Classic's, line for line.
+- **The five personas** use the same behaviours as tactics, scored by their traits and mood.
+
+Speeds: patrol 2.2, hunt 3.0, chase 3.55 m/s (111% of the kid's run), accelerating at 10 m/s². Running past hunt speed
+needs the run button.
 
 - **B0 Asleep** for the first 4 s, or until an alert. It can't catch you asleep.
 - **B1 Chase.** It sees you and isn't busy → chase, aiming a little ahead of where you are going.
@@ -173,42 +191,79 @@ Speeds: patrol 2.2, hunt 3.0, chase 3.55 m/s (111% of the kid's run), accelerati
 
 ## 9. The giant's searchlight
 
-- **L1 When.** First at 45 s, then every 50 s with all candles lit down to 26 s with one left (±20%).
+- **L1 When.** The giant chooses.
+  - It is not available before 45 s.
+  - After each sweep it is not available again for 0.8 × the old gap: 50 s with all candles lit down to 26 s with one
+    left.
+  - Classic keeps the old schedule (±20%); personas use it when they have lost track of you, more when frustrated.
 - **L2 Where and how.**
-  - It picks a spot 2–6 m from you in a random direction.
+  - It shines where the giant aims. Classic aims 2–6 m from its last sense of you; personas aim within their best
+    guess.
   - It warns for 1.6 s as the light swells.
-  - It is on for 4.5 s, drifting at 0.8 m/s and steering toward you.
+  - It is on for 4.5 s, drifting at 0.8 m/s, turning the way the giant's right stick pushes.
   - It lights its area, so the monster sees 13 m there.
 - **L3 Spotted.** You are within 2.5 m of its centre and not covered (wardrobe, vent, crack, under a table or bed) →
   once per sweep, the monster is told exactly where you are.
 
 ## 10. The giant's hand
 
-- **H1 When.** From 2 candles out:
-  - the first reach comes 35 s later;
-  - then every 75 s with 2 out, down to 40 s with one left (±20%);
-  - it waits while the searchlight is up.
+- **H1 When.** From 2 candles out, the giant chooses:
+  - it is not available until 35 s after the second candle;
+  - after each reach, not again for 0.8 × the old gap (75 s with 2 out, down to 40 s with one left);
+  - never while the searchlight is up.
 - **H2 How.**
-  - It aims up to 2.5 m from you.
+  - It aims where the giant aims: up to 2.5 m from its sense of you.
   - Its shadow spreads for 2.2 s.
   - It comes down in 0.35 s, holds 0.9 s, and goes back up in 1 s.
 - **H3 Grabbed.** Within 1.35 m of where it lands and not covered → caught.
 
-## 11. Randomness today
+## 11. Randomness
 
-Every random draw comes from one seeded generator per game, so a seed plus the inputs replays a game exactly. The
-draws:
-- the searchlight spot and direction, and its interval jitter;
-- the hand's aim and interval jitter;
-- the ping's timing and error;
-- the jitter on the kid's own noises;
-- patrol and search spots;
-- the guard-or-wander choice;
-- near or far exit when ambushing;
-- the stuck shove;
-- the 40% wardrobe check.
+Each game draws from three seeded streams, so a seed plus the config replays a game exactly, and changing one never
+shifts the others.
+- **The world:**
+  - the searchlight's starting drift;
+  - the ping's timing and error;
+  - the jitter on the kid's own noises;
+  - the stuck shove.
+- **The giant's mind:**
+  - the persona's jittered traits;
+  - its tactic draws (softmax at a mood-set temperature);
+  - patrol, search and guard spots;
+  - near or far gap exit;
+  - wardrobe checks;
+  - when and where it uses the light and hand.
+- **The kid bot:** its reaction, wobble, slips and choices.
 
-## Planned changes
+## 12. The giant's controller, moods and personas
 
-The training design changes how the monster is driven: a giant's controller, personas and emotions. See its spec.
-When those land, sections 6, 7, 9 and 10 change here too.
+- **Z1 The controller.** The monster only moves through the giant's controller, and the world enforces every limit:
+  - the stick goes up to hunt speed; run allows chase speed + bloodlust + rage;
+  - the lunge has its crouch and recovery;
+  - doors take 0.6 s to open or 0.9 s to smash;
+  - a wardrobe takes 0.7 s to look inside;
+  - the light and hand have their cooldowns.
+
+  "Nothing happened" is an event too: `blowNothing`, `useNothing`, `shutRefused`, `unhideRefused`, `throwRefused`.
+- **Z2 Yell.** It stops and roars for 0.8 s, at most once every 6 s. A persona yells when its anger crosses 0.7, or
+  as a fury starts, and the event says why (`gapEscape`, `doorInFace`, `candleOut`, `lungeMiss`, `fury`).
+- **Z3 Fury.** Anger ≥ 0.75 with frustration ≥ 0.6 → 4 s of fury:
+  - it charges its best guess (never a thrown toy), running, smashing doors;
+  - then it is spent for 2.5 s, at no more than patrol speed.
+- **Z4 Tactics.** A persona re-decides every 0.5 s, or at once when something happens: it sees you, loses you, feels
+  a setback, gets an alert, or hears a noise.
+  - The tactics: fury, chase, hunt, search, check, intercept (at a candle), ambush (at a gap's exit), guard, wander,
+    breather.
+  - The draw is softmax at its temperature: raised by frustration, lowered by confidence.
+  - Every switch is logged with its reason.
+- **The types** (each game jitters the traits by about ±0.08):
+
+  | Type | Plays like |
+  |---|---|
+  | Pathfinder | the dumb baseline: goes to its best guess, no predicting, no cut-offs |
+  | Brute | charges, smashes, yells, lunges from further |
+  | Stalker | predicts where you are going, cuts you off at candles, waits at gap exits |
+  | Hound | hunts by ear, easily lured by a thrown toy |
+  | Warden | holds the lit candles, checks wardrobes, works the light |
+
+  Moods (anger, frustration, confidence) come from its sense of how it is doing; see `game/src/sim/mind/emotion.js`.
