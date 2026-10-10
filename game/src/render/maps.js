@@ -94,6 +94,7 @@ export function createMaps(renderer, L) {
   const opts = { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
   const vis = new THREE.WebGLRenderTarget(L.w * PX, L.h * PX, opts);
   const light = new THREE.WebGLRenderTarget(L.w * PX, L.h * PX, opts);
+  const bounce = new THREE.WebGLRenderTarget(L.w * 2, L.h * 2, opts); // ~0.5 m texels: light that has bounced
   const cam = new THREE.Camera();
   let segs = wallSegments(L);
 
@@ -148,7 +149,7 @@ export function createMaps(renderer, L) {
   const clear = new THREE.Color(0, 0, 0);
   let doorKey = '', t = 0;
   return {
-    vis: vis.texture, light: light.texture, ao: bakeAO(L), size, get segs() { return segs; }, candles,
+    vis: vis.texture, light: light.texture, bounce: bounce.texture, ao: bakeAO(L), size, get segs() { return segs; }, candles,
     // G: the game (doors, candles, beam). inWall: in a vent you only see yourself.
     update(G, kx, kz, inWall, intensities, dt) {
       t += dt;
@@ -184,6 +185,7 @@ export function createMaps(renderer, L) {
       renderer.setClearColor(clear, 1);
       renderer.setRenderTarget(vis); renderer.clear(); renderer.render(visScene, cam);
       renderer.setRenderTarget(light); renderer.clear(); renderer.render(lightScene, cam);
+      renderer.setRenderTarget(bounce); renderer.clear(); renderer.render(lightScene, cam);
       renderer.setRenderTarget(old); renderer.setClearColor(oc, oa);
     },
   };

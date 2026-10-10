@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 
 export const U = {
-  uVis: { value: null }, uLight: { value: null }, uRoom: { value: null }, uAO: { value: null }, uSize: { value: new THREE.Vector2(1, 1) },
+  uVis: { value: null }, uLight: { value: null }, uBounce: { value: null }, uRoom: { value: null }, uAO: { value: null }, uSize: { value: new THREE.Vector2(1, 1) },
   uAmb: { value: 0.012 }, uTime: { value: 0 }, uKid: { value: new THREE.Vector3() }, uKidPx: { value: new THREE.Vector2() },
   uCutR: { value: 120 }, uCamDir: { value: new THREE.Vector2(0, 1) },
 };
@@ -34,7 +34,7 @@ const vert = /* glsl */ `
   }`;
 
 const frag = /* glsl */ `
-  uniform sampler2D uVis, uLight, uRoom, uAO; uniform vec2 uSize, uKidPx, uCamDir;
+  uniform sampler2D uVis, uLight, uBounce, uRoom, uAO; uniform vec2 uSize, uKidPx, uCamDir;
   uniform float uAmb, uTime, uCutR, uCut, uPattern, uFade, uLit, uClipY;
   uniform vec3 uColor, uEmis, uKid;
   varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
@@ -71,12 +71,51 @@ const frag = /* glsl */ `
     else v = 0.26 * (0.7 + 0.5 * vnoise(p * 3.0)) * (0.85 + 0.3 * vnoise(p * 30.0)); // cellar concrete
     return v * grime;
   }
-  float wallShade(vec3 w, vec3 n) {
+  // Wallpaper by room, panelling below the rail, tiles in the wet rooms, brick in the cellar,
+  // and the house's age on all of it: damp creeping up from the floor, drips, hairline cracks.
+  float wallShade(vec3 w, vec3 n, float room) {
     float along = abs(n.x) > 0.5 ? w.z : w.x;
-    float paper = 0.9 + 0.1 * step(0.5, fract(along * 4.0));
-    float skirt = w.y < 0.14 ? 0.55 : 1.0;
-    float damp = 1.0 - 0.35 * smoothstep(0.6, 0.0, w.y) * vnoise(vec2(along * 2.0, 1.0));
-    return paper * skirt * damp * (0.85 + 0.25 * vnoise(vec2(along * 0.7, w.y * 0.5)));
+    vec2 q = vec2(along, w.y);
+    float v;
+    float rail = 0.6;
+    if (room > 5.5) { // cellar: rough brick all the way up
+      vec2 b = vec2(q.x / 0.24 + 0.5 * mod(floor(q.y / 0.08), 2.0), q.y / 0.08);
+      vec2 f = fract(b);
+      float mortar = smoothstep(0.0, 0.06, min(f.x, 1.0 - f.x) * 3.0) * smoothstep(0.0, 0.12, min(f.y, 1.0 - f.y));
+      v = mix(0.45, 0.75 + 0.25 * hash(floor(b)), mortar) * (0.85 + 0.2 * vnoise(q * 9.0));
+      rail = -1.0;
+    } else if (room > 1.5 && room < 3.5 && w.y < (room < 2.5 ? 1.05 : 0.9)) { // bathroom and kitchen: tiles to shoulder height
+      vec2 s = room < 2.5 ? vec2(0.15, 0.15) : vec2(0.2, 0.1);
+      vec2 b = q / s; if (room > 2.5) b.x += 0.5 * mod(floor(b.y), 2.0);
+      vec2 f = fract(b);
+      float grout = smoothstep(0.0, 0.07, min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y)));
+      v = mix(0.5, 1.08 + 0.08 * hash(floor(b)), grout);
+      rail = -1.0;
+    } else if (w.y < rail) { // panelling under the rail: tall boards with grooves
+      float g = fract(q.x / 0.16);
+      v = 0.72 * (0.85 + 0.15 * smoothstep(0.0, 0.08, min(g, 1.0 - g))) * (0.9 + 0.12 * vnoise(vec2(q.x * 2.0, q.y * 18.0)));
+    } else if (room < 0.5) { // corridors: faded diamonds
+      vec2 d = abs(fract(vec2(q.x / 0.3 + q.y / 0.3, q.x / 0.3 - q.y / 0.3)) - 0.5);
+      v = 0.86 + 0.08 * step(0.42, max(d.x, d.y));
+    } else if (room < 1.5) { // nursery: thin stripes and little dots
+      float dots = smoothstep(0.035, 0.02, length(fract(q / 0.12 + vec2(0.0, 0.5 * mod(floor(q.x / 0.12), 2.0))) - 0.5) * 0.12);
+      v = 0.9 + 0.07 * step(0.82, fract(q.x / 0.12)) + 0.08 * dots;
+    } else if (room < 4.5) { // bedroom: damask
+      vec2 c = fract(q / vec2(0.26, 0.34)) - 0.5;
+      float m = sin(atan(c.y, c.x) * 4.0) * 0.5 + 0.5;
+      v = 0.84 + 0.1 * smoothstep(0.24, 0.2, length(c) * (0.8 + 0.4 * m));
+    } else { // playroom: broad stripes
+      v = 0.82 + 0.12 * step(0.5, fract(q.x / 0.36));
+    }
+    if (rail > 0.0) {
+      v *= 1.0 - 0.25 * smoothstep(0.012, 0.0, abs(w.y - rail - 0.03)); // shadow line under the rail
+    }
+    // the age of the house
+    float damp = smoothstep(0.75, 0.0, w.y) * smoothstep(0.35, 0.75, vnoise(vec2(along * 1.3, 3.1)));
+    float drip = smoothstep(0.78, 0.92, vnoise(vec2(along * 9.0, 7.3))) * smoothstep(0.4, 1.5, w.y) * (0.6 + 0.4 * vnoise(vec2(along * 9.0, w.y * 2.0)));
+    float crack = smoothstep(0.02, 0.0, abs(vnoise(q * vec2(7.0, 5.0) + 11.0) - 0.5)) * step(0.74, vnoise(q * 0.7 + 4.0)) * smoothstep(0.3, 0.9, w.y);
+    v *= (1.0 - 0.3 * damp) * (1.0 - 0.22 * drip) * (1.0 - 0.35 * crack);
+    return v * (0.9 + 0.15 * vnoise(vec2(along * 0.6, w.y * 0.4)));
   }
 
   void main() {
@@ -94,6 +133,9 @@ const frag = /* glsl */ `
     vec2 uv = p / uSize, e = vec2(0.06) / uSize;
     vec2 vs = 0.25 * (texture2D(uVis, uv + e).rg + texture2D(uVis, uv - e).rg + texture2D(uVis, uv + vec2(e.x, -e.y)).rg + texture2D(uVis, uv + vec2(-e.x, e.y)).rg);
     float lt = texture2D(uLight, uv).r;
+    // light bounced off the walls and floor: soft, spilling a little round corners and into doorways
+    vec2 eb = vec2(0.6) / uSize;
+    lt += 0.22 * 0.25 * (texture2D(uBounce, uv + eb).r + texture2D(uBounce, uv - eb).r + texture2D(uBounce, uv + vec2(eb.x, -eb.y)).r + texture2D(uBounce, uv + vec2(-eb.x, eb.y)).r);
     float vertical = 1.0 - abs(n.y);
     float hfall = mix(1.0, 0.5, clamp(vW.y / 1.6, 0.0, 1.0) * vertical);
     float L = uAmb + lt * 1.35 * hfall * uLit + vs.g * 0.22;
@@ -101,10 +143,15 @@ const frag = /* glsl */ `
     ao *= mix(texture2D(uAO, uv).r, 1.0, smoothstep(0.0, 0.6, vW.y)); // contact shadow near the floor
     vec3 base = uColor * vC;
     if (uPattern > 0.5 && uPattern < 1.5) base *= floorShade(vW.xz);
-    else if (uPattern > 1.5 && uPattern < 3.5) base *= wallShade(vW, n);
+    else if (uPattern > 1.5 && uPattern < 3.5) base *= wallShade(vW, n, texture2D(uRoom, (floor(p) + 0.5) / uSize).r * 255.0);
     vec3 col = base * L * ao * mix(0.14, 1.0, vs.r);
     if (p.x < 0.0 || p.y < 0.0 || p.x > uSize.x || p.y > uSize.y) col = base * 0.25 * uLit; // outside faces of the board: the table's glow
-    if (uPattern > 2.5 && n.y > 0.7) col = vec3(0.016 + 0.014 * vs.r); // wall tops: the map, always readable
+    if (uPattern > 2.5 && n.y > 0.7) {
+      // wall tops: the cut edge of a dollhouse wall - plaster skins either side of a wooden core
+      vec2 f = fract(vW.xz);
+      float grain = 0.8 + 0.2 * vnoise(vec2(vW.x * 1.5 + vW.z * 1.5, (vW.x - vW.z) * 30.0));
+      col = vec3((0.018 + 0.016 * vs.r) * grain);
+    }
     col += uEmis;
     gl_FragColor = vec4(col, 1.0);
   }`;

@@ -10,7 +10,7 @@ import { U } from './shade.js';
 import { createMaps } from './maps.js';
 import { buildWorld } from './world.js';
 import { createKid, createMonster } from './actors.js';
-import { createCandles } from './fx.js';
+import { createCandles, createDetails } from './fx.js';
 import { createTable } from './table.js';
 import { createProps } from './props.js';
 import { WALL_H } from './world.js';
@@ -28,11 +28,12 @@ export function createView(canvas, L) {
   const camera = new THREE.PerspectiveCamera(35, 1, 0.3, 1500);
 
   const maps = createMaps(renderer, L);
-  U.uVis.value = maps.vis; U.uLight.value = maps.light; U.uAO.value = maps.ao;
+  U.uVis.value = maps.vis; U.uLight.value = maps.light; U.uBounce.value = maps.bounce; U.uAO.value = maps.ao;
   buildWorld(L, scene);
   const kid = createKid(), monster = createMonster();
   scene.add(kid.root, monster.root);
   const candles = createCandles(scene, L.candles);
+  createDetails(scene, L, U);
   const table = createTable(scene, camera, L);
   const props = createProps(scene, L);
   // the giant's fist hits the table: the whole board jumps
@@ -42,17 +43,17 @@ export function createView(canvas, L) {
   // film pass
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
   const post = new THREE.ShaderMaterial({
-    uniforms: { tScene: { value: rt.texture }, uTime: { value: 0 }, uFear: { value: 0 }, uFlash: { value: 0 }, uDark: { value: 0 }, uHide: { value: 0 }, uAspect: { value: 1 }, uRes: { value: new THREE.Vector2() } },
+    uniforms: { tScene: { value: rt.texture }, tBloom: { value: null }, uTime: { value: 0 }, uFear: { value: 0 }, uFlash: { value: 0 }, uDark: { value: 0 }, uHide: { value: 0 }, uAspect: { value: 1 }, uRes: { value: new THREE.Vector2() } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: /* glsl */ `
-      uniform sampler2D tScene; uniform float uTime, uFear, uFlash, uDark, uAspect, uHide; uniform vec2 uRes;
+      uniform sampler2D tScene, tBloom; uniform float uTime, uFear, uFlash, uDark, uAspect, uHide; uniform vec2 uRes;
       varying vec2 vUv;
       float hash(vec2 p) { p = fract(p * vec2(443.897, 441.423)); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }
       void main() {
         // fear squeezes the picture a little toward the middle
         vec2 q = vUv - 0.5;
         vec2 uv = 0.5 + q * (1.0 - uFear * 0.015 * (0.5 + 0.5 * sin(uTime * 9.0)));
-        vec3 c = texture2D(tScene, uv).rgb;
+        vec3 c = texture2D(tScene, uv).rgb + texture2D(tBloom, uv).rgb * 0.55;
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         l = pow(max(l, 0.0), 1.0 / 2.2);
         l = l * l * (3.0 - 2.0 * l) * 0.35 + l * 0.65;
@@ -72,6 +73,33 @@ export function createView(canvas, L) {
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post);
   quad.frustumCulled = false;
   const postScene = new THREE.Scene(); postScene.add(quad);
+  // bloom at quarter size: keep what is bright, blur it twice, add it back in the film pass
+  const bloomA = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType }), bloomB = bloomA.clone();
+  const fsVert = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const brightMat = new THREE.ShaderMaterial({
+    uniforms: { tScene: { value: rt.texture } }, vertexShader: fsVert, depthTest: false, depthWrite: false,
+    fragmentShader: 'uniform sampler2D tScene; varying vec2 vUv; void main() { vec3 c = texture2D(tScene, vUv).rgb; float l = dot(c, vec3(0.333)); gl_FragColor = vec4(c * smoothstep(0.35, 1.2, l), 1.0); }',
+  });
+  const blurMat = new THREE.ShaderMaterial({
+    uniforms: { tIn: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: fsVert, depthTest: false, depthWrite: false,
+    fragmentShader: `uniform sampler2D tIn; uniform vec2 uDir; varying vec2 vUv;
+      void main() { vec3 c = texture2D(tIn, vUv).rgb * 0.227;
+        c += (texture2D(tIn, vUv + uDir * 1.385).rgb + texture2D(tIn, vUv - uDir * 1.385).rgb) * 0.316;
+        c += (texture2D(tIn, vUv + uDir * 3.231).rgb + texture2D(tIn, vUv - uDir * 3.231).rgb) * 0.07;
+        gl_FragColor = vec4(c, 1.0); }`,
+  });
+  const fsQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), brightMat);
+  fsQuad.frustumCulled = false;
+  const fsScene = new THREE.Scene(); fsScene.add(fsQuad);
+  function bloom() {
+    fsQuad.material = brightMat; renderer.setRenderTarget(bloomA); renderer.render(fsScene, postCam);
+    fsQuad.material = blurMat;
+    for (const [src, dst, dx, dy] of [[bloomA, bloomB, 1, 0], [bloomB, bloomA, 0, 1], [bloomA, bloomB, 2, 0], [bloomB, bloomA, 0, 2]]) {
+      blurMat.uniforms.tIn.value = src.texture;
+      blurMat.uniforms.uDir.value.set(dx / src.width, dy / src.height);
+      renderer.setRenderTarget(dst); renderer.render(fsScene, postCam);
+    }
+  }
   const postCam = new THREE.Camera();
 
   const target = new THREE.Vector3(), tmp = new THREE.Vector3();
@@ -85,6 +113,7 @@ export function createView(canvas, L) {
     renderer.setPixelRatio(pr);
     renderer.setSize(w, h, false);
     rt.setSize(Math.round(w * pr), Math.round(h * pr));
+    bloomA.setSize(Math.round(w * pr / 4), Math.round(h * pr / 4)); bloomB.setSize(Math.round(w * pr / 4), Math.round(h * pr / 4));
     camera.aspect = w / h; camera.updateProjectionMatrix();
     post.uniforms.uAspect.value = w / h; post.uniforms.uRes.value.set(w * pr, h * pr);
     U.uCutR.value = h * pr * 0.2;
@@ -179,6 +208,8 @@ export function createView(canvas, L) {
       post.uniforms.uDark.value = st.dark;
       renderer.setRenderTarget(rt);
       renderer.render(scene, camera);
+      bloom();
+      post.uniforms.tBloom.value = bloomA.texture;
       renderer.setRenderTarget(null);
       renderer.render(postScene, postCam);
     },
