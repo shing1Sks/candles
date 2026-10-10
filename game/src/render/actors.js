@@ -227,7 +227,7 @@ export function createMonster() {
       crouch = damp(crouch, mode === 'windup' ? 1 : mode === 'sleep' ? 0.8 : mode === 'recover' ? 0.5 : 0, 14, dt);
       reach = damp(reach, mode === 'lunge' ? 1 : mode === 'check' || M.doorT > 0 ? 0.6 : 0, 12, dt);
       // rage (a candle just went out): it rears up and roars, jaw wide, fur on end
-      const rage = M.rage > 0 ? Math.min(1, M.rage) : 0;
+      const rage = M.act === 'yell' ? 1 : M.rage > 0 ? Math.min(1, M.rage) : 0; // a yell rears it up too
       jaw = damp(jaw, mode === 'windup' || mode === 'lunge' || rage > 0.5 ? 1 : mode === 'chase' ? 0.5 : mode === 'sleep' ? 0 : 0.1, 10, dt);
       phase += dt * (1.2 + sp * 2.6);
       const sw = Math.sin(phase);

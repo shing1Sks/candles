@@ -218,13 +218,14 @@ export function createGiant(L, camera) {
     onImpact(fn) { onImpact = fn; },
     reset() { Object.assign(st, { reach: 0, lean: 0, hunt: 0, slam: -1, lookUp: 0, close: 0, roar: 0, beam: 0 }); },
     event(e) {
+      if (e.type === 'yell') st.roar = 1; // its piece roars, and so does it
       if (e.type === 'slam') { st.roar = 1; if (st.reach < 0.05) st.slam = 0; } // a hand already in the house can't slam
       if (e.type === 'reach') st.reachSide = e.x < cx ? -1 : 1;
       if (e.type === 'spotted' || e.type === 'beamSpot') st.roar = Math.max(st.roar, 0.6);
     },
     update(G, dt, t) {
       const M = G.monster, k = G.kid, B = G.beam;
-      const hunting = M.mode === 'chase' || M.mode === 'windup' || M.mode === 'lunge';
+      const hunting = M.mode === 'chase' || M.mode === 'windup' || M.mode === 'lunge' || M.mode === 'fury';
       st.hunt += ((hunting ? 1 : 0) - st.hunt) * Math.min(1, dt * 2);
       st.lean += ((hunting ? 1 : M.mode === 'sleep' ? -0.7 : M.mode === 'hunt' || M.mode === 'check' ? 0.45 : 0) - st.lean) * Math.min(1, dt * 1.8);
       st.lookUp += ((G.state === 'caught' ? 1 : 0) - st.lookUp) * Math.min(1, dt * 1.5);

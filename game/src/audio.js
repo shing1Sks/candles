@@ -25,7 +25,7 @@ const HEAVY = [0.08, 0.83, 1.46, 2.06, 2.69, 3.25, 3.88, 4.58, 5.18, 5.87, 6.5, 
 const CONC = [0.03, 0.4, 0.74, 1.1, 1.44, 1.81, 2.14, 2.51, 2.85, 3.21, 3.56, 3.92, 4.27, 4.64, 4.99, 5.35, 5.71, 6.06];
 const CREAK = [0.52, 1.32, 1.78, 2.81, 3.38, 4.62, 5.58, 6.1, 6.91, 7.46, 8.31, 9.64, 10.06, 11.04];
 
-const CHASE = new Set(['hunt', 'chase', 'windup', 'lunge']);
+const CHASE = new Set(['hunt', 'chase', 'windup', 'lunge', 'fury']);
 const MAXV = 40; // cap on concurrent one-shot voices
 const clamp = (v, a = -1, b = 1) => Math.max(a, Math.min(b, v));
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -515,6 +515,13 @@ export function createAudio() {
         tone({ t: t + 1.8, f: 392, peak: 0.07, a: 0.02, dec: 4.5, dest: master });
         tone({ t: t + 1.8, f: 392 * 2.76, peak: 0.012, a: 0.02, dec: 2, dest: master });
         tone({ t: t + 1.85, f: 196, peak: 0.035, a: 0.2, dec: 5, dest: master });
+        break;
+
+      case 'yell': // the monster stops and roars: anger boiling over
+        if (!play('growl', { off: 0.2, rate: 0.55, gain: 0.85, lp: 1600, dest: master, fade: 0.5, must: true })) {
+          tone({ type: 'sawtooth', f: 90, f2: 55, peak: 0.16, a: 0.08, dec: 1.0, dest: master, lp: 700 });
+        }
+        tone({ t: t + 0.05, type: 'sawtooth', f: 60, f2: 44, peak: 0.08, a: 0.2, dec: 1.2, dest: master, lp: 300 });
         break;
 
       // ----- the giant across the table -----

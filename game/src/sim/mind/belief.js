@@ -6,15 +6,16 @@ import { KID } from '../rules.js';
 
 const MAX = 4, MERGE = 2, MAX_SPREAD = 12, HALF_LIFE = 10;
 
-function add(m, x, z, spread, strength) {
+// kind: what told it (sight, alert, ping, or the noise's kind); age: seconds since
+function add(m, x, z, spread, strength, kind) {
   for (const b of m.beliefs) {
     if (Math.hypot(b.x - x, b.z - z) >= MERGE) continue;
     const c = b.conf + strength;
     b.x = (b.x * b.conf + x * strength) / c; b.z = (b.z * b.conf + z * strength) / c;
-    b.spread = Math.min(b.spread, spread); b.conf = Math.min(1.5, b.conf + strength * 0.5);
+    b.spread = Math.min(b.spread, spread); b.conf = Math.min(1.5, b.conf + strength * 0.5); b.kind = kind; b.age = 0;
     return;
   }
-  m.beliefs.push({ x, z, spread, conf: strength, w: 0 });
+  m.beliefs.push({ x, z, spread, conf: strength, w: 0, kind, age: 0 });
   if (m.beliefs.length > MAX) {
     m.beliefs.sort((a, b) => b.conf - a.conf);
     m.beliefs.length = MAX;
@@ -23,16 +24,16 @@ function add(m, x, z, spread, strength) {
 
 export function updateBelief(G, m, obs, dt, persona) {
   if (obs.sees && obs.kid) {
-    m.beliefs = [{ x: obs.kid.x, z: obs.kid.z, spread: 0.3, conf: 1, w: 1 }];
+    m.beliefs = [{ x: obs.kid.x, z: obs.kid.z, spread: 0.3, conf: 1, w: 1, kind: 'sight', age: 0, vx: obs.kid.vx, vz: obs.kid.vz }];
     return;
   }
-  for (const a of obs.alerts) add(m, a.x, a.z, 0.3, 1);
-  for (const h of obs.heard) add(m, h.x, h.z, h.kind === 'kid' ? 1.5 : 0.5, h.kind === 'kid' ? 0.6 : 0.7);
-  if (obs.ping) add(m, obs.ping.x, obs.ping.z, 3, 0.5);
+  for (const a of obs.alerts) add(m, a.x, a.z, 0.3, 1, 'alert');
+  for (const h of obs.heard) add(m, h.x, h.z, h.kind === 'kid' ? 1.5 : 0.5, h.kind === 'kid' ? 0.6 : 0.7, h.kind);
+  if (obs.ping) add(m, obs.ping.x, obs.ping.z, 3, 0.5, 'ping');
   const self = obs.self, fade = 0.5 ** (dt / HALF_LIFE), smart = persona.smart > 0.5;
   for (const b of m.beliefs) {
     b.spread = Math.min(MAX_SPREAD, b.spread + KID.run * 0.6 * dt);
-    b.conf *= fade;
+    b.conf *= fade; b.age = (b.age || 0) + dt;
     if (!smart) continue;
     // you would be heading for a candle: drift the guess toward the nearest lit one it can see from there
     let best = null, bd = Infinity;

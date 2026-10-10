@@ -19,7 +19,9 @@ let ep = null, watchSpeed = 1;
 function newGame() {
   if (watch) {
     const [batch, i] = watch.split(':');
-    ep = startEpisode(configFor(batch, Number(i)));
+    const config = configFor(batch, Number(i));
+    if (q.has('persona')) config.persona = { type: q.get('persona') }; // watch a chosen monster type
+    ep = startEpisode(config);
     G = ep.G;
   } else {
     G = createGame(L, seed++);
