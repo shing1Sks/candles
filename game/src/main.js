@@ -7,6 +7,8 @@ import { createAudio } from './audio.js';
 import { configFor, startEpisode, stepEpisode, episodeOver, episodeHash, STEP } from './sim/episode.js';
 import { eventDetail } from './sim/schema.js';
 import { createDream } from './model/dream.js';
+import { createKidBot, observeKid } from './sim/bots/kid.js';
+import { rng } from './sim/rng.js';
 
 const q = new URLSearchParams(location.search);
 const L = parseLevel();
@@ -20,6 +22,8 @@ let G, phase = 'title', endT = 0, endTimer = 0, seed = Number(q.get('seed')) || 
 const watch = q.get('watch'), clipFrom = Number(q.get('from')) || 0, clipTo = Number(q.get('to')) || 0;
 let ep = null, watchSpeed = Number(q.get('speed')) || 1;
 let dream = null; // ?model=: the main model runs the world (below)
+let kidBot = null;
+const dreamIn = { mx: 0, mz: 0, creep: false, blow: false, use: false, throw: false }; // your latest input, for its next step
 const watchLog = [];
 function newGame() {
   if (watch) {
@@ -41,14 +45,19 @@ function newGame() {
   $('end').classList.add('hide');
   view.reset?.(G);
   dream?.reset(G);
+  Object.assign(dreamIn, { mx: 0, mz: 0, creep: false, blow: false, use: false, throw: false });
+  // &bot=sneaker (or sprinter, hider, trickster, greedy): a kid bot plays in the model's world instead of you
+  if (q.has('model') && q.has('bot')) { kidBot = createKidBot(G, { style: q.get('bot'), skill: Number(q.get('skill') || 0.8) }, rng(seed)); dream?.input(dreamIn, true); }
   drawCandles();
 }
 newGame();
 // ?model=play_M: the main model plays the whole game (src/model/dream.js); &ep=wasm to run it on the CPU
 if (q.has('model')) {
   $('prompt').textContent = 'loading the model...';
-  createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3) })
-    .then((d) => { dream = d; }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
+  // a kid bot decides once per model step, on the row that just landed
+  const onStep = (g) => { if (kidBot) dream.input(kidBot(observeKid(g), STEP), phase === 'play'); };
+  createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), int8: q.has('int8'), lockstep: q.has('bot'), onStep })
+    .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints
 if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
@@ -126,8 +135,11 @@ let lastHint = null;
 let last = performance.now(), acc = 0, t = 0;
 // &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
 const manual = q.has('manual');
+// &fps=30: draw at most this often; the model's world draws at 30 unless told (the house at 60 starves the model here)
+const fpsCap = Number(q.get('fps')) || (q.has('model') ? 30 : 0);
 function frame(now) {
   requestAnimationFrame(frame);
+  if (fpsCap && now - last < 1000 / fpsCap - 4) return;
   const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
   last = now;
   if (!manual) tick(dt);
@@ -144,15 +156,11 @@ function tick(dt) {
     else if (episodeOver(ep) && G.state === 'play') end('timeout');
     readInput();
   } else if (phase === 'play' && q.has('model')) {
-    // the model's world: a step every 1/20 s when the last one is done (slower if the model is slower), glided between
-    const inp = readInput();
-    if (dream) {
-      const w = view.toWorld(inp);
-      acc = Math.min(acc + dt, STEP);
-      if (!dream.busy && acc >= STEP) { acc = 0; dream.step(w); }
-      else { if (w.use) pressUse = true; if (w.throw) pressThrow = true; }
-      dream.blend();
-    }
+    // the model's world steps on its own thread and clock; here: your input for its next step, and the glide between
+    const w = view.toWorld(readInput());
+    if (!kidBot) Object.assign(dreamIn, { mx: w.mx, mz: w.mz, creep: w.creep, blow: w.blow, use: dreamIn.use || w.use, throw: dreamIn.throw || w.throw });
+    if (dream && !kidBot) { dream.input(dreamIn, true); dreamIn.use = dreamIn.throw = false; }
+    if (dream) { dream.blend(); drawDream(); }
   } else if (phase === 'play') {
     acc += dt;
     const inp = readInput();
@@ -161,7 +169,7 @@ function tick(dt) {
     // a press that lands on a frame with no sim step waits for the next one
     if (w.use) pressUse = true;
     if (w.throw) pressThrow = true;
-  } else { readInput(); acc = 0; }
+  } else { readInput(); acc = 0; if (!kidBot) dream?.input(dreamIn, false); }
 
   const k = G.kid, M = G.monster;
   const near = G.los(k.x, k.z, M.x, M.z);
@@ -210,5 +218,18 @@ if (watch) addEventListener('keydown', (e) => {
   if (e.code === 'BracketLeft') watchSpeed = Math.max(0.25, watchSpeed / 2);
 });
 
+// ?model=: which model, how fast it runs here
+let dreamEl = null;
+let fps = 0, fpsN = 0, fpsT = performance.now();
+function drawDream() {
+  if (++fpsN, performance.now() - fpsT > 1000) { fps = fpsN * 1000 / (performance.now() - fpsT); fpsN = 0; fpsT = performance.now(); }
+  if (!dreamEl) {
+    dreamEl = document.createElement('div');
+    dreamEl.style.cssText = 'position:fixed;right:14px;top:12px;font:13px/1.4 monospace;color:#888;text-align:right;pointer-events:none';
+    document.body.appendChild(dreamEl);
+  }
+  dreamEl.textContent = `${q.get('model')} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (20 = real time) · ${fps.toFixed(0)} fps`;
+}
+
 // for test tools
-window.__g = { get G() { return G; }, get dream() { return dream; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };
+window.__g = { get G() { return G; }, get dream() { return dream; }, get fps() { return fps; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };

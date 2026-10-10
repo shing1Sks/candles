@@ -163,7 +163,7 @@ async function benchCapture(size) {
 async function benchPacked(size, ep) {
   const meta = await (await fetch(`/models/play_${size}/play.json`)).json();
   const t0 = performance.now();
-  const P = await ort.InferenceSession.create(`/models/play_${size}/packed.onnx`, { executionProviders: [ep], graphOptimizationLevel: 'all' });
+  const P = await ort.InferenceSession.create(`/models/play_${size}/${q.get('file') || 'packed'}.onnx`, { executionProviders: [ep], graphOptimizationLevel: 'all' });
   const load = performance.now() - t0;
   const NG = 4 * 21 + 2 * 32, sizes = [meta.state, meta.persona, 225, meta.ki, NG, 1, 7];
   const N = sizes.reduce((a, b) => a + b), at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));

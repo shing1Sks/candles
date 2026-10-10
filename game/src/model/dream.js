@@ -1,89 +1,48 @@
 // The main model plays the game (?model=M): every step (20 a second) the state row and your input go in, the model
 // says what the monster presses and how the whole world moves, and the row it gives back is written into G for the
 // renderer and the audio, which do not know the difference. No rules run: walls, candles, doors and the monster are
-// all the model's.
-import * as ort from 'onnxruntime-web/webgpu';
-import { decode, sigmoid } from './decode.js';
-import { encode, encodeKI, schemaJSON, STATE_SIZE, KI_SIZE, EVENT_TYPES } from '../sim/schema.js';
+// all the model's. The model runs in its own thread (worker.js); this side writes its rows into the game.
+import { sigmoid } from './decode.js';
+import { layout, personaVec } from './layout.js';
+import { encode, encodeKI, STATE_SIZE, KI_SIZE, EVENT_TYPES } from '../sim/schema.js';
 import { MODES } from '../sim/mind/index.js';
-import { PERSONA_TYPES } from '../sim/mind/personas.js';
 
 const ACTS = ['none', 'door', 'bash', 'check', 'windup', 'lunge', 'recover', 'yell'];
 const STATES = ['play', 'won', 'caught'], BEAMS = ['idle', 'warn', 'on'], HANDS = ['idle', 'shadow', 'down', 'hold', 'up'];
-const NG = 4 * 21 + 2 * 32; // the giant's stick and aim bins (train/model.py)
 
-// where every field sits in the row: col(kind, name, i) and its scale
-function layout() {
-  const S = schemaJSON(), at = new Map();
-  for (const t of S.tokens) {
-    let o = 0;
-    for (const f of t.fields) { at.set(`${t.kind}.${f.name}`, { o, t, f }); o += f.type === 'cat' ? f.n : 1; }
-  }
-  return (kind, name, i = 0) => { const a = at.get(`${kind}.${name}`); return { c: a.t.offset + i * a.t.width + a.o, s: a.f.scale ?? 1, n: a.f.n }; };
-}
-
-// the tile types round the kid, the monster and the 7 toys, as train/model.py patch_ids: a shut door is its own type,
-// off the map another
-function patchIds(L, row, col, out) {
-  const nT = 8, movers = [['kid', 0], ['monster', 0], ...Array.from({ length: 7 }, (_, i) => ['toy', i])];
-  const open = Array.from({ length: 11 }, (_, i) => row[col('door', 'open', i).c]);
-  let o = 0;
-  for (const [k, i] of movers) {
-    const x = Math.floor(row[col(k, 'x', i).c] * L.w), z = Math.floor(row[col(k, 'z', i).c] * L.h);
-    for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
-      const gx = x + dx, gz = z + dz;
-      if (gx < 0 || gz < 0 || gx >= L.w || gz >= L.h) { out[o++] = nT + 1; continue; }
-      const d = L.doorAt(gx, gz);
-      out[o++] = d >= 0 && open[d] < 0.5 ? nT : L.tiles[gz * L.w + gx];
-    }
-  }
-  return out;
-}
-
-const personaVec = (p, traits) => Float32Array.from([...traits.map((k) => +(p[k] ?? 0)), ...PERSONA_TYPES.map((t) => (p.type === t ? 1 : 0))]);
-
-export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, gtemp = 1 } = {}) {
-  const meta = await (await fetch(`/models/${name}/play.json`)).json();
-  if (meta.state !== STATE_SIZE || meta.ki !== KI_SIZE) throw new Error(`model ${name} was made for another schema`);
-  ort.env.wasm.wasmPaths = '/node_modules/onnxruntime-web/dist/';
-  ort.env.wasm.numThreads = Math.min(8, navigator.hardwareConcurrency || 4);
-  // packed.onnx: one row in [cur | persona | tile ids | ki | giant noise | giant temp | button draws], one out [gi | world | events]
-  // (on WebGPU every tensor moved costs a few ms)
-  const session = await ort.InferenceSession.create(`/models/${name}/packed.onnx`, { executionProviders: [ep, 'wasm'], graphOptimizationLevel: 'all' });
-  const col = layout(), traits = schemaJSON().personaTraits;
-  const sizes = [STATE_SIZE, meta.persona, 225, KI_SIZE, NG, 1, 7];
-  const at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0)), x = new Float32Array(at[6] + 7);
-  let G, row;
-  const reset = (g) => { G = g; x.set(personaVec(G.mind.persona, traits), at[1]); row = new Float32Array(STATE_SIZE); encode(G, row, 0); from = to = null; };
-  const ids = new Float32Array(9 * 25), ki = new Float32Array(KI_SIZE);
-  // movers glide from the last row to the new one over a step
-  let from = null, to = null, busy = false, ms = 0, landed = 0;
-  reset(G0);
-
-  async function step(input) {
-    busy = true;
-    const t0 = performance.now();
-    encodeKI(input, ki, 0);
-    patchIds(G.L, row, col, ids);
-    x.set(row, at[0]); x.set(ids, at[2]); x.set(ki, at[3]); x[at[5]] = gtemp;
-    for (let i = 0; i < NG; i++) x[at[4] + i] = -Math.log(-Math.log(Math.random() + 1e-12) + 1e-12);
-    for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();
-    const y = (await session.run({ x: new ort.Tensor('float32', x, [1, x.length]) })).y.data;
-    const world = y.subarray(13, 13 + meta.world), odds = y.subarray(13 + meta.world);
-    if (G.state !== 'play') { busy = false; return; }
-    const prev = row;
-    row = decode(meta, world, prev, { temp, mix });
-    for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i])); // a runaway number cannot run far
+// onStep(G): called after each row lands (a kid bot answers here)
+export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, gtemp = 1, int8 = false, lockstep = false, onStep = null } = {}) {
+  const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  const L = G0.L, map = { w: L.w, h: L.h, tiles: Array.from(L.tiles), doorAt: Array.from({ length: L.w * L.h }, (_, i) => L.doorAt(i % L.w, Math.floor(i / L.w))) };
+  const col = layout(), ki = new Float32Array(KI_SIZE);
+  let G, from = null, to = null, ms = 0, landed = 0, rate = 0, n = 0, since = performance.now();
+  await new Promise((ok, fail) => {
+    worker.onmessage = ({ data: m }) => (m.type === 'ready' ? (console.log(`model worker: ${m.threads} threads, isolated ${m.isolated}`), ok()) : m.type === 'error' ? fail(new Error(m.message)) : null);
+    worker.onerror = (e) => fail(new Error(e.message || 'the model worker failed'));
+    worker.postMessage({ type: 'init', name, ep, int8, temp, mix, gtemp, map, lockstep });
+  });
+  worker.onmessage = ({ data: m }) => {
+    if (m.type === 'error') { console.error('model:', m.message); return; }
+    if (m.type !== 'step' || G.state !== 'play') return;
     from = snapshot(G);
-    apply(G, row, col);
+    apply(G, m.row, col);
     to = snapshot(G); landed = performance.now();
-    events(G, prev, row, odds, col);
-    ms = ms * 0.9 + (performance.now() - t0) * 0.1;
-    busy = false;
-  }
+    events(G, m.prev, m.row, m.odds, col);
+    ms = ms * 0.9 + m.ms * 0.1;
+    if (++n, performance.now() - since > 1000) { rate = n * 1000 / (performance.now() - since); n = 0; since = performance.now(); }
+    onStep?.(G);
+  };
+  const reset = (g) => {
+    G = g; from = to = null;
+    const row = new Float32Array(STATE_SIZE); encode(G, row, 0);
+    worker.postMessage({ type: 'reset', row, persona: personaVec(G.mind.persona) });
+  };
+  reset(G0);
   return {
-    get busy() { return busy; }, get ms() { return ms; }, get row() { return row; },
-    step, reset,
+    get ms() { return ms; }, get rate() { return rate; },
+    reset,
+    // your input (any time; held keys replace, presses wait for the next step); active: the game is on
+    input(inp, active) { encodeKI(inp, ki, 0); worker.postMessage({ type: 'input', ki, active: active && G.state === 'play' }); },
     // movers glide from the last row to the new one over the 1/20 s after it lands
     blend() {
       if (!from) return;
@@ -94,13 +53,14 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
         o.x = x + (tx - x) * f; o.z = z + (tz - z) * f;
       }
     },
+    close() { worker.terminate(); },
   };
 }
 
 const snapshot = (G) => [G.kid, G.monster, ...G.items].map((o) => [o, o.x, o.z]);
 
 // the row back into the game's objects (what the renderer and the audio read)
-function apply(G, r, col) {
+export function apply(G, r, col) {
   const num = (k, n, i) => { const c = col(k, n, i); return r[c.c] * c.s; };
   const flag = (k, n, i) => r[col(k, n, i).c] > 0.5;
   const cat = (k, n, i) => { const c = col(k, n, i); let b = 0; for (let j = 1; j < c.n; j++) if (r[c.c + j] > r[c.c + b]) b = j; return b; };
@@ -145,7 +105,7 @@ function apply(G, r, col) {
 // what happened in the step, for the sounds and the effects: read from the change between the rows where it shows
 // (a candle out, a door, a step), and from the model's event odds where it does not (a creak, a squeak, a roar)
 const FROM_ROWS = new Set(['candleOut', 'door', 'hide', 'unhide', 'pickup', 'throw', 'land', 'won', 'caught', 'kstep', 'mstep', 'windup', 'lunge', 'yell', 'beam', 'reach', 'wake']);
-function events(G, a, b, odds, col) {
+export function events(G, a, b, odds, col) {
   const E = G.events, k = G.kid, M = G.monster;
   const v = (r, kind, n, i) => r[col(kind, n, i).c];
   const on = (r, kind, n, i) => v(r, kind, n, i) > 0.5;
