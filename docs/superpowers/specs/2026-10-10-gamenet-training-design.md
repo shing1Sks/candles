@@ -314,7 +314,11 @@ One scripted micro-game per case: a start state, an input script and the expecte
 
 ## 7. The main model (outline; its own spec later)
 
-- **Input.** The map, as patches, plus one token per entity (section 3) and the persona token, about 110 tokens.
+- **Input.** One token per entity (section 3) and the persona token, about 70 tokens.
+  - Each moving piece (kid, monster, a flying toy) carries the 5 × 5 tiles around it.
+  - About 12 coarse map pieces (rooms and corridor stretches) give the layout.
+
+  A first plan of 60 map patches and 115 tokens measured too slow; see "Measured" below.
 - **Output.** Each entity's next state:
   - positions and moves as bins, so a choice of outcomes can be represented;
   - flags as categories;
@@ -325,8 +329,20 @@ One scripted micro-game per case: a start state, an input script and the expecte
   - The core learns from the true giant input; the head learns to copy it.
   - At play, the head is sampled at a set temperature.
   - After one-step training, multi-step rollouts (8–32 ticks fed with its own predictions) cut drift.
-- **Size and where it runs.** A transformer of about 5–10 M parameters, small enough to run in the browser at
-  20 ticks a second (onnxruntime-web). The renderer interpolates between ticks.
+- **Size and where it runs.** Width 128, 6 layers, about 1.2 M parameters.
+  - Two passes take about 23 ms per tick on the laptop's CPU (measured), inside the 50 ms tick, so 20 ticks a second
+    fits in the browser.
+  - The renderer interpolates between ticks.
+
+### Measured (2026-10-10)
+
+- **Speed.** Width 256 / 8 layers / 115 tokens took 114 ms per pass; width 128 / 6 layers / 55 tokens took 11.6 ms.
+- **Learnability spike** (`game/tools/feasibility`): a 0.13 M-parameter model trained for 7 minutes on the CPU, on
+  470 k transitions from 150 bot games. On held-out play:
+  - median position error 4.4 mm;
+  - 0% wall clipping, even when pushing into walls;
+  - candle-out F1 0.98, read from predicted blow progress passing 1. A separate yes/no classifier managed only 0.7,
+    so events should follow from predicted state.
 
 ## 8. How we know it works
 
