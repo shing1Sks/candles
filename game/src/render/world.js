@@ -192,9 +192,6 @@ function decor(L) {
   rug(8, 10.2, 1.6, 0.5, 0.9); // nursery
   rug(18.5, 16, 2.6, 2.0, 0.85); // playroom
   rug(10.5, 15.5, 1, 1.4, 0.8); // bedroom
-  // toy blocks and a ball
-  for (const [x, z, s] of [[15.2, 13.6, 0.16], [15.45, 13.7, 0.14], [15.3, 13.45, 0.13], [10.6, 6.3, 0.14], [10.8, 6.5, 0.12], [20.5, 13.2, 0.15]]) p.push(box(x, 0, z, s, s, s, 1.3));
-  { const b = new THREE.SphereGeometry(0.13, 12, 8); b.translate(16.4, 0.13, 17.2); p.push(tinted(b, 1.2)); }
   // a doll sitting against the wall, facing the room
   p.push(box(6.1, 0, 4.05, 0.22, 0.22, 0.16, 1.2));
   { const h = new THREE.SphereGeometry(0.11, 12, 8); h.translate(6.21, 0.33, 4.13); p.push(tinted(h, 1.6)); }
@@ -228,7 +225,7 @@ export function buildWorld(L, scene) {
   for (const g of groups(L, T.TABLE)) furn.push(...table(g));
   for (const g of groups(L, T.BED)) furn.push(...bed(g, g.room === 0));
   for (const g of groups(L, T.LOW)) furn.push(...low(g));
-  for (const g of groups(L, T.TALL)) tallParts.push(...tall(g));
+  for (const g of groups(L, T.TALL)) if (!L.wardrobes.some((w) => w.tx === g.x0 && w.tz === g.z0)) tallParts.push(...tall(g));
   furn.push(...decor(L));
   scene.add(new THREE.Mesh(mergeGeometries(furn.map(clean)), mat({ color: 0.4, vcol: true, cut: 2 })));
   scene.add(new THREE.Mesh(mergeGeometries(tallParts.map(clean)), mat({ color: 0.4, vcol: true, cut: true })));

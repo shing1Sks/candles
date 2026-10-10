@@ -1,16 +1,18 @@
-// Two top-down textures the whole world is lit from:
+// Top-down textures the whole world is lit from:
 //   vis   - r: what the kid can see right now (line of sight), g: the faint glow around the kid
-//   light - r: candlelight, each candle's light stopped by walls
-// Both are drawn as 2D polygons straight into clip space, so texture uv = (x / w, z / h).
+//   light - r: candlelight, each candle's light stopped by walls and shut doors, its shadows swaying with
+//           the flame; plus the giant's searchlight when it is over the house
+//   ao    - baked once: soft dark in corners, along walls and under furniture
+// vis and light are drawn as 2D polygons straight into clip space, so texture uv = (x / w, z / h).
 import * as THREE from 'three';
-import { CANDLE } from '../sim/rules.js';
+import { CANDLE, BEAM } from '../sim/rules.js';
+import { T } from '../sim/level.js';
 
 const PX = 12; // texels per metre
 
 // Wall outlines: edges between sight-blocking tiles and open ones, merged into long segments.
-export function wallSegments(L) {
+export function wallSegments(L, B = L.sightBlocked) {
   const segs = [];
-  const B = (x, z) => L.sightBlocked(x, z);
   for (let z = 0; z <= L.h; z++) { // horizontal edges at z
     let run = null;
     for (let x = 0; x <= L.w; x++) {
@@ -93,7 +95,7 @@ export function createMaps(renderer, L) {
   const vis = new THREE.WebGLRenderTarget(L.w * PX, L.h * PX, opts);
   const light = new THREE.WebGLRenderTarget(L.w * PX, L.h * PX, opts);
   const cam = new THREE.Camera();
-  const segs = wallSegments(L);
+  let segs = wallSegments(L);
 
   // what the kid sees, plus a small glow so you are never fully blind
   const visScene = new THREE.Scene();
@@ -110,40 +112,74 @@ export function createMaps(renderer, L) {
   visMesh.frustumCulled = false;
   visScene.add(visMesh);
 
-  // candlelight: fixed polygons per candle, summed with a per-candle intensity
+  // candlelight: one polygon per candle, re-cast every frame from a flame that sways a little
   const lightScene = new THREE.Scene();
+  const lightFrag = /* glsl */ `
+    uniform vec2 uO; uniform float uI, uR; varying vec2 vP;
+    void main() { float d = length(vP - uO); float f = clamp(1.0 - d / uR, 0.0, 1.0); gl_FragColor = vec4(uI * f * f, 0.0, 0.0, 1.0); }`;
   const candles = L.candles.map((c) => {
     const geo = fanGeometry(1400);
-    fillFan(geo, c.x, c.z, visPolygon(segs, c.x, c.z, CANDLE.light));
     const mat = new THREE.ShaderMaterial({
       uniforms: { uSize: { value: size }, uO: { value: new THREE.Vector2(c.x, c.z) }, uI: { value: 1 }, uR: { value: CANDLE.light } },
-      vertexShader: fanVert,
-      fragmentShader: /* glsl */ `
-        uniform vec2 uO; uniform float uI, uR; varying vec2 vP;
-        void main() { float d = length(vP - uO); float f = clamp(1.0 - d / uR, 0.0, 1.0); gl_FragColor = vec4(uI * f * f, 0.0, 0.0, 1.0); }`,
+      vertexShader: fanVert, fragmentShader: lightFrag,
       blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true,
     });
     const m = new THREE.Mesh(geo, mat);
     m.frustumCulled = false;
     lightScene.add(m);
-    return mat.uniforms.uI;
+    return { c, geo, u: mat.uniforms, mesh: m };
   });
 
+  // the giant's searchlight: a soft disc from above (nothing in the house can shadow it)
+  const beamMat = new THREE.ShaderMaterial({
+    uniforms: { uSize: { value: size }, uO: { value: new THREE.Vector2() }, uI: { value: 0 }, uR: { value: BEAM.radius } },
+    vertexShader: fanVert,
+    fragmentShader: /* glsl */ `
+      uniform vec2 uO; uniform float uI, uR; varying vec2 vP;
+      void main() { float d = length(vP - uO) / uR; gl_FragColor = vec4(uI * smoothstep(1.0, 0.75, d) * (0.85 + 0.15 * (1.0 - d)), 0.0, 0.0, 1.0); }`,
+    blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, transparent: true,
+  });
+  const beamGeo = new THREE.CircleGeometry(1, 48);
+  beamGeo.rotateX(Math.PI / 2);
+  const beamMesh = new THREE.Mesh(beamGeo, beamMat);
+  beamMesh.frustumCulled = false;
+  lightScene.add(beamMesh);
+
   const clear = new THREE.Color(0, 0, 0);
-  let blind = false;
+  let doorKey = '', t = 0;
   return {
-    vis: vis.texture, light: light.texture, size, segs, candles,
-    // inside a vent you only see yourself
-    update(kx, kz, inWall, intensities) {
+    vis: vis.texture, light: light.texture, ao: bakeAO(L), size, get segs() { return segs; }, candles,
+    // G: the game (doors, candles, beam). inWall: in a vent you only see yourself.
+    update(G, kx, kz, inWall, intensities, dt) {
+      t += dt;
+      const key = G.doors.map((d) => (d.open ? 1 : 0)).join('');
+      if (key !== doorKey) { doorKey = key; segs = wallSegments(L, G.sightBlocked); }
       if (inWall) {
         const poly = new Float32Array(32);
         for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; poly[i * 2] = kx + Math.cos(a) * 0.7; poly[i * 2 + 1] = kz + Math.sin(a) * 0.7; }
         fillFan(visGeo, kx, kz, poly);
       } else fillFan(visGeo, kx, kz, visPolygon(segs, kx, kz, 16));
-      blind = inWall;
       visMat.uniforms.uO.value.set(kx, kz);
-      visMat.uniforms.uGlow.value = blind ? 1.2 : 3.2;
-      intensities.forEach((v, i) => { candles[i].value = v; });
+      visMat.uniforms.uGlow.value = inWall ? 1.2 : 3.2;
+      candles.forEach((cd, i) => {
+        const v = intensities[i];
+        cd.u.uI.value = v;
+        cd.mesh.visible = v > 0.005;
+        if (!cd.mesh.visible) return;
+        // the flame wanders a couple of centimetres and every shadow in the room breathes with it
+        const ox = cd.c.x + Math.sin(t * 7.3 + i * 3) * 0.025 + Math.sin(t * 13.1 + i) * 0.012;
+        const oz = cd.c.z + Math.cos(t * 6.1 + i * 2) * 0.025;
+        fillFan(cd.geo, ox, oz, visPolygon(segs, ox, oz, CANDLE.light));
+        cd.u.uO.value.set(ox, oz);
+      });
+      const B = G.beam;
+      const bi = B.state === 'warn' ? (B.t / BEAM.warn) * 0.5 : B.state === 'on' ? 1.15 : 0;
+      beamMat.uniforms.uI.value += (bi - beamMat.uniforms.uI.value) * Math.min(1, dt * 6);
+      beamMesh.visible = beamMat.uniforms.uI.value > 0.01;
+      beamMesh.position.set(B.x, 0, B.z);
+      beamMesh.scale.setScalar(BEAM.radius * (B.state === 'warn' ? 1.3 - 0.3 * (B.t / BEAM.warn) : 1));
+      beamMat.uniforms.uO.value.set(B.x, B.z);
+      beamMat.uniforms.uR.value = BEAM.radius * beamMesh.scale.x / BEAM.radius;
       const old = renderer.getRenderTarget(), oc = renderer.getClearColor(new THREE.Color()), oa = renderer.getClearAlpha();
       renderer.setClearColor(clear, 1);
       renderer.setRenderTarget(vis); renderer.clear(); renderer.render(visScene, cam);
@@ -151,4 +187,33 @@ export function createMaps(renderer, L) {
       renderer.setRenderTarget(old); renderer.setClearColor(oc, oa);
     },
   };
+}
+
+// Soft contact shadow: darker near walls and furniture, darkest underneath tables and beds.
+function bakeAO(L) {
+  const R = 8, w = L.w * R, h = L.h * R, data = new Uint8Array(w * h * 4);
+  const solid = (x, z) => { const t = L.at(x, z); return t === T.WALL || t === T.LOW || t === T.TALL || t === T.DUCT || t === T.CRACK; };
+  const under = (x, z) => { const t = L.at(x, z); return t === T.TABLE || t === T.BED; };
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const x = (i + 0.5) / R, z = (j + 0.5) / R, tx = Math.floor(x), tz = Math.floor(z);
+    let d = 1;
+    for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+      const ax = tx + dx, az = tz + dz;
+      if (!solid(ax, az)) continue;
+      const nx = Math.max(ax, Math.min(x, ax + 1)), nz = Math.max(az, Math.min(z, az + 1));
+      d = Math.min(d, Math.hypot(x - nx, z - nz));
+    }
+    let ao = 1 - 0.55 * (1 - Math.min(1, d / 0.5)) ** 2;
+    if (under(tx, tz)) {
+      // fade in from the edge of the furniture so the shadow under it is soft
+      const ex = Math.min(x - tx, tx + 1 - x, z - tz, tz + 1 - z);
+      const inner = (under(tx - 1, tz) || x - tx > 0.5) && (under(tx + 1, tz) || x - tx < 0.5) && (under(tx, tz - 1) || z - tz > 0.5) && (under(tx, tz + 1) || z - tz < 0.5);
+      ao *= inner ? 0.5 : 0.5 + 0.5 * (1 - Math.min(1, ex / 0.25));
+    }
+    data[(j * w + i) * 4] = Math.round(ao * 255);
+  }
+  const tex = new THREE.DataTexture(data, w, h);
+  tex.magFilter = tex.minFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
 }

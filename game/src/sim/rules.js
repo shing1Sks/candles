@@ -14,6 +14,14 @@ export const KID = {
   noiseRun: 10, // the monster hears running this far (through walls: x0.6)
   noiseCrawl: 3, // tin rattle in the vents
   noiseBlow: 6,
+  useReach: 1.35, // doors and wardrobes within this reach
+  noiseDoor: 6, // opening or shutting a door
+  noiseCreak: 7, // a creaky board under a running or walking foot
+  noiseSqueak: 9, // stepping on a squeaky toy
+  noiseLand: 13, // a thrown toy landing (heard through walls at x0.65)
+  throwSpeed: 10,
+  throwRange: 7.5,
+  pickReach: 0.6,
 };
 
 export const MON = {
@@ -41,6 +49,23 @@ export const MON = {
   breather: 9, // ...for this long
   wake: 4, // grace period at the start
   repath: 0.25,
+  doorOpen: 0.6, // a shut door costs it this long to open...
+  doorBash: 0.9, // ...or to smash through when it is chasing you
+  rage: 5, // after a candle goes out it is faster for a while
+  rageBoost: 0.25,
+  checkNear: 3.5, // while searching it looks in wardrobes this close...
+  checkChance: 0.4, // ...this often
+  checkOpen: 0.7, // opening a wardrobe door takes this long
+};
+
+// The giant's eye: every so often it hangs a searchlight over part of the house. Out in it, you are seen.
+export const BEAM = {
+  first: 45,
+  every: [50, 26], // seconds between sweeps, all candles lit .. one left
+  warn: 1.6, // the light swells before it is fully on
+  on: 4.5,
+  radius: 2.5,
+  drift: 0.8,
 };
 
 export const HEART = { radius: 15 };

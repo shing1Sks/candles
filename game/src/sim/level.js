@@ -3,28 +3,30 @@
 //   =  vent duct          c  crack in a wall (kid only)
 //   t  table              b  bed or crib (kid crawls under)
 //   x  low furniture      u  tall furniture
+//   w  wardrobe (tall; the kid can hide inside)
+//   d  door, open         D  door, shut  (two tiles side by side make one double door)
 //   C  candle             K  kid start         M  monster start
 export const MAP = [
   '#####################################',
   '#.............=========............M#',
   '#.............####=####.............#',
   '#..###############=###########c###..#',
-  '#..#u.......C#xx...xxx.#..xxx...x#..#',
+  '#..#w.......C#xx...xxx.#..xxx...x#..#',
   '#..#.........c.........c.........#..#',
-  '#......bb....#.........#...ttt...#..#',
-  '#......bb....#....uu...#...ttt...#..#',
-  '#..#...bb....#.........#............#',
-  '#..#...................#............#',
-  '#..#.x................C#C.......u#..#',
-  '#..#######..###..#############..##..#',
+  '#..d...bb....#.........#...ttt...#..#',
+  '#..d...bb....#....uu...#...ttt...#..#',
+  '#..#...bb....#.........#.........d..#',
+  '#..#.........D.........#.........d..#',
+  '#..#.x.......D........C#C.......w#..#',
+  '#..#######dd###dd#############DD##..#',
   '#..#C........#........x#....x....#..#',
-  '#..#..............K.........x..x.#..#',
-  '#..#...bb.................u......#..#',
-  '#......bb....#...ttt...#..u..uuu.#..#',
-  '#......bb....#...ttt...#..u.........#',
-  '#..#.........#.........#......x.....#',
-  '#..#x.......u#C.......x#C........#..#',
-  '#..#####c###########..###c########..#',
+  '#..#.........d....K....d....x..x.#..#',
+  '#..#...bb....d.........d..u......#..#',
+  '#..D...bb....#...ttt...#..u..uuu.#..#',
+  '#..D...bb....#...ttt...#..u......d..#',
+  '#..#.........#.........#......x..d..#',
+  '#..#x.......w#C.......x#C........#..#',
+  '#..#####c###########dd###c########..#',
   '#...................................#',
   '#...................................#',
   '#####################################',
@@ -40,8 +42,20 @@ export const ROOMS = [
   ['cellar', 24, 12, 32, 18],
 ];
 
+// Things on the floor. Creaky boards and squeaky toys give you away unless you creep; toys you can pick up
+// and throw make a noise where they land, and the monster goes to look.
+export const CREAKS = [[8, 1], [25, 1], [1, 10], [35, 12], [10, 21], [28, 20], [6, 9], [17, 9], [27, 9], [9, 13], [20, 17], [29, 13]];
+export const SQUEAKS = [
+  { x: 20.5, z: 8.4, kind: 'duck' }, { x: 20.6, z: 14.4, kind: 'bear' }, { x: 9.5, z: 9.3, kind: 'rattle' },
+  { x: 2.0, z: 13.5, kind: 'duck' }, { x: 26.5, z: 8.6, kind: 'bear' },
+];
+export const ITEMS = [
+  { x: 15.4, z: 13.6, kind: 'block' }, { x: 10.7, z: 6.4, kind: 'block' }, { x: 16.4, z: 17.2, kind: 'ball' },
+  { x: 29.5, z: 9.2, kind: 'can' }, { x: 27.6, z: 17.4, kind: 'bottle' }, { x: 6.0, z: 12.7, kind: 'car' }, { x: 18.5, z: 20.6, kind: 'ball' },
+];
+
 export const T = { FLOOR: 0, WALL: 1, DUCT: 2, CRACK: 3, TABLE: 4, BED: 5, LOW: 6, TALL: 7 };
-const CODE = { '#': T.WALL, '=': T.DUCT, c: T.CRACK, t: T.TABLE, b: T.BED, x: T.LOW, u: T.TALL };
+const CODE = { '#': T.WALL, '=': T.DUCT, c: T.CRACK, t: T.TABLE, b: T.BED, x: T.LOW, u: T.TALL, w: T.TALL };
 
 const KID_BLOCK = new Set([T.WALL, T.LOW, T.TALL]);
 const MON_BLOCK = new Set([T.WALL, T.LOW, T.TALL, T.DUCT, T.CRACK, T.TABLE, T.BED]);
@@ -51,7 +65,7 @@ const CRAWL = new Set([T.DUCT, T.CRACK, T.TABLE, T.BED]);
 export function parseLevel(rows = MAP) {
   const h = rows.length, w = rows[0].length;
   const tiles = new Uint8Array(w * h), room = new Int8Array(w * h).fill(-1);
-  const candles = [];
+  const candles = [], doorTiles = [], wardrobes = [];
   let kid, monster;
   for (let z = 0; z < h; z++) {
     if (rows[z].length !== w) throw new Error(`row ${z} is ${rows[z].length} wide, expected ${w}`);
@@ -59,6 +73,8 @@ export function parseLevel(rows = MAP) {
       const ch = rows[z][x];
       tiles[z * w + x] = CODE[ch] ?? T.FLOOR;
       if (ch === 'C') candles.push({ tx: x, tz: z });
+      if (ch === 'd' || ch === 'D') doorTiles.push({ x, z, open: ch === 'd' });
+      if (ch === 'w') wardrobes.push({ tx: x, tz: z });
       if (ch === 'K') kid = { x: x + 0.5, z: z + 0.5 };
       if (ch === 'M') monster = { x: x + 0.5, z: z + 0.5 };
     }
@@ -82,7 +98,42 @@ export function parseLevel(rows = MAP) {
     return { id, tx, tz, x: tx + 0.5 + ox * 0.28, z: tz + 0.5 + oz * 0.28, room: room[tz * w + tx] };
   });
   L.passages = findPassages(L);
+  L.doors = findDoors(L, doorTiles);
+  const doorMap = new Int16Array(w * h).fill(-1);
+  L.doors.forEach((d) => d.tiles.forEach(([x, z]) => { doorMap[z * w + x] = d.id; }));
+  L.doorAt = (x, z) => (x < 0 || z < 0 || x >= w || z >= h ? -1 : doorMap[z * w + x]);
+  // a wardrobe opens onto the floor tile in front of it (toward the room)
+  L.wardrobes = wardrobes.map(({ tx, tz }, id) => {
+    const front = [[0, 1], [0, -1], [1, 0], [-1, 0]].map(([dx, dz]) => [tx + dx, tz + dz]).find(([x, z]) => L.at(x, z) === T.FLOOR);
+    return { id, tx, tz, fx: front[0] + 0.5, fz: front[1] + 0.5, room: room[tz * w + tx] };
+  });
+  L.creaks = new Set(CREAKS.map(([x, z]) => z * w + x));
+  L.squeaks = SQUEAKS;
+  L.items = ITEMS;
   return L;
+}
+
+// Neighbouring door tiles make one double door. axis 'x': the wall runs along x and you walk through along z.
+function findDoors(L, tiles) {
+  const out = [], used = new Set();
+  for (const t of tiles) {
+    const key = t.z * L.w + t.x;
+    if (used.has(key)) continue;
+    const group = [t];
+    used.add(key);
+    for (const u of tiles) {
+      const k2 = u.z * L.w + u.x;
+      if (!used.has(k2) && group.some((g) => Math.abs(g.x - u.x) + Math.abs(g.z - u.z) === 1)) { group.push(u); used.add(k2); }
+    }
+    const xs = group.map((g) => g.x), zs = group.map((g) => g.z);
+    const axis = Math.min(...zs) === Math.max(...zs) ? 'x' : 'z';
+    out.push({
+      id: out.length, tiles: group.map((g) => [g.x, g.z]), open: group[0].open, axis,
+      x0: Math.min(...xs), z0: Math.min(...zs), x1: Math.max(...xs) + 1, z1: Math.max(...zs) + 1,
+      x: (Math.min(...xs) + Math.max(...xs) + 1) / 2, z: (Math.min(...zs) + Math.max(...zs) + 1) / 2,
+    });
+  }
+  return out;
 }
 
 // Kid-only passages (connected crawl tiles) and the floor tiles you leave them by.

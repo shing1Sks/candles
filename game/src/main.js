@@ -1,6 +1,6 @@
 import './style.css';
 import { parseLevel } from './sim/level.js';
-import { createGame, step } from './sim/game.js';
+import { createGame, step, actionHint } from './sim/game.js';
 import { createView } from './render/view.js';
 import { createAudio } from './audio.js';
 import { los } from './sim/grid.js';
@@ -24,9 +24,14 @@ if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
 
 // ---------- input ----------
 const keys = new Set();
-const input = { mx: 0, mz: 0, creep: false, blow: false };
+const input = { mx: 0, mz: 0, creep: false, blow: false, use: false, throw: false };
+// presses (not holds) are caught on keydown so a quick tap between frames is never lost
+let pressUse = false, pressThrow = false;
+const padWas = [];
 addEventListener('keydown', (e) => {
   keys.add(e.code);
+  if (!e.repeat && (e.code === 'KeyE' || e.code === 'Space')) pressUse = true;
+  if (!e.repeat && e.code === 'KeyQ') pressThrow = true;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (phase === 'title') begin();
   else if ((phase === 'caught' || phase === 'won') && performance.now() - endT > 1200 && (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter')) { newGame(); begin(); }
@@ -47,10 +52,15 @@ function readInput() {
     const ax = pad.axes[0] || 0, az = pad.axes[1] || 0;
     if (Math.hypot(ax, az) > 0.2) { mx = ax; mz = az; }
     if (pad.buttons[0]?.pressed || pad.buttons[2]?.pressed) blow = true;
+    const now = pad.buttons.map((b) => b.pressed), was = padWas[pad.index] || [];
+    if ((now[0] && !was[0]) || (now[2] && !was[2])) pressUse = true;
+    if ((now[1] && !was[1]) || (now[3] && !was[3])) pressThrow = true;
+    padWas[pad.index] = now;
     if (pad.buttons[6]?.pressed || pad.buttons[4]?.pressed) creep = true;
     if (phase !== 'play' && pad.buttons[9]?.pressed && performance.now() - endT > 1200) { if (phase !== 'title') newGame(); begin(); }
   }
   input.mx = mx; input.mz = mz; input.creep = creep; input.blow = blow;
+  input.use = pressUse; input.throw = pressThrow; pressUse = pressThrow = false;
   return input;
 }
 
@@ -76,6 +86,7 @@ function end(kind) {
 
 // ---------- loop ----------
 const DT = 1 / 60;
+let lastHint = null;
 let last = performance.now(), acc = 0, t = 0;
 function frame(now) {
   requestAnimationFrame(frame);
@@ -85,13 +96,17 @@ function frame(now) {
     acc += dt;
     const inp = readInput();
     const w = view.toWorld(inp);
-    while (acc >= DT) { step(G, w, DT); acc -= DT; }
+    while (acc >= DT) { step(G, w, DT); w.use = w.throw = false; acc -= DT; }
+    // a press that lands on a frame with no sim step waits for the next one
+    if (w.use) pressUse = true;
+    if (w.throw) pressThrow = true;
   } else { readInput(); acc = 0; }
 
   const k = G.kid, M = G.monster;
   const near = los(L, k.x, k.z, M.x, M.z);
   for (const e of G.events) {
     audio.event(e, G, near);
+    view.event(e);
     if (e.type === 'candleOut') drawCandles();
     if (e.type === 'lunge') view.shake(0.5);
     if (e.type === 'caught') { view.shake(1.2); view.st.flash = 1; end('caught'); }
@@ -100,6 +115,8 @@ function frame(now) {
   G.events.length = 0;
   if (phase === 'caught') { view.st.flash = Math.max(0, view.st.flash - dt * 3); view.st.dark = Math.min(0.85, view.st.dark + dt * 0.8); }
   if (phase === 'won') view.st.dark = Math.min(0.6, view.st.dark + dt * 0.3);
+  const hint = phase === 'play' ? actionHint(G).join('   ·   ') : '';
+  if (hint !== lastHint) { $('prompt').textContent = hint; lastHint = hint; }
   audio.setRight(view.right);
   audio.update(G, dt, near);
   view.frame(G, dt, t, input);

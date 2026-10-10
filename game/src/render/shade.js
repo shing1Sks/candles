@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 
 export const U = {
-  uVis: { value: null }, uLight: { value: null }, uRoom: { value: null }, uSize: { value: new THREE.Vector2(1, 1) },
+  uVis: { value: null }, uLight: { value: null }, uRoom: { value: null }, uAO: { value: null }, uSize: { value: new THREE.Vector2(1, 1) },
   uAmb: { value: 0.012 }, uTime: { value: 0 }, uKid: { value: new THREE.Vector3() }, uKidPx: { value: new THREE.Vector2() },
   uCutR: { value: 120 }, uCamDir: { value: new THREE.Vector2(0, 1) },
 };
@@ -23,7 +23,7 @@ const vert = /* glsl */ `
   }`;
 
 const frag = /* glsl */ `
-  uniform sampler2D uVis, uLight, uRoom; uniform vec2 uSize, uKidPx, uCamDir;
+  uniform sampler2D uVis, uLight, uRoom, uAO; uniform vec2 uSize, uKidPx, uCamDir;
   uniform float uAmb, uTime, uCutR, uCut, uPattern, uFade, uLit, uClipY;
   uniform vec3 uColor, uEmis, uKid;
   varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
@@ -87,6 +87,7 @@ const frag = /* glsl */ `
     float hfall = mix(1.0, 0.5, clamp(vW.y / 1.6, 0.0, 1.0) * vertical);
     float L = uAmb + lt * 1.35 * hfall * uLit + vs.g * 0.22;
     float ao = mix(1.0, mix(0.4, 1.0, smoothstep(0.0, 0.45, vW.y)), vertical);
+    ao *= mix(texture2D(uAO, uv).r, 1.0, smoothstep(0.0, 0.6, vW.y)); // contact shadow near the floor
     vec3 base = uColor * vC;
     if (uPattern > 0.5 && uPattern < 1.5) base *= floorShade(vW.xz);
     else if (uPattern > 1.5 && uPattern < 3.5) base *= wallShade(vW, n);

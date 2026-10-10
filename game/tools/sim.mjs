@@ -46,12 +46,17 @@ function kidBot(G) {
   while (p.length > 1 && clearLine(L, k.x, k.z, p[1].x, p[1].z, KID.radius, L.kidBlocked)) p.shift();
   if (p.length && Math.hypot(p[0].x - k.x, p[0].z - k.z) < 0.2) p.shift();
   const tgt = p[0] || (st.cand && !danger ? st.cand : null);
+  // a shut door in the way: open it
+  st.useT = (st.useT || 0) - DT;
+  if (tgt && st.useT <= 0) for (const dr of G.doors) {
+    if (!dr.open && Math.hypot(dr.x - k.x, dr.z - k.z) < 1.2 && (dr.x - k.x) * (tgt.x - k.x) + (dr.z - k.z) * (tgt.z - k.z) > 0) { inp.use = true; st.useT = 1; break; }
+  }
   if (tgt) { const dx = tgt.x - k.x, dz = tgt.z - k.z, n = Math.hypot(dx, dz) || 1; inp.mx = dx / n; inp.mz = dz / n; }
   inp.creep = !danger && d < 10;
   return inp;
 }
 
-const res = { won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, spotted: 0, lunges: 0, catchT: [] };
+const res = { ev: {}, won: 0, caught: 0, timeout: 0, t: [], out: [], modes: {}, spotted: 0, lunges: 0, catchT: [] };
 const t0 = Date.now();
 for (let g = 0; g < N; g++) {
   const G = createGame(L, SEED + g);
@@ -60,7 +65,10 @@ for (let g = 0; g < N; g++) {
     if (process.env.TRACE && Math.round(G.t * 60) % 300 === 0) console.log(`t=${G.t.toFixed(0)} kid=(${G.kid.x.toFixed(2)},${G.kid.z.toFixed(2)}) in=(${inp.mx.toFixed(2)},${inp.mz.toFixed(2)}) blow=${inp.blow} plan=${JSON.stringify((G.bot.plan || []).slice(0, 2))} cand=${G.bot.cand?.id}`);
     step(G, inp, DT);
     res.modes[G.monster.mode] = (res.modes[G.monster.mode] || 0) + DT;
-    for (const e of G.events) { if (e.type === 'spotted') res.spotted++; if (e.type === 'lunge') res.lunges++; }
+    for (const e of G.events) {
+      if (e.type === 'spotted') res.spotted++; if (e.type === 'lunge') res.lunges++;
+      res.ev[e.type] = (res.ev[e.type] || 0) + 1;
+    }
     G.events.length = 0;
   }
   const out = G.candles.filter((c) => !c.lit).length;
@@ -80,3 +88,4 @@ console.log(`avg length ${avg(res.t)} s, avg candles out ${avg(res.out)}, avg ca
 console.log(`candles-out histogram: ${[0, 1, 2, 3, 4, 5, 6].map((i) => res.out.filter((v) => v === i).length).join(' ')}`);
 console.log(`spotted ${(res.spotted / N).toFixed(1)}/game, lunges ${(res.lunges / N).toFixed(1)}/game`);
 console.log('monster time: ' + Object.entries(res.modes).map(([k, v]) => `${k} ${((v / total) * 100).toFixed(0)}%`).join(', '));
+console.log('events/game: ' + Object.entries(res.ev).filter(([k]) => !['kstep', 'mstep', 'mode'].includes(k)).map(([k, v]) => `${k} ${(v / N).toFixed(1)}`).join(', '));

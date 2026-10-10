@@ -12,6 +12,7 @@ import { buildWorld } from './world.js';
 import { createKid, createMonster } from './actors.js';
 import { createCandles } from './fx.js';
 import { createTable } from './table.js';
+import { createProps } from './props.js';
 import { WALL_H } from './world.js';
 import { los } from '../sim/grid.js';
 import { HEART } from '../sim/rules.js';
@@ -27,21 +28,22 @@ export function createView(canvas, L) {
   const camera = new THREE.PerspectiveCamera(35, 1, 0.3, 1500);
 
   const maps = createMaps(renderer, L);
-  U.uVis.value = maps.vis; U.uLight.value = maps.light;
+  U.uVis.value = maps.vis; U.uLight.value = maps.light; U.uAO.value = maps.ao;
   buildWorld(L, scene);
   const kid = createKid(), monster = createMonster();
   scene.add(kid.root, monster.root);
   const candles = createCandles(scene, L.candles);
   const table = createTable(scene, camera, L);
+  const props = createProps(scene, L);
   const center = new THREE.Vector3(L.w / 2, 0, L.h / 2);
 
   // film pass
   const rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
   const post = new THREE.ShaderMaterial({
-    uniforms: { tScene: { value: rt.texture }, uTime: { value: 0 }, uFear: { value: 0 }, uFlash: { value: 0 }, uDark: { value: 0 }, uAspect: { value: 1 }, uRes: { value: new THREE.Vector2() } },
+    uniforms: { tScene: { value: rt.texture }, uTime: { value: 0 }, uFear: { value: 0 }, uFlash: { value: 0 }, uDark: { value: 0 }, uHide: { value: 0 }, uAspect: { value: 1 }, uRes: { value: new THREE.Vector2() } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: /* glsl */ `
-      uniform sampler2D tScene; uniform float uTime, uFear, uFlash, uDark, uAspect; uniform vec2 uRes;
+      uniform sampler2D tScene; uniform float uTime, uFear, uFlash, uDark, uAspect, uHide; uniform vec2 uRes;
       varying vec2 vUv;
       float hash(vec2 p) { p = fract(p * vec2(443.897, 441.423)); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }
       void main() {
@@ -56,6 +58,9 @@ export function createView(canvas, L) {
         float v = 1.0 - smoothstep(0.3, 0.95, length(q)) * (0.7 + 0.3 * uFear);
         l *= v;
         l += (hash(floor(vUv * uRes) + fract(uTime * 7.3) * 91.0) - 0.5) * 0.07;
+        // hiding in a wardrobe: you look out between the slats of its door
+        float slat = smoothstep(0.38, 0.46, abs(fract(vUv.y * 11.0 + 0.2) - 0.5) * 2.0);
+        l *= mix(1.0, (0.06 + 0.94 * (1.0 - slat)) * (1.0 - smoothstep(0.15, 0.6, length(q)) * 0.8), uHide);
         l = mix(l, 1.0, uFlash);
         l *= 1.0 - uDark;
         gl_FragColor = vec4(vec3(l), 1.0);
@@ -68,7 +73,7 @@ export function createView(canvas, L) {
   const postCam = new THREE.Camera();
 
   const target = new THREE.Vector3(), tmp = new THREE.Vector3();
-  let shake = 0, first = true, zoom = 0.9, zoomWant = 0.9, mode = 'in', yaw = 0, inDist = 4.4;
+  let hide = 0, shake = 0, first = true, zoom = 0.9, zoomWant = 0.9, mode = 'in', yaw = 0, inDist = 4.4;
   const camPos = new THREE.Vector3(), look = new THREE.Vector3(), right = { x: 1, z: 0 };
   const st = { flash: 0, dark: 0 };
 
@@ -88,6 +93,7 @@ export function createView(canvas, L) {
   return {
     renderer, camera, st,
     shake(a) { shake = Math.max(shake, a); },
+    event(e) { props.event(e); table.event?.(e); if (e.type === 'slam') shake = Math.max(shake, 0.45); },
     get mode() { return mode; },
     toggleMode() { mode = mode === 'in' ? 'table' : 'in'; if (mode === 'table') zoomWant = zoom = 0.15; first = true; },
     turn(a) { yaw += a; },
@@ -139,7 +145,11 @@ export function createView(canvas, L) {
 
       const inWall = L.sightBlocked(Math.floor(k.x), Math.floor(k.z));
       const intensities = candles.update(G, dt, t);
-      maps.update(k.x, k.z, inWall, intensities);
+      maps.update(G, k.x, k.z, inWall, intensities, dt);
+      props.update(G, dt, t);
+      kid.root.visible = k.hidden < 0;
+      hide += ((k.hidden >= 0 ? 1 : 0) - hide) * Math.min(1, dt * 5);
+      post.uniforms.uHide.value = hide;
 
       const d = Math.hypot(M.x - k.x, M.z - k.z);
       const awake = M.mode !== 'sleep';

@@ -1,11 +1,12 @@
 // The monster's brain. It plays like a person with a controller would: it guards the candles that are
-// still lit, runs to every sound, cuts round to the far end of the vent you just crawled into, and lunges
-// when it is close. It never sees through walls; it only gets a fuzzy sense of you every few seconds.
-import { MON, KID } from './rules.js';
+// still lit, runs to every sound, cuts round to the far end of the vent you just crawled into, opens (or
+// smashes) the doors you shut on it, looks in wardrobes, and lunges when it is close. It never sees through
+// walls; it only gets a fuzzy sense of you every few seconds.
+import { MON, CANDLE } from './rules.js';
 import { T } from './level.js';
-import { resolve, los, clearLine, findPath, nearestOpen } from './grid.js';
+import { resolve, clearLine, findPath, nearestOpen } from './grid.js';
 import { lightAt } from './light.js';
-import { CANDLE } from './rules.js';
+import { setDoor, caught } from './game.js';
 
 const lustFor = (t) => MON.lust.reduce((v, [at, add]) => (t >= at ? add : v), 0);
 
@@ -16,7 +17,7 @@ export function createMonster(G) {
     mode: 'sleep', modeT: 0, goal: null, path: null, pathT: 0,
     sees: false, lastSeen: null, lastSeenT: -99, lostT: 0, chaseT: 0, lust: 0, cool: 0, lungeT: 0,
     pingT: MON.pingEvery[0] * 0.5, menace: 0, gapUses: {}, alert: null, linger: 0, searchLeft: 0, searchAt: null, ambushAt: null,
-    stuckT: 0, stride: 0, speed: 0,
+    stuckT: 0, stride: 0, speed: 0, rage: 0, doorT: 0, doorId: -1, checked: {}, checkW: -1,
   };
 }
 
@@ -31,7 +32,7 @@ function setMode(G, M, mode) {
 
 // Head for (x, z): plan a path when the goal moves, then aim at the furthest point we can slide to.
 function steer(G, M, x, z, speed, dt) {
-  const L = G.L, blocked = L.monBlocked;
+  const L = G.L, blocked = L.monBlocked; // plans straight through doors: it opens them when it gets there
   if (clearLine(L, M.x, M.z, x, z, R, blocked)) { M.path = null; return aim(M, x, z, speed); }
   M.pathT -= dt;
   const moved = !M.goal || Math.hypot(M.goal.x - x, M.goal.z - z) > 0.8;
@@ -56,13 +57,35 @@ function aim(M, x, z, speed) {
   return d;
 }
 
+// A shut door in the way: stop, rattle it open (or smash through when chasing).
+function doors(G, M, dt) {
+  if (M.doorT > 0) {
+    M.doorT -= dt; M.wantX = 0; M.wantZ = 0; M.vx *= 0.5; M.vz *= 0.5;
+    if (M.doorT <= 0) { const d = G.doors[M.doorId]; if (!d.open) setDoor(G, d, true, 'monster', M.doorBashing); }
+    return;
+  }
+  const w = Math.hypot(M.wantX, M.wantZ);
+  if (w < 0.3) return;
+  for (const d of G.doors) {
+    if (d.open) continue;
+    const dx = d.x - M.x, dz = d.z - M.z, dd = Math.hypot(dx, dz);
+    if (dd > 1.35 || (dx * M.wantX + dz * M.wantZ) / (dd * w) < 0.6) continue;
+    M.doorBashing = M.mode === 'chase';
+    M.doorT = M.doorBashing ? MON.doorBash : MON.doorOpen; M.doorId = d.id;
+    G.events.push({ type: 'doorTry', id: d.id, bash: M.doorBashing });
+    M.wantX = 0; M.wantZ = 0;
+    return;
+  }
+}
+
 function move(G, M, dt) {
+  doors(G, M, dt);
   const a = MON.accel * dt;
   const dvx = M.wantX - M.vx, dvz = M.wantZ - M.vz, dv = Math.hypot(dvx, dvz);
   if (dv > a) { M.vx += (dvx / dv) * a; M.vz += (dvz / dv) * a; } else { M.vx = M.wantX; M.vz = M.wantZ; }
   const ox = M.x, oz = M.z;
   M.x += M.vx * dt; M.z += M.vz * dt;
-  resolve(G.L, M, R, G.L.monBlocked);
+  resolve(G.L, M, R, G.monBlocked);
   const mx = (M.x - ox) / dt, mz = (M.z - oz) / dt;
   M.speed = Math.hypot(mx, mz);
   if (M.speed > 0.2) {
@@ -80,6 +103,7 @@ function move(G, M, dt) {
 
 function canSee(G, M) {
   const k = G.kid, L = G.L, d = Math.hypot(k.x - M.x, k.z - M.z);
+  if (k.hidden >= 0) return false; // in a wardrobe
   if (L.sightBlocked(tileOf(k.x), tileOf(k.z))) return false; // in a vent or a crack
   const under = L.at(tileOf(k.x), tileOf(k.z));
   if ((under === T.TABLE || under === T.BED) && d > MON.hiddenSeen) return false;
@@ -87,7 +111,7 @@ function canSee(G, M) {
   if (d > range) return false;
   const dot = ((k.x - M.x) * M.hx + (k.z - M.z) * M.hz) / (d || 1);
   if (dot < MON.fov && d > MON.sightClose) return false;
-  return los(L, M.x, M.z, k.x, k.z);
+  return G.los(M.x, M.z, k.x, k.z);
 }
 
 // Pick a floor tile within r of (x, z) that we can walk to.
@@ -95,7 +119,7 @@ function randomSpot(G, x, z, r) {
   const L = G.L;
   for (let i = 0; i < 20; i++) {
     const tx = tileOf(x + (G.rand() * 2 - 1) * r), tz = tileOf(z + (G.rand() * 2 - 1) * r);
-    if (!L.monBlocked(tx, tz) && los(L, x, z, tx + 0.5, tz + 0.5)) return { x: tx + 0.5, z: tz + 0.5 };
+    if (!L.monBlocked(tx, tz) && G.los(x, z, tx + 0.5, tz + 0.5)) return { x: tx + 0.5, z: tz + 0.5 };
   }
   return { x, z };
 }
@@ -113,6 +137,19 @@ function ambushSpot(G, M, at) {
     return G.rand() < 0.25 ? ex[ex.length - 1] : ex[0];
   }
   return null;
+}
+
+// A wardrobe near (x, z) worth a look (not one it just looked in).
+function wardrobeNear(G, M, x, z, r) {
+  let best = null, bd = r;
+  for (const w of G.wardrobes) {
+    const d = Math.hypot(w.fx - x, w.fz - z);
+    if (d < bd && G.t - (M.checked[w.id] ?? -99) > 15) { bd = d; best = w; }
+  }
+  return best;
+}
+function check(G, M, w) {
+  setMode(G, M, 'check'); M.checkW = w.id;
 }
 
 // Where to walk next with nothing to go on: often a lit candle, otherwise anywhere in the house
@@ -148,7 +185,8 @@ function pickGuard(G, M) {
 
 export function stepMonster(G, dt) {
   const M = G.monster, k = G.kid;
-  M.modeT += dt; M.cool -= dt; M.wantX = 0; M.wantZ = 0;
+  M.modeT += dt; M.cool -= dt; M.rage = Math.max(0, M.rage - dt); M.wantX = 0; M.wantZ = 0;
+  const fury = M.rage > 0 ? MON.rageBoost : 0;
   if (M.mode === 'sleep') {
     if (G.t > MON.wake || M.alert) setMode(G, M, 'patrol'), G.events.push({ type: 'wake' });
     else return move(G, M, dt);
@@ -166,8 +204,13 @@ export function stepMonster(G, dt) {
   let hint = null;
   if (M.alert) { hint = M.alert; M.alert = null; }
   if (!hint && k.noise > 0) {
-    const r = los(G.L, M.x, M.z, k.x, k.z) ? k.noise : k.noise * 0.6;
+    const r = G.los(M.x, M.z, k.x, k.z) ? k.noise : k.noise * 0.6;
     if (d < r) hint = { x: k.x + (G.rand() - 0.5), z: k.z + (G.rand() - 0.5) };
+  }
+  // doors, creaks, squeaks, a thrown toy landing: it goes to look
+  for (const n of G.noises) {
+    const nd = Math.hypot(n.x - M.x, n.z - M.z), r = G.los(M.x, M.z, n.x, n.z) ? n.r : n.r * 0.65;
+    if (nd < r && !(M.mode === 'chase' && sees)) hint = { x: n.x, z: n.z };
   }
   M.pingT -= dt;
   if (!hint && M.pingT <= 0) {
@@ -197,8 +240,12 @@ export function stepMonster(G, dt) {
   }
   M.kidGap = kp;
 
-  if (sees && !busy) { setMode(G, M, 'chase'); M.chaseT = 0; M.gapUses = {}; }
-  else if (hint && !busy && !(M.mode === 'ambush' && hint.fuzzy)) { setMode(G, M, 'hunt'); M.huntAt = hint; }
+  if (k.hidden >= 0 && M.mode !== 'check' && G.t - k.hiddenAt < 0.2 && G.t - M.lastSeenT < 1.5) {
+    const w = G.wardrobes[k.hidden];
+    if (Math.hypot(w.fx - M.lastSeen.x, w.fz - M.lastSeen.z) < 3) check(G, M, w);
+  }
+  if (sees && !busy && M.mode !== 'check') { setMode(G, M, 'chase'); M.chaseT = 0; M.gapUses = {}; }
+  else if (hint && !busy && M.mode !== 'check' && !(M.mode === 'ambush' && hint.fuzzy)) { setMode(G, M, 'hunt'); M.huntAt = hint; }
   else if (hint && M.mode === 'chase' && !sees && !hint.fuzzy) M.lastSeen = { x: hint.x, z: hint.z, vx: 0, vz: 0 };
 
   switch (M.mode) {
@@ -207,19 +254,20 @@ export function stepMonster(G, dt) {
         M.lostT = 0; M.chaseT += dt;
         M.lust = lustFor(M.chaseT);
         const dot = ((k.x - M.x) * M.hx + (k.z - M.z) * M.hz) / (d || 1);
-        if (d < MON.lungeRange && M.cool <= 0 && dot > 0.8 && clearLine(G.L, M.x, M.z, k.x, k.z, R * 0.7, G.L.monBlocked)) {
+        if (d < MON.lungeRange && M.cool <= 0 && dot > 0.8 && clearLine(G.L, M.x, M.z, k.x, k.z, R * 0.7, G.monBlocked)) {
           setMode(G, M, 'windup'); G.events.push({ type: 'windup' });
           break;
         }
         const lead = Math.min(0.5, d / 8);
-        steer(G, M, k.x + k.vx * lead, k.z + k.vz * lead, MON.chase + M.lust, dt);
+        steer(G, M, k.x + k.vx * lead, k.z + k.vz * lead, MON.chase + M.lust + fury, dt);
       } else {
         M.lostT += dt;
-        const at = M.lastSeen, left = steer(G, M, at.x, at.z, MON.chase + M.lust, dt);
+        const at = M.lastSeen, left = steer(G, M, at.x, at.z, MON.chase + M.lust + fury, dt);
         if (left < 0.6 || M.lostT > 2.5) {
           G.events.push({ type: 'lost' });
-          const amb = ambushSpot(G, M, at);
-          if (amb) { setMode(G, M, 'ambush'); M.ambushAt = amb; }
+          const amb = ambushSpot(G, M, at), w = wardrobeNear(G, M, at.x, at.z, 2.5);
+          if (w) check(G, M, w);
+          else if (amb) { setMode(G, M, 'ambush'); M.ambushAt = amb; }
           else { setMode(G, M, 'search'); M.searchAt = { x: at.x + at.vx * 1.2, z: at.z + at.vz * 1.2 }; M.searchLeft = 3; }
           M.lust = 0;
         }
@@ -253,7 +301,7 @@ export function stepMonster(G, dt) {
       break;
     }
     case 'hunt': {
-      const left = steer(G, M, M.huntAt.x, M.huntAt.z, MON.hunt, dt);
+      const left = steer(G, M, M.huntAt.x, M.huntAt.z, MON.hunt + fury, dt);
       if (left < 0.7 || M.modeT > 12) { setMode(G, M, 'search'); M.searchAt = M.huntAt; M.searchLeft = 3; }
       break;
     }
@@ -266,10 +314,28 @@ export function stepMonster(G, dt) {
       if (M.modeT > 10) { setMode(G, M, 'search'); M.searchAt = M.ambushAt; M.searchLeft = 2; }
       break;
     }
+    case 'check': {
+      const w = G.wardrobes[M.checkW], left = steer(G, M, w.fx, w.fz, M.modeT < 0.1 ? MON.hunt : MON.hunt + fury, dt);
+      if (left < 0.75) {
+        M.wantX = 0; M.wantZ = 0;
+        M.hx += (w.tx + 0.5 - M.x - M.hx) * 0.2; M.hz += (w.tz + 0.5 - M.z - M.hz) * 0.2;
+        M.linger += dt;
+        if (M.linger === dt) { w.openAt = G.t; G.events.push({ type: 'checkOpen', id: w.id }); }
+        if (M.linger > MON.checkOpen) {
+          M.linger = 0; M.checked[w.id] = G.t;
+          if (k.hidden === w.id) { G.events.push({ type: 'found', id: w.id }); caught(G); return; }
+          G.events.push({ type: 'checkEmpty', id: w.id });
+          setMode(G, M, 'search'); M.searchAt = { x: w.fx, z: w.fz }; M.searchLeft = 2;
+        }
+      } else if (M.modeT > 12) { setMode(G, M, 'search'); M.searchAt = { x: w.fx, z: w.fz }; M.searchLeft = 1; }
+      break;
+    }
     case 'search': {
       if (!M.goal || M.linger > 1.2) {
         if (M.searchLeft-- <= 0) { setMode(G, M, 'patrol'); break; }
         M.linger = 0;
+        const w = wardrobeNear(G, M, M.searchAt.x, M.searchAt.z, MON.checkNear);
+        if (w && G.rand() < MON.checkChance) { check(G, M, w); break; }
         const s = randomSpot(G, M.searchAt.x, M.searchAt.z, 3.5);
         M.goal = s; M.path = null;
         M.spot = s;
