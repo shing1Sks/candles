@@ -115,16 +115,38 @@ GPU (section 7). Training doesn't care: all sizes train on the rented GPU.
    - Tune the sampling temperatures on the check split so outcome and event rates match the bots per monster type.
    - Train with a small chance of a randomly wrong button, so it stays robust to odd inputs from a person.
 
-**Compute** (a rough estimate; prices are checked before renting):
+**Compute plan.** Runpod community prices read live on 2026-10-11:
+- RTX 4090: $0.34/h;
+- RTX 5090: $0.69/h;
+- A100 80 GB: $1.19/h.
 
-| | M | L |
+**How the hours are worked out:**
+- Training costs about 6 × parameters × pieces operations per example, forward and backward.
+- With one masked pass for both heads and about 75 pieces, that is: S 2.9, M 9.6, L 22.8, XL 38 billion operations
+  per example.
+- An RTX 4090 sustains an assumed 40 trillion a second on a model this small (about 25–40% of its bf16 peak).
+- One epoch is the 5.8 M steps of v1.
+
+| Stage | What | RTX 4090 hours |
 |---|---|---|
-| One-step training, one rented GPU (A100 / 4090 class) | about 2–3 h | about 6–8 h |
-| Rollout phase | about the same again | about the same again |
-| Rough cost | $10–$25 | $10–$25 |
+| 0 | Write the training code and test it on a slice on the laptop | 0 (free) |
+| 1 | Pod setup and data: regenerate v1 on the pod's CPUs (the generator is deterministic), so nothing is uploaded | 0.3 |
+| 2 | Throughput check: 2 minutes per size, turning this table into measured numbers before the long runs | 0.2 |
+| 3 | Size sweep, 1 epoch each (S 7 min, M 23 min, L 55 min, XL 90 min), plus a data check: S and M on 25% and 50% of the data | 3.5 |
+| 4 | Full one-step training of the winner, about 8 epochs with early stopping (M: 3 h, L: 7.3 h) | 3–7.5 |
+| 5 | Rollout training, about 2 epochs' worth (M: 0.8 h, L: 1.8 h) | 0.8–1.8 |
+| 6 | The exam: scenarios, 200 five-minute games, calibration | 0.5 |
+| | **Total** | **about 8.5 h (M) to 14 h (L)** |
 
-The cost range covers the whole size sweep. Runpod is available here. Nothing is rented without your go-ahead on
-the exact machine and hourly price.
+**Cost:**
+- About **$3 (M) to $5 (L)** on an RTX 4090.
+- If it reaches only half the assumed throughput, about **$6–10**.
+- Asked cap: **$10**.
+- Stage 2 makes the estimate exact after about 10 cents.
+
+**If no 4090 is free:** an RTX 5090 ($0.69/h) is about 1.5–2× faster, so it costs about the same per job.
+
+**Nothing runs on the laptop's CPU.** At the spike's pace it would take weeks.
 
 ## 5. The exam
 
@@ -186,6 +208,6 @@ game state the renderer and sound already read.
 
 ## 9. Needs your answer
 
-1. **A GPU budget and go-ahead to rent:** e.g. up to $50 for the whole sweep.
+1. **A GPU budget and go-ahead to rent:** a $10 cap (expected $3–5 on an RTX 4090).
 2. **Bloodlust:** shorten 15 s → 6 s so it actually happens, or leave it as a rare rule?
 3. **Playing speed:** is 10 ticks a second (smoothed to 60 fps) acceptable as the fallback?
