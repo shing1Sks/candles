@@ -126,6 +126,8 @@ export function createView(canvas, L) {
     renderer, camera, st,
     shake(a) { shake = Math.max(shake, a); },
     event(e) { props.event(e); table.event(e); },
+    // a new game: the giant sits back, doors snap to their starting places
+    reset(G) { table.giant.reset(); props.reset(G); first = true; },
     get mode() { return mode; },
     toggleMode() { mode = mode === 'in' ? 'table' : 'in'; if (mode === 'table') zoomWant = zoom = 0.15; first = true; },
     turn(a) { yaw += a; },
@@ -192,7 +194,7 @@ export function createView(canvas, L) {
       monster.update(M, k, dt, t);
       // you only see it if the kid could
       // behind walls you still see its eye on the stalk poking up over them
-      const seen = !inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && los(L, k.x, k.z, M.x, M.z);
+      const seen = !inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && G.los(k.x, k.z, M.x, M.z);
       monster.setSeen(seen, WALL_H + 0.02);
       const lit = intensities.reduce((s, v) => s + v, 0) / intensities.length;
       // from inside the house the giant is a dark mass overhead; at the table you see it lit by the board

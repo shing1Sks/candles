@@ -147,6 +147,7 @@ export function createProps(scene, L) {
   const squeaks = L.squeaks.map((s) => { const m = squeakMesh(s.kind, toyMat); scene.add(m); return { m, squash: 0 }; });
 
   return {
+    reset(G) { doors.forEach((o) => { o.ang = G.doors[o.d.id].open ? OPEN : 0; o.shake = 0; }); wardrobes.forEach((o) => { o.ang = 0; }); },
     event(e) {
       if (e.type === 'doorTry') doors[e.id].shake = e.bash ? 1 : 0.35;
       if (e.type === 'squeak') squeaks[e.id].squash = 1;

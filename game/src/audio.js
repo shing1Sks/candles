@@ -546,9 +546,6 @@ export function createAudio() {
         noiseHit({ type: 'lowpass', f: 900, f2: 120, peak: 0.45, a: 0.003, dec: 0.5, dest: master });
         for (let i = 0; i < 5; i++) noiseHit({ t: t + 0.03 + Math.random() * 0.2, f: rnd(1500, 4000), q: 5, peak: rnd(0.02, 0.05), dec: 0.04, pan: rnd(-0.6, 0.6) });
         break;
-      case 'grabbed':
-        play('scream', { rate: 1.25, gain: 0.7, dest: master, must: true });
-        break;
       case 'beamSpot':
         if (!sting(t, 0.45, true)) tone({ type: 'sawtooth', f: 1800, f2: 2600, peak: 0.04, a: 0.01, dec: 0.6, dest: master, lp: 4000 });
         noiseHit({ type: 'highpass', f: 2500, peak: 0.12, a: 0.005, dec: 0.4, dest: master });
@@ -561,7 +558,14 @@ export function createAudio() {
     get on() { return !!ctx; },
     setRight(r) { if (r) R = r; },
     start() {
-      if (ctx) return;
+      if (ctx) {
+        // started earlier without a user gesture (a gamepad): wake it up now that we have one
+        try {
+          if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+          for (const v of Object.values(st)) if (v && v.el && v.el.paused) v.el.play().catch(() => {});
+        } catch (e) { /* ignore */ }
+        return;
+      }
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;

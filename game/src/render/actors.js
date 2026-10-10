@@ -155,7 +155,8 @@ export function createMonster() {
   const eyeMat = mat({ color: 0.0, emis: 1.0 }), pupilMat = mat({ color: 0.0 }), stalkM = mat({ color: 0.1 });
   const materials = [hide, furM, claw, tooth, mouthM, eyeMat, pupilMat, stalkM];
   const root = new THREE.Group(), body = new THREE.Group();
-  root.add(shadowBlob(0.55), body);
+  const blob = shadowBlob(0.55);
+  root.add(blob, body);
 
   // spine: three segments curling forward from the pelvis
   const NS = 3, SL = 0.34, RX = [0.36, 0.38, 0.32], RZ = [0.3, 0.32, 0.28];
@@ -211,7 +212,7 @@ export function createMonster() {
   });
 
   const nodes = Array.from({ length: NS + 1 }, () => new THREE.Vector3()), dirs = Array.from({ length: NS }, () => new THREE.Vector3());
-  const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), look = new THREE.Vector3(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+  const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), look = new THREE.Vector3(), sa = new THREE.Vector3(), sbb = new THREE.Vector3();
   let phase = 0, yaw = 0, crouch = 0, reach = 0, jaw = 0, run = 0, scan = 0;
 
   return {
@@ -255,8 +256,8 @@ export function createMonster() {
       const mid = v3.copy(sb).lerp(tip, 0.5).add(look.set(0, 0.12, -0.1));
       for (let i = 0; i < stalk.length; i++) {
         const u0 = i / stalk.length, u1 = (i + 1) / stalk.length;
-        const a = new THREE.Vector3().copy(sb).multiplyScalar((1 - u0) ** 2).addScaledVector(mid, 2 * u0 * (1 - u0)).addScaledVector(tip, u0 * u0);
-        const b = new THREE.Vector3().copy(sb).multiplyScalar((1 - u1) ** 2).addScaledVector(mid, 2 * u1 * (1 - u1)).addScaledVector(tip, u1 * u1);
+        const a = sa.copy(sb).multiplyScalar((1 - u0) ** 2).addScaledVector(mid, 2 * u0 * (1 - u0)).addScaledVector(tip, u0 * u0);
+        const b = sbb.copy(sb).multiplyScalar((1 - u1) ** 2).addScaledVector(mid, 2 * u1 * (1 - u1)).addScaledVector(tip, u1 * u1);
         place(stalk[i], a, b);
       }
       eye.position.copy(tip);
@@ -296,7 +297,7 @@ export function createMonster() {
       furM.uniforms.uSway.value = 0.05 + run * 0.06 + jaw * 0.05;
     },
     // seen: the whole body; hidden behind walls: only what pokes above them (the eye on its stalk)
-    setSeen(seen, clipY) { for (const m of materials) m.uniforms.uClipY.value = seen ? -100 : clipY; },
+    setSeen(seen, clipY) { for (const m of materials) m.uniforms.uClipY.value = seen ? -100 : clipY; blob.visible = seen; },
   };
 }
 

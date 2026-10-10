@@ -41,12 +41,13 @@ export function fur(n, rx, ry, rz, len, thick, material, { droop = 0.35, front =
 }
 
 // two-bone IK: elbow position for shoulder a, wrist c, bone lengths l1, l2, bending toward `pole`
+const _d = new THREE.Vector3(), _p = new THREE.Vector3();
 export function ik(a, c, l1, l2, pole, out) {
-  const d = new THREE.Vector3().subVectors(c, a);
+  const d = _d.subVectors(c, a);
   const dist = Math.min(Math.max(d.length(), 0.01), l1 + l2 - 0.01);
   d.normalize();
   const x = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist), h = Math.sqrt(Math.max(0, l1 * l1 - x * x));
-  const p = new THREE.Vector3().subVectors(pole, a);
+  const p = _p.subVectors(pole, a);
   p.addScaledVector(d, -p.dot(d)).normalize();
   return out.copy(a).addScaledVector(d, x).addScaledVector(p, h);
 }
@@ -59,7 +60,7 @@ export function bone(r1, r2, material) {
 }
 export function place(mesh, a, b) {
   mesh.position.copy(a);
-  const d = new THREE.Vector3().subVectors(b, a), L = d.length();
+  const d = _d.subVectors(b, a), L = d.length();
   mesh.quaternion.setFromUnitVectors(UP, d.divideScalar(L || 1));
   mesh.scale.set(1, L, 1);
 }

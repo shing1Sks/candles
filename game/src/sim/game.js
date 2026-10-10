@@ -52,11 +52,14 @@ export function step(G, input, dt) {
   if (G.state !== 'play') return;
   G.t += dt;
   stepKid(G, input, dt);
+  if (G.state !== 'play') return;
   stepItems(G, dt);
   stepBeam(G, dt);
   stepReach(G, dt);
+  if (G.state !== 'play') return;
   stepMonster(G, dt);
   G.noises.length = 0;
+  if (G.state !== 'play') return;
   checkCatch(G);
 }
 
@@ -97,19 +100,21 @@ function use(G) {
   const w = nearest(G.wardrobes, k.x, k.z, 0.95, (o) => ({ x: o.fx, z: o.fz }));
   const d = nearest(G.doors, k.x, k.z, KID.useReach);
   if (w && (!d || Math.hypot(w.fx - k.x, w.fz - k.z) < Math.hypot(d.x - k.x, d.z - k.z))) {
-    k.hidden = w.id; k.hiddenAt = G.t; k.vx = k.vz = 0; k.blowing = -1;
+    k.hidden = w.id; k.hiddenAt = G.t; k.vx = k.vz = 0; k.blowing = -1; k.stickFree = false;
     w.openAt = G.t;
     G.events.push({ type: 'hide', id: w.id });
     return;
   }
   if (!d) return;
   // you can't shut a door on yourself or on it
-  if (d.open && (inDoorway(d, k.x, k.z, KID.radius) || inDoorway(d, M.x, M.z, MON.radius))) return;
+  if (d.open && (inDoorway(d, k.x, k.z, KID.radius) || inDoorway(d, M.x, M.z, MON.radius) ||
+    G.items.some((i) => !i.held && inDoorway(d, i.x, i.z, 0.1)) || G.squeaks.some((s) => inDoorway(d, s.x, s.z, 0.1)))) return;
   setDoor(G, d, !d.open, 'kid');
 }
 
 function leaveWardrobe(G) {
-  const k = G.kid, w = G.wardrobes[k.hidden];
+  const k = G.kid, w = G.wardrobes[k.hidden], M = G.monster;
+  if (Math.hypot(M.x - w.fx, M.z - w.fz) < MON.reach + MON.radius + 0.3) return; // it is right outside
   k.x = w.fx; k.z = w.fz; k.hidden = -1;
   w.openAt = G.t;
   G.events.push({ type: 'unhide', id: w.id });
@@ -121,7 +126,9 @@ function stepKid(G, input, dt) {
   if (k.hidden >= 0) {
     k.vx = k.vz = 0; k.speed = 0; k.noise = 0; k.running = false;
     // pushing the stick for a moment steps you back out
-    if (Math.hypot(input.mx || 0, input.mz || 0) > 0.5 && G.t - k.hiddenAt > 0.4) leaveWardrobe(G);
+    const push = Math.hypot(input.mx || 0, input.mz || 0);
+    if (push < 0.2) k.stickFree = true; // let go of the stick once before a push counts
+    if (push > 0.5 && k.stickFree && G.t - k.hiddenAt > 0.4) leaveWardrobe(G);
     return;
   }
   let mx = input.mx || 0, mz = input.mz || 0;
@@ -186,7 +193,7 @@ function stepKid(G, input, dt) {
   if (k.held < 0) {
     const it = nearest(G.items.filter((i) => !i.held && !i.fly), k.x, k.z, KID.pickReach);
     if (it) { it.held = true; k.held = it.id; G.events.push({ type: 'pickup', id: it.id, kind: it.kind }); }
-  } else if (input.throw) {
+  } else if (input.throw && !G.kidBlocked(Math.floor(k.x + k.fx * 0.45), Math.floor(k.z + k.fz * 0.45)) && !G.sightBlocked(Math.floor(k.x + k.fx * 0.45), Math.floor(k.z + k.fz * 0.45)) && !k.crawl) {
     const it = G.items[k.held];
     it.held = false; it.x = k.x; it.z = k.z; k.held = -1;
     it.fly = { dx: k.fx, dz: k.fz, d: 0 };
@@ -319,6 +326,7 @@ export function actionHint(G) {
 }
 
 export function caught(G) {
+  if (G.state !== 'play') return;
   G.state = 'caught';
   G.events.push({ type: 'caught' });
 }

@@ -26,7 +26,7 @@ const tileOf = (v) => Math.floor(v);
 
 function setMode(G, M, mode) {
   if (M.mode === mode) return;
-  M.mode = mode; M.modeT = 0; M.path = null; M.goal = null;
+  M.mode = mode; M.modeT = 0; M.path = null; M.goal = null; M.linger = 0; M.stallT = 0;
   G.events.push({ type: 'mode', mode });
 }
 
@@ -42,7 +42,7 @@ function steer(G, M, x, z, speed, dt) {
     M.goal = { x, z }; M.pathT = MON.repath;
     if (M.path && M.path.length) M.path[M.path.length - 1] = blocked(tileOf(x), tileOf(z)) ? M.path[M.path.length - 1] : { x, z };
   }
-  if (!M.path || !M.path.length) return aim(M, x, z, speed * 0.3);
+  if (!M.path || !M.path.length) return blocked(tileOf(x), tileOf(z)) ? 0 : aim(M, x, z, speed * 0.3);
   while (M.path.length > 1 && clearLine(L, M.x, M.z, M.path[1].x, M.path[1].z, R, blocked)) M.path.shift();
   const p = M.path[0];
   if (M.path.length > 1 && Math.hypot(p.x - M.x, p.z - M.z) < 0.25) M.path.shift();
@@ -117,11 +117,21 @@ function canSee(G, M) {
 // Pick a floor tile within r of (x, z) that we can walk to.
 function randomSpot(G, x, z, r) {
   const L = G.L;
+  ({ x, z } = snap(G, { x, z }));
   for (let i = 0; i < 20; i++) {
     const tx = tileOf(x + (G.rand() * 2 - 1) * r), tz = tileOf(z + (G.rand() * 2 - 1) * r);
     if (!L.monBlocked(tx, tz) && G.los(x, z, tx + 0.5, tz + 0.5)) return { x: tx + 0.5, z: tz + 0.5 };
   }
   return { x, z };
+}
+
+// Move a point that fell inside a wall or furniture (a noise, a fuzzy sense of you) onto the nearest
+// tile it can stand on, so it never grinds against a wall trying to reach it.
+function snap(G, p) {
+  const tx = tileOf(p.x), tz = tileOf(p.z);
+  if (!G.L.monBlocked(tx, tz)) return p;
+  const o = nearestOpen(G.L, tx, tz, G.L.monBlocked);
+  return o ? { ...p, x: o[0] + 0.5, z: o[1] + 0.5 } : p;
 }
 
 // The kid vanished near a kid-only passage: go round to the end it will come out of.
@@ -154,11 +164,11 @@ function check(G, M, w) {
 
 // Where to walk next with nothing to go on: often a lit candle, otherwise anywhere in the house
 // (leaning toward the last thing it heard), so it never just camps the last candle.
-const ROOM_SPOTS = [];
 function pickGuard(G, M) {
   const lit = G.candles.filter((c) => c.lit);
   if (!lit.length) return null;
   if (G.rand() > 0.3 + 0.08 * lit.length) {
+    const ROOM_SPOTS = (G.L.roomSpots ||= []);
     if (!ROOM_SPOTS.length) for (let z = 1; z < G.L.h; z += 3) for (let x = 1; x < G.L.w; x += 3) if (!G.L.monBlocked(x, z)) ROOM_SPOTS.push({ x: x + 0.5, z: z + 0.5 });
     const h = M.lastHint;
     let best = null, bs = -Infinity;
@@ -171,14 +181,14 @@ function pickGuard(G, M) {
     return best;
   }
   const hint = M.lastHint;
-  lit.sort((a, b) => score(b) - score(a));
-  function score(c) {
+  const scored = lit.map((c) => {
     let s = G.rand() * 4;
     if (hint) s -= Math.hypot(c.x - hint.x, c.z - hint.z) * 0.35;
     if (c.id === M.guardId) s -= 6;
-    return s;
-  }
-  const c = lit[0];
+    return { c, s };
+  });
+  scored.sort((a, b) => b.s - a.s);
+  const c = scored[0].c;
   M.guardId = c.id;
   return randomSpot(G, c.x, c.z, 2);
 }
@@ -219,7 +229,7 @@ export function stepMonster(G, dt) {
     const a = G.rand() * Math.PI * 2, e = G.rand() * MON.pingErr;
     hint = { x: k.x + Math.cos(a) * e, z: k.z + Math.sin(a) * e, fuzzy: true };
   }
-  if (hint) M.lastHint = hint;
+  if (hint) { hint = snap(G, hint); M.lastHint = hint; }
 
   // pressure: close and on you for too long, it backs off for a while (Alien's menace gauge)
   M.menace = d < 8 && (sees || M.mode === 'chase') ? M.menace + dt : Math.max(0, M.menace - dt * 0.5);
@@ -258,6 +268,12 @@ export function stepMonster(G, dt) {
           setMode(G, M, 'windup'); G.events.push({ type: 'windup' });
           break;
         }
+        const kt = G.L.at(tileOf(k.x), tileOf(k.z));
+        M.stallT = (kt === T.TABLE || kt === T.BED) && M.speed < 0.4 ? (M.stallT || 0) + dt : 0;
+        if (M.stallT > 2) {
+          const amb = ambushSpot(G, M, { x: k.x, z: k.z, vx: 0, vz: 0 });
+          if (amb) { setMode(G, M, 'ambush'); M.ambushAt = amb; break; }
+        }
         const lead = Math.min(0.5, d / 8);
         steer(G, M, k.x + k.vx * lead, k.z + k.vz * lead, MON.chase + M.lust + fury, dt);
       } else {
@@ -268,7 +284,7 @@ export function stepMonster(G, dt) {
           const amb = ambushSpot(G, M, at), w = wardrobeNear(G, M, at.x, at.z, 2.5);
           if (w) check(G, M, w);
           else if (amb) { setMode(G, M, 'ambush'); M.ambushAt = amb; }
-          else { setMode(G, M, 'search'); M.searchAt = { x: at.x + at.vx * 1.2, z: at.z + at.vz * 1.2 }; M.searchLeft = 3; }
+          else { setMode(G, M, 'search'); M.searchAt = snap(G, { x: at.x + at.vx * 1.2, z: at.z + at.vz * 1.2 }); M.searchLeft = 3; }
           M.lust = 0;
         }
       }

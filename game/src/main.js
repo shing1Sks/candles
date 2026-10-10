@@ -11,12 +11,15 @@ const view = createView(document.getElementById('c'), L);
 const audio = createAudio();
 const $ = (id) => document.getElementById(id);
 
-let G, phase = 'title', endT = 0, seed = Number(q.get('seed')) || (Date.now() % 100000);
+let G, phase = 'title', endT = 0, endTimer = 0, seed = Number(q.get('seed')) || (Date.now() % 100000);
 function newGame() {
   G = createGame(L, seed++);
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }
   view.st.flash = 0; view.st.dark = 0;
+  clearTimeout(endTimer);
+  $('end').classList.add('hide');
+  view.reset?.(G);
   drawCandles();
 }
 newGame();
@@ -31,11 +34,12 @@ let pressUse = false, pressThrow = false;
 const padWas = [];
 addEventListener('keydown', (e) => {
   keys.add(e.code);
+  if (phase !== 'title') audio.start(); // resumes audio if a gamepad started the game
   if (!e.repeat && (e.code === 'KeyE' || e.code === 'Space')) pressUse = true;
   if (!e.repeat && e.code === 'KeyQ') pressThrow = true;
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (phase === 'title') begin();
-  else if ((phase === 'caught' || phase === 'won') && performance.now() - endT > 1200 && (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter')) { newGame(); begin(); }
+  else if ((phase === 'caught' || phase === 'won') && !e.repeat && performance.now() - endT > 1200 && (e.code === 'KeyR' || e.code === 'Space' || e.code === 'Enter')) { newGame(); begin(); }
 });
 addEventListener('keyup', (e) => keys.delete(e.code));
 addEventListener('wheel', (e) => view.zoomBy(-Math.sign(e.deltaY) * 0.12), { passive: true });
@@ -76,8 +80,10 @@ function drawCandles() {
   $('candles').innerHTML = G.candles.map((c) => `<i class="${c.lit ? 'lit' : ''}"></i>`).join('');
 }
 function end(kind) {
+  if (phase === kind) return;
   phase = kind; endT = performance.now();
-  setTimeout(() => {
+  clearTimeout(endTimer);
+  endTimer = setTimeout(() => {
     $('endTitle').textContent = kind === 'won' ? 'The house is dark.' : 'It caught you.';
     const out = G.candles.filter((c) => !c.lit).length;
     $('endSub').textContent = kind === 'won' ? `Every candle out in ${Math.round(G.t)} seconds.` : `${out} of ${G.candles.length} candles out, ${Math.round(G.t)} seconds.`;
@@ -104,7 +110,7 @@ function frame(now) {
   } else { readInput(); acc = 0; }
 
   const k = G.kid, M = G.monster;
-  const near = los(L, k.x, k.z, M.x, M.z);
+  const near = G.los(k.x, k.z, M.x, M.z);
   for (const e of G.events) {
     audio.event(e, G, near);
     view.event(e);

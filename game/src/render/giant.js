@@ -138,6 +138,7 @@ export function createGiant(L, camera) {
   const dirs = Array.from({ length: N }, () => new THREE.Vector3());
   const eyePos = new THREE.Vector3(cx, 8, -2), want = new THREE.Vector3(), look = new THREE.Vector3();
   const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), q1 = new THREE.Quaternion(), m4 = new THREE.Matrix4();
+  const sA = new THREE.Vector3(), sB = new THREE.Vector3(), gripV = new THREE.Vector3(), midV = new THREE.Vector3(), lift = new THREE.Vector3(0, 0.6, 0);
   const headQ = new THREE.Quaternion();
   let onImpact = null;
 
@@ -206,7 +207,7 @@ export function createGiant(L, camera) {
     // thumb: from the side of the hand to the top of its stick
     const base = v1.set(-A.s * 1.2, 0.6, 0.6).applyQuaternion(A.hand.quaternion).add(A.hand.position);
     const tip = holding ? pad.sticks[A.s > 0 ? 0 : 1].localToWorld(v2.set(0, 0.3, 0)) : v2.copy(base).add(v3.set(A.s * 0.4, 0.5, 1.2));
-    const mid = v3.copy(base).lerp(tip, 0.5).add(new THREE.Vector3(0, 0.6, 0));
+    const mid = midV.copy(base).lerp(tip, 0.5).add(lift);
     place(A.thumbA, base, mid); place(A.thumbB, mid, tip);
     A.thumbClaw.position.copy(tip);
     A.thumbClaw.quaternion.setFromUnitVectors(UP, v1.subVectors(tip, mid).normalize());
@@ -215,8 +216,10 @@ export function createGiant(L, camera) {
   return {
     root, eye,
     onImpact(fn) { onImpact = fn; },
+    reset() { Object.assign(st, { reach: 0, lean: 0, hunt: 0, slam: -1, lookUp: 0, close: 0, roar: 0, beam: 0 }); },
     event(e) {
-      if (e.type === 'slam') { st.slam = 0; st.roar = 1; }
+      if (e.type === 'slam') { st.roar = 1; if (st.reach < 0.05) st.slam = 0; } // a hand already in the house can't slam
+      if (e.type === 'reach') st.reachSide = e.x < cx ? -1 : 1;
       if (e.type === 'spotted' || e.type === 'beamSpot') st.roar = Math.max(st.roar, 0.6);
     },
     update(G, dt, t) {
@@ -235,7 +238,6 @@ export function createGiant(L, camera) {
         if (st.slam > 1.7) st.slam = -1;
       }
       const R = G.reach;
-      if (R.state === 'shadow' && R.t < 0.05) st.reachSide = R.x < cx ? -1 : 1;
       st.reach += ((R.state !== 'idle' && R.state !== 'up' ? 1 : 0) - st.reach) * Math.min(1, dt * 2.5);
       spine(t);
 
@@ -265,7 +267,7 @@ export function createGiant(L, camera) {
       const sCtrl = v2.copy(sBase).add(v3.set(0, 7, 4));
       for (let i = 0; i < stalk.length; i++) {
         const p = (u, out) => { const a = 1 - u; return out.set(a * a * sBase.x + 2 * a * u * sCtrl.x + u * u * eyePos.x, a * a * sBase.y + 2 * a * u * sCtrl.y + u * u * eyePos.y, a * a * sBase.z + 2 * a * u * sCtrl.z + u * u * eyePos.z); };
-        const a = p(i / stalk.length, new THREE.Vector3()), b = p((i + 1) / stalk.length, new THREE.Vector3());
+        const a = p(i / stalk.length, sA), b = p((i + 1) / stalk.length, sB);
         b.x += Math.sin(t * 1.3 + i * 0.6) * 0.12 * (i / stalk.length);
         place(stalk[i], a, b);
       }
@@ -297,7 +299,7 @@ export function createGiant(L, camera) {
       pad.group.updateMatrixWorld(true);
       for (const A of arms) {
         // the controller is turned round to face it, so its local -x is our +x
-        const grip = pad.group.localToWorld(new THREE.Vector3(-A.s * 0.85, -0.1, 0.5));
+        const grip = pad.group.localToWorld(gripV.set(-A.s * 0.85, -0.1, 0.5));
         arm(A, t, M, grip, G.reach);
       }
       // fur bristles when it hunts or roars

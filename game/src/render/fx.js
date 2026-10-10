@@ -59,7 +59,7 @@ export function createCandles(scene, candles) {
         it.halo.material.opacity = 0.16 * k;
         it.flame.visible = it.halo.visible = k > 0.01;
         const p = G.candles[it.c.id].progress;
-        if (p !== it.shown) {
+        if (Math.abs(p - it.shown) > 0.02 || (p === 0) !== (it.shown === 0)) {
           it.ring.geometry.dispose();
           it.ring.geometry = new THREE.RingGeometry(0.34, 0.4, 48, 1, Math.PI / 2, -p * Math.PI * 2);
           it.shown = p;
