@@ -226,13 +226,15 @@ export function createMonster() {
       run = damp(run, Math.min(1, sp / 3.4), 6, dt);
       crouch = damp(crouch, mode === 'windup' ? 1 : mode === 'sleep' ? 0.8 : mode === 'recover' ? 0.5 : 0, 14, dt);
       reach = damp(reach, mode === 'lunge' ? 1 : mode === 'check' || M.doorT > 0 ? 0.6 : 0, 12, dt);
-      jaw = damp(jaw, mode === 'windup' || mode === 'lunge' ? 1 : mode === 'chase' ? 0.5 : mode === 'sleep' ? 0 : 0.1, 10, dt);
+      // rage (a candle just went out): it rears up and roars, jaw wide, fur on end
+      const rage = M.rage > 0 ? Math.min(1, M.rage) : 0;
+      jaw = damp(jaw, mode === 'windup' || mode === 'lunge' || rage > 0.5 ? 1 : mode === 'chase' ? 0.5 : mode === 'sleep' ? 0 : 0.1, 10, dt);
       phase += dt * (1.2 + sp * 2.6);
       const sw = Math.sin(phase);
 
       // spine: hunched; lower and further forward the faster it goes; crouched back before a lunge
       const pelvisY = 0.72 - crouch * 0.22 - run * 0.08 + Math.abs(Math.cos(phase)) * 0.05 * run;
-      const curl = 1.0 + run * 0.35 - crouch * 0.3 + reach * 0.4 + (mode === 'sleep' ? 0.5 : 0);
+      const curl = 1.0 + run * 0.35 - crouch * 0.3 + reach * 0.4 + (mode === 'sleep' ? 0.5 : 0) - rage * 0.45 * (0.8 + 0.2 * Math.sin(t * 25));
       nodes[0].set(0, pelvisY, -0.08 - reach * 0.1);
       for (let i = 0; i < NS; i++) {
         const a = (curl * (i + 0.5)) / NS;
@@ -294,7 +296,7 @@ export function createMonster() {
         place(Lg.th, hp, Lg.kn); place(Lg.sh, Lg.kn, Lg.f);
         Lg.foot.position.copy(Lg.f).add(v2.set(0, -0.01, 0.06));
       }
-      furM.uniforms.uSway.value = 0.05 + run * 0.06 + jaw * 0.05;
+      furM.uniforms.uSway.value = 0.05 + run * 0.06 + jaw * 0.05 + rage * 0.12;
     },
     // seen: the whole body; hidden behind walls: only what pokes above them (the eye on its stalk)
     setSeen(seen, clipY) { for (const m of materials) m.uniforms.uClipY.value = seen ? -100 : clipY; blob.visible = seen; },
