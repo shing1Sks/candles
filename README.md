@@ -51,12 +51,12 @@ Kid bots play the monster's minds headless, and every game is recorded (`docs/su
 
 ```
 cd game
-node tools/gen.mjs v0 2000          # about 6 minutes on 11 cores; writes data/v0/ at the repo root
-node tools/coverage.mjs v0          # how often each rule happened, and outcomes by monster, kid and start
+node tools/gen.mjs v1 3600          # about 9 minutes on 11 cores; writes data/v1/ at the repo root (7.2 GB)
+node tools/coverage.mjs v1          # how often each rule happened, outcomes by monster, kid and start, standoffs
 node tools/sim.mjs 60 1             # balance probe; env PERSONA=stalker KID=sneaker SKILL=0.6 START=fresh
 ```
 
-Any episode replays exactly in the browser: `http://localhost:5190/?watch=v0:780` (`[` `]` change the speed,
+Any episode replays exactly in the browser: `http://localhost:5190/?watch=v1:2815` (`[` `]` change the speed,
 `&persona=warden` swaps the monster).
 
 `data/<batch>/`:
@@ -74,7 +74,7 @@ Any episode replays exactly in the browser: `http://localhost:5190/?watch=v0:780
 
 ```python
 import json, numpy as np
-d = 'data/v0'
+d = 'data/v1'
 s = json.load(open(f'{d}/schema.json'))
 X = np.fromfile(f'{d}/shard-000/states.f32', np.float32).reshape(-1, s['stateSize'])
 K = np.fromfile(f'{d}/shard-000/ki.f32', np.float32).reshape(-1, len(s['kiFields']))

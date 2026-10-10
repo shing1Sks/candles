@@ -29,7 +29,7 @@ small gaps. Across the table, a giant version of the monster is the one playing 
   - Every game is recorded (`README.md`, "Making data").
   - The plan is in `docs/superpowers/specs/2026-10-10-gamenet-training-design.md`, and every rule is in
     `docs/mechanics.md`.
-  - v0 is 2,000 games (67 h of play, 4.8 M steps).
+  - v1 is 3,600 games (80 h of play, 5.8 M steps, 7.2 GB, about 9 minutes to make).
   - Next: training the main model.
 
 ## Mechanics, and why each is there
