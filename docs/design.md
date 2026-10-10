@@ -104,6 +104,12 @@ That is "ridiculously difficult but beatable". Tune by playing.
 - Walls and furniture in front of the kid dissolve in a dither, so the kid is never hidden.
 - The film pass converts to grey and adds bloom on flames and eyes, gamma, vignette and grain. It squeezes and darkens the picture with fear, and adds slats when you hide.
 
+## Performance
+
+The game renders at about 1 megapixel at most and scales up to the window. It holds a locked 60 fps at 720p and 1080p on the target laptop (Intel Iris Xe). A profiling pass found the two big costs:
+- re-uploading the light-map shapes every frame through static buffers, which stalled the CPU; they are now dynamic buffers;
+- 4x MSAA, about 8 ms a frame; it was replaced by FXAA in the film pass.
+
 ## Sound
 
 - **Sources:** recorded sounds (CC0 or public domain, plus three Kevin MacLeod tracks under CC BY 4.0, credited on the title screen) layered over live synthesis. See `game/public/audio/CREDITS.md`.
