@@ -1,36 +1,36 @@
 // The whole game, with no graphics: a kid, six candles and a monster on a tile grid, plus doors, wardrobes,
-// creaky boards, squeaky toys, toys to throw and the giant's searchlight.
-// Runs the same in the browser and in Node, so bots can play it later.
-import { KID, MON, BEAM, REACH } from './rules.js';
+// creaky boards, squeaky toys, toys to throw, and the giant's searchlight and hand.
+// The world takes two controllers: the kid's and the giant's (who plays the monster). It runs the same in the
+// browser and in Node, so bots can play it and every game can be recorded.
+import { KID, MON } from './rules.js';
 import { T } from './level.js';
 import { resolve, los } from './grid.js';
-import { createMonster, stepMonster } from './monster.js';
+import { rng } from './rng.js';
+import { createBody, stepBody } from './body.js';
+import { createTools, stepTools } from './tools.js';
+import { createSense, sense, observe, alert } from './senses.js';
+import { think } from './mind/index.js';
 
-export function rng(seed) {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+export { rng };
+
+// the giant's controller at rest
+export const IDLE_GI = Object.freeze({ mx: 0, mz: 0, run: false, lunge: false, use: false, bash: false, yell: false, light: false, reach: false, ax: 0, az: 0, lx: 0, lz: 0, why: '' });
 
 export function createGame(L, seed = 1) {
   const G = {
     L, seed, t: 0, rand: rng(seed), state: 'play', events: [], noises: [],
     kid: {
       x: L.kid.x, z: L.kid.z, vx: 0, vz: 0, fx: 0, fz: -1, speed: 0, crawl: false, running: false, noise: 0,
-      blowing: -1, stride: 0, hidden: -1, hiddenAt: -99, held: -1, tile: -1,
+      blowing: -1, stride: 0, hidden: -1, hiddenAt: -99, held: -1, tile: -1, blowHeld: false,
     },
     candles: L.candles.map((c) => ({ ...c, lit: true, progress: 0, outAt: -1 })),
     doors: L.doors.map((d) => ({ ...d, changedAt: -99 })),
     wardrobes: L.wardrobes.map((w) => ({ ...w, openAt: -99 })),
     items: L.items.map((it, id) => ({ ...it, id, held: false, fly: null })),
     squeaks: L.squeaks.map((s, id) => ({ ...s, id, cool: 0 })),
-    beam: { state: 'idle', next: BEAM.first, t: 0, x: 0, z: 0, dx: 0, dz: 0, spotted: false },
-    reach: { state: 'idle', next: -1, t: 0, x: 0, z: 0 },
+    ...createTools(),
+    sense: createSense(),
+    mind: null, // the giant's mind (mind/index.js), set by whoever runs the game
   };
   // what blocks whom changes as doors open and shut
   const shut = (x, z) => { const id = L.doorAt(x, z); return id >= 0 && !G.doors[id].open; };
@@ -38,7 +38,7 @@ export function createGame(L, seed = 1) {
   G.monBlocked = (x, z) => L.monBlocked(x, z) || shut(x, z);
   G.sightBlocked = (x, z) => L.sightBlocked(x, z) || shut(x, z);
   G.los = (x0, z0, x1, z1) => los(L, x0, z0, x1, z1, G.sightBlocked);
-  G.monster = createMonster(G);
+  G.monster = createBody(L);
   return G;
 }
 
@@ -47,19 +47,28 @@ export function makeNoise(G, x, z, r, kind) {
   G.noises.push({ x, z, r, kind });
 }
 
+// One tick with the giant's mind (if the game has one) pressing the giant's buttons.
 // input: { mx, mz } a direction (length <= 1); creep and blow are held; use and throw are presses
 export function step(G, input, dt) {
   if (G.state !== 'play') return;
+  const gi = G.mind ? think(G, G.mind, observe(G), dt) : IDLE_GI;
+  stepWorld(G, input, gi, dt);
+}
+
+// One tick of the world: the kid's input ki and the giant's input gi (see body.js and tools.js).
+export function stepWorld(G, ki, gi, dt) {
+  if (G.state !== 'play') return;
   G.t += dt;
-  stepKid(G, input, dt);
+  const hid = G.kid.hidden;
+  stepKid(G, ki, dt);
   if (G.state !== 'play') return;
   stepItems(G, dt);
-  stepBeam(G, dt);
-  stepReach(G, dt);
+  stepTools(G, gi, dt);
   if (G.state !== 'play') return;
-  stepMonster(G, dt);
+  stepBody(G, gi, dt);
+  if (G.state !== 'play') return;
+  sense(G, dt, hid < 0 && G.kid.hidden >= 0 ? G.kid.hidden : -1);
   G.noises.length = 0;
-  if (G.state !== 'play') return;
   checkCatch(G);
 }
 
@@ -105,16 +114,19 @@ function use(G) {
     G.events.push({ type: 'hide', id: w.id });
     return;
   }
-  if (!d) return;
+  if (!d) { G.events.push({ type: 'useNothing' }); return; }
   // you can't shut a door on yourself or on it
   if (d.open && (inDoorway(d, k.x, k.z, KID.radius) || inDoorway(d, M.x, M.z, MON.radius) ||
-    G.items.some((i) => !i.held && inDoorway(d, i.x, i.z, 0.1)) || G.squeaks.some((s) => inDoorway(d, s.x, s.z, 0.1)))) return;
+    G.items.some((i) => !i.held && inDoorway(d, i.x, i.z, 0.1)) || G.squeaks.some((s) => inDoorway(d, s.x, s.z, 0.1)))) {
+    G.events.push({ type: 'shutRefused', id: d.id });
+    return;
+  }
   setDoor(G, d, !d.open, 'kid');
 }
 
 function leaveWardrobe(G) {
   const k = G.kid, w = G.wardrobes[k.hidden], M = G.monster;
-  if (Math.hypot(M.x - w.fx, M.z - w.fz) < MON.reach + MON.radius + 0.3) return; // it is right outside
+  if (Math.hypot(M.x - w.fx, M.z - w.fz) < MON.reach + MON.radius + 0.3) { G.events.push({ type: 'unhideRefused', id: w.id }); return; } // it is right outside
   k.x = w.fx; k.z = w.fz; k.hidden = -1;
   w.openAt = G.t;
   G.events.push({ type: 'unhide', id: w.id });
@@ -136,6 +148,8 @@ function stepKid(G, input, dt) {
   if (m > 1) { mx /= m; mz /= m; }
 
   const c = input.blow ? nearCandle(G) : null;
+  if (input.blow && !k.blowHeld && !c) G.events.push({ type: 'blowNothing' });
+  k.blowHeld = !!input.blow;
   if (c) {
     if (k.blowing !== c.id) G.events.push({ type: 'blowStart', id: c.id });
     k.blowing = c.id; mx = 0; mz = 0;
@@ -145,7 +159,7 @@ function stepKid(G, input, dt) {
     if (c.progress >= 1) {
       c.lit = false; c.outAt = G.t; k.blowing = -1;
       G.events.push({ type: 'candleOut', id: c.id, x: c.x, z: c.z });
-      G.monster.alert = { x: c.x, z: c.z };
+      alert(G, c.x, c.z, 'candle');
       G.monster.rage = MON.rage;
       G.events.push({ type: 'slam' }); // the giant thumps the table
       if (G.candles.every((q) => !q.lit)) { G.state = 'won'; G.events.push({ type: 'won' }); }
@@ -193,7 +207,9 @@ function stepKid(G, input, dt) {
   if (k.held < 0) {
     const it = nearest(G.items.filter((i) => !i.held && !i.fly), k.x, k.z, KID.pickReach);
     if (it) { it.held = true; k.held = it.id; G.events.push({ type: 'pickup', id: it.id, kind: it.kind }); }
-  } else if (input.throw && !G.kidBlocked(Math.floor(k.x + k.fx * 0.45), Math.floor(k.z + k.fz * 0.45)) && !G.sightBlocked(Math.floor(k.x + k.fx * 0.45), Math.floor(k.z + k.fz * 0.45)) && !k.crawl) {
+  } else if (input.throw && (G.kidBlocked(Math.floor(k.x + k.fx * 0.45), Math.floor(k.z + k.fz * 0.45)) || G.sightBlocked(Math.floor(k.x + k.fx * 0.45), Math.floor(k.z + k.fz * 0.45)) || k.crawl)) {
+    G.events.push({ type: 'throwRefused' }); // into the wall in front of you, or from a vent
+  } else if (input.throw) {
     const it = G.items[k.held];
     it.held = false; it.x = k.x; it.z = k.z; k.held = -1;
     it.fly = { dx: k.fx, dz: k.fz, d: 0 };
@@ -224,89 +240,16 @@ function stepItems(G, dt) {
   }
 }
 
-// The giant's searchlight: it picks a spot roughly where you are, swells, then drifts for a few seconds.
-function covered(G) {
-  const k = G.kid, t = G.L.at(Math.floor(k.x), Math.floor(k.z));
-  return k.hidden >= 0 || t === T.DUCT || t === T.CRACK || t === T.TABLE || t === T.BED;
-}
-function stepBeam(G, dt) {
-  const B = G.beam, k = G.kid;
-  B.t += dt;
-  if (B.state === 'idle') {
-    B.next -= dt;
-    if (B.next > 0) return;
-    const a = G.rand() * Math.PI * 2, e = 2 + G.rand() * 4;
-    B.x = Math.max(2, Math.min(G.L.w - 2, k.x + Math.cos(a) * e));
-    B.z = Math.max(2, Math.min(G.L.h - 2, k.z + Math.sin(a) * e));
-    const b = G.rand() * Math.PI * 2; B.dx = Math.cos(b); B.dz = Math.sin(b);
-    B.state = 'warn'; B.t = 0; B.spotted = false;
-    G.events.push({ type: 'beam', x: B.x, z: B.z });
-  } else if (B.state === 'warn') {
-    if (B.t > BEAM.warn) { B.state = 'on'; B.t = 0; }
-  } else {
-    // it drifts toward you a little
-    const tx = k.x - B.x, tz = k.z - B.z, tn = Math.hypot(tx, tz) || 1;
-    B.dx += (tx / tn - B.dx) * dt * 0.6; B.dz += (tz / tn - B.dz) * dt * 0.6;
-    const n = Math.hypot(B.dx, B.dz) || 1;
-    B.x += (B.dx / n) * BEAM.drift * dt; B.z += (B.dz / n) * BEAM.drift * dt;
-    if (!B.spotted && Math.hypot(k.x - B.x, k.z - B.z) < BEAM.radius && !covered(G)) {
-      B.spotted = true;
-      G.events.push({ type: 'beamSpot' });
-      G.monster.alert = { x: k.x, z: k.z };
-    }
-    if (B.t > BEAM.on) {
-      const left = G.candles.filter((c) => c.lit).length, f = (left - 1) / Math.max(1, G.candles.length - 1);
-      B.state = 'idle'; B.t = 0;
-      B.next = (BEAM.every[1] + (BEAM.every[0] - BEAM.every[1]) * f) * (0.8 + G.rand() * 0.4);
-    }
-  }
-}
-
-// The giant's hand. idle -> shadow (it is coming) -> down (grabs) -> hold -> up.
-function stepReach(G, dt) {
-  const R = G.reach, k = G.kid;
-  const out = G.candles.filter((c) => !c.lit).length;
-  if (out < REACH.after) return;
-  if (R.next < 0) R.next = REACH.first;
-  R.t += dt;
-  if (R.state === 'idle') {
-    R.next -= dt;
-    if (R.next > 0 || G.beam.state !== 'idle') return;
-    const a = G.rand() * Math.PI * 2, e = G.rand() * REACH.aim;
-    R.x = Math.max(1.5, Math.min(G.L.w - 1.5, k.x + Math.cos(a) * e));
-    R.z = Math.max(1.5, Math.min(G.L.h - 1.5, k.z + Math.sin(a) * e));
-    R.state = 'shadow'; R.t = 0;
-    G.events.push({ type: 'reach', x: R.x, z: R.z });
-  } else if (R.state === 'shadow') {
-    if (R.t > REACH.shadow) { R.state = 'down'; R.t = 0; }
-  } else if (R.state === 'down') {
-    if (R.t > REACH.down) {
-      R.state = 'hold'; R.t = 0;
-      G.events.push({ type: 'grab', x: R.x, z: R.z });
-      if (Math.hypot(k.x - R.x, k.z - R.z) < REACH.radius && !covered(G)) {
-        G.events.push({ type: 'grabbed' });
-        caught(G);
-      }
-    }
-  } else if (R.state === 'hold') {
-    if (R.t > REACH.hold) { R.state = 'up'; R.t = 0; }
-  } else if (R.t > REACH.up) {
-    const left = G.candles.filter((c) => c.lit).length, f = (left - 1) / Math.max(1, G.candles.length - 1);
-    R.state = 'idle'; R.t = 0;
-    R.next = (REACH.every[1] + (REACH.every[0] - REACH.every[1]) * f) * (0.8 + G.rand() * 0.4);
-  }
-}
-
 function checkCatch(G) {
   const k = G.kid, M = G.monster, L = G.L;
-  if (k.hidden >= 0 || M.mode === 'sleep') return; // in a wardrobe only a look inside finds you
+  if (k.hidden >= 0 || !M.awake) return; // in a wardrobe only a look inside finds you
   const d = Math.hypot(k.x - M.x, k.z - M.z);
   if (d > MON.reach + MON.radius * 0.5) return;
   const under = L.at(Math.floor(k.x), Math.floor(k.z));
   if (under === T.DUCT || under === T.CRACK) return; // it can't reach into the walls
   if ((under === T.TABLE || under === T.BED) && d > 0.6) return;
   if (!G.los(M.x, M.z, k.x, k.z)) return;
-  caught(G);
+  caught(G, 'touch');
 }
 
 // What the action buttons would do right now (for the on-screen prompt).
@@ -325,8 +268,9 @@ export function actionHint(G) {
   return out;
 }
 
-export function caught(G) {
+// how: 'touch', 'found' (in a wardrobe) or 'grab' (the giant's hand)
+export function caught(G, by = 'touch') {
   if (G.state !== 'play') return;
   G.state = 'caught';
-  G.events.push({ type: 'caught' });
+  G.events.push({ type: 'caught', by });
 }

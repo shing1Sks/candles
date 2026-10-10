@@ -84,3 +84,11 @@ export const REACH = {
   up: 1.0,
   radius: 1.35,
 };
+
+// The giant's controller: a yell stops the monster to roar (the kid's opening), and the light and hand can't be
+// used again before this share of their old schedule's gap.
+export const GIANT = {
+  yell: 0.8,
+  yellEvery: 6,
+  cool: 0.8,
+};
