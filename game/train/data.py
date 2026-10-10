@@ -46,7 +46,8 @@ PERSONA_TYPES = ['classic', 'pathfinder', 'brute', 'stalker', 'hound', 'warden']
 
 
 class Data:
-    def __init__(self, root, device='cpu', frac=1.0, seed=0):
+    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None):
+        """device: where the rows are kept; out: where batches go (rows in RAM, batches to the GPU, for data bigger than it)"""
         self.schema = S = Schema(os.path.join(root, 'schema.json'))
         states, ki, gi, ev, cur, ep_of, persona, split = [], [], [], [], [], [], [], []  # cur/ep_of/split: numpy pieces
         base_s = base_i = 0
@@ -100,6 +101,7 @@ class Data:
         self.idx2 = {k: v[same[v]] for k, v in self.idx.items()}
         self.weight = self._weights()
         self.gen = torch.Generator(device=dev).manual_seed(seed)
+        self.out = torch.device(out) if out else dev
 
     def _weights(self):
         """Down-weight standoffs (the kid still in cover beside the monster); up-weight rows with rare events."""
@@ -117,10 +119,7 @@ class Data:
 
     def batch(self, split, B):
         ix = self.idx[split]
-        pick = ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)]
-        c = self.cur[pick]
-        return dict(cur=self.states[c], nxt=self.states[c + 1], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
-                    persona=self.persona[self.ep_of[pick]], w=self.weight[pick])
+        return self._rows(ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)])
 
     def batch2(self, split, B):
         """two steps in a row of the same games: (step 1, step 2); step 2's cur is step 1's nxt"""
@@ -130,8 +129,9 @@ class Data:
 
     def _rows(self, pick):
         c = self.cur[pick]
-        return dict(cur=self.states[c], nxt=self.states[c + 1], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
-                    persona=self.persona[self.ep_of[pick]], w=self.weight[pick])
+        b = dict(cur=self.states[c], nxt=self.states[c + 1], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
+                 persona=self.persona[self.ep_of[pick]], w=self.weight[pick])
+        return b if self.out == self.states.device else {k: v.to(self.out, non_blocking=True) for k, v in b.items()}
 
     def sizes(self):
         return {k: len(v) for k, v in self.idx.items()}

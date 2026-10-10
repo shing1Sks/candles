@@ -29,12 +29,12 @@ def evaluate(model, data, split, batches=40, B=1024):
     model.eval()
     S, M = data.schema, data.schema.map
     W, H = M['w'], M['h']
-    blocked_types = torch.tensor([M['tileTypes'].index(t) for t in ('WALL', 'LOW', 'TALL')], device=data.states.device)
+    blocked_types = torch.tensor([M['tileTypes'].index(t) for t in ('WALL', 'LOW', 'TALL')], device=data.out)
     acc = dict(loss=0.0, num=0.0, flag=0.0, cat=0.0, events=0.0, giant=0.0)
     kid_err, mon_err, clip, n = [], [], 0, 0
     out_tp = out_fp = out_fn = 0
-    ev_tp = torch.zeros(len(S.events), device=data.states.device); ev_fp = torch.zeros_like(ev_tp); ev_fn = torch.zeros_like(ev_tp)
-    btn_tp = torch.zeros(7, device=data.states.device); btn_fp = torch.zeros_like(btn_tp); btn_fn = torch.zeros_like(btn_tp)
+    ev_tp = torch.zeros(len(S.events), device=data.out); ev_fp = torch.zeros_like(ev_tp); ev_fn = torch.zeros_like(ev_tp)
+    btn_tp = torch.zeros(7, device=data.out); btn_fp = torch.zeros_like(btn_tp); btn_fn = torch.zeros_like(btn_tp)
     btn_p = torch.zeros_like(btn_tp); btn_y = torch.zeros_like(btn_tp)  # how often it presses each, predicted and real
     stick_ok = 0.0
     for _ in range(batches):
@@ -93,6 +93,7 @@ def main():
     ap.add_argument('--lr', type=float, default=0); ap.add_argument('--bench', action='store_true')
     ap.add_argument('--report', type=int, default=200); ap.add_argument('--evalevery', type=int, default=2000)
     ap.add_argument('--device', default='cuda' if torch.cuda.is_available() else 'cpu')
+    ap.add_argument('--data_device', help='keep the rows here (cpu: data bigger than the GPU), batches go to --device')
     # rollout training: from this share of the schedule on, every batch is two steps in a row and the second starts
     # from the model's own guess of the first (drawn, as the game draws), so it learns to carry on from its own errors
     ap.add_argument('--rollout_from', type=float, default=1.0)
@@ -101,7 +102,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = True
     t0 = time.time()
-    data = Data(a.data, a.device, frac=a.frac)
+    data = Data(a.data, a.data_device or a.device, frac=a.frac, out=a.device)
     log = open(os.path.join(a.out, 'log.jsonl'), 'a')
     def say(**kw):
         kw['time'] = round(time.time() - t0, 1)
