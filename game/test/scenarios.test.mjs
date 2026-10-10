@@ -316,10 +316,12 @@ test('B2 close and facing you, it crouches and lunges', () => {
   const ev = []; for (let i = 0; i < 20; i++) { step(G, { mx: 0, mz: 0 }, DT); ev.push(...G.events); G.events.length = 0; }
   assert.ok(has(ev, 'windup'));
 });
-test('B3 bloodlust: 15 s of seeing you in a chase adds 0.15 m/s', () => {
-  const G = game(); wake(G, 5.5, 20.5); G.sense.sightT = 15.2;
-  stepBody(G, IDLE_GI, DT);
-  assert.ok(near(G.monster.lust, 0.15));
+test('B3 bloodlust: 6 / 10 / 15 s of seeing you in a chase adds 0.15 / 0.30 / 0.45 m/s', () => {
+  for (const [t, lust] of [[5.9, 0], [6.1, 0.15], [10.1, 0.3], [15.1, 0.45]]) {
+    const G = game(); wake(G, 5.5, 20.5); G.sense.sightT = t;
+    stepBody(G, IDLE_GI, DT);
+    assert.ok(near(G.monster.lust, lust), `${t} s -> ${G.monster.lust}`);
+  }
 });
 test('B4 losing you in the open, it searches where you were heading', () => {
   const G = game(); wake(G, 20.5, 20.5); const m = classic(G);

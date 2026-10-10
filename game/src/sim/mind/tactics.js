@@ -75,7 +75,8 @@ export const TACTICS = [
   },
   {
     name: 'hunt', mode: 'hunt',
-    score: ({ best, persona: p }) => (best ? (1 + 3 * trust(best, p)) * best.w - best.spread / 6 - (best.age > 20 ? 1 : 0) : -Infinity),
+    // (not a lead right beside it: that is a search round it)
+    score: ({ best, self, persona: p }) => (best && Math.hypot(best.x - self.x, best.z - self.z) > 1.5 ? (1 + 3 * trust(best, p)) * best.w - best.spread / 6 - (best.age > 20 ? 1 : 0) : -Infinity),
     target: (ctx) => ctx.best || here(ctx),
     act(ctx) {
       const { G, mind, self, persona: p, best, dt } = ctx;
@@ -91,7 +92,12 @@ export const TACTICS = [
   },
   {
     name: 'search', mode: 'search',
-    score: ({ mind }) => (mind.searchAt && mind.searchLeft > 0 ? 2.5 : -Infinity),
+    score: ({ mind, best, self }) => {
+      if (mind.searchAt && mind.searchLeft > 0) return 2.5;
+      // a fresh lead right beside it: search round it (too close to be worth a hunt)
+      if (best && best.age < 3 && Math.hypot(best.x - self.x, best.z - self.z) <= 1.5) { mind.searchAt = { x: best.x, z: best.z }; mind.searchLeft = 2; return 3; }
+      return -Infinity;
+    },
     target: (ctx) => ctx.mind.spot || ctx.mind.searchAt || here(ctx),
     start(ctx) { ctx.mind.spot = null; },
     act(ctx) {
@@ -222,7 +228,7 @@ function context(G, mind, obs, dt) {
 // score every tactic and draw one; switching starts it fresh and logs why
 export function choose(G, mind, obs, dt) {
   const ctx = context(G, mind, obs, dt), T = temperature(mind, mind.persona);
-  const scores = TACTICS.map((t) => { const s = t.score(ctx); return t.name === mind.tactic && !mind.done && Number.isFinite(s) ? s + 0.5 : s; });
+  const scores = TACTICS.map((t) => { const s = t.score(ctx); return t.name === mind.tactic && !mind.done && Number.isFinite(s) ? s + 0.8 : s; });
   const t = TACTICS[softmaxPick(scores, T, mind.rand)];
   if (t.name !== mind.tactic || mind.done) {
     mind.tactic = t.name; mind.tacticT = 0; mind.done = false; mind.path = null; mind.goal = null; mind.linger = 0; mind.lostT = 0;
@@ -278,13 +284,22 @@ export function thinkTactical(G, mind, obs, dt) {
   mind.wasSpent = mind.spentT > 0; mind.prevAnger = mind.anger;
 
   // decide now if something happened, else every half second
+  // Re-decide at once on something big (it saw you, lost you, saw you hide, a candle went out, fury, its plan is
+  // done). Small things (a noise, its fuzzy sense of you, a minor setback) and the 0.75 s timer only count once it
+  // has held its plan 1-2 s (by patience); a lead far from where it is heading counts at once
+  // (2-4 s by patience), so it commits to a plan instead of flickering between them.
   mind.decideT -= dt;
-  const why = furyStarted ? 'fury' : obs.sees !== mind.wasSees ? (obs.sees ? 'saw' : 'lostSight') : obs.hideSeen >= 0 ? 'sawHide'
-    : felt.length ? felt[0] : obs.alerts.length ? 'alert' : obs.heard.some((h) => h.kind !== 'kid') ? 'heard' : mind.done ? 'done'
-    : mind.decideT <= 0 ? 'timer' : '';
+  const strong = furyStarted ? 'fury' : obs.sees !== mind.wasSees ? (obs.sees ? 'saw' : 'lostSight') : obs.hideSeen >= 0 ? 'sawHide'
+    : obs.alerts.length ? 'alert' : mind.done ? 'done' : '';
+  const weak = felt.length ? felt[0] : obs.heard.some((h) => h.kind !== 'kid') ? 'heard' : obs.ping ? 'sensed' : mind.decideT <= 0 ? 'timer' : '';
+  const held = mind.tacticT >= 1 + p.patience;
+  // a lead well away from where it is heading is news, not dithering: act on it now
+  const lead = mind.lastHint, goal = mind.target;
+  const news = weak && weak !== 'timer' && lead && goal && Math.hypot(lead.x - goal.x, lead.z - goal.z) > 4 ? 'newLead' : '';
+  const why = strong || news || (held ? weak : '');
   mind.wasSees = obs.sees;
   let decided = false;
-  if (why || !mind.tactic) { mind.why = why || 'start'; choose(G, mind, obs, dt); mind.decideT = 0.5; decided = true; }
+  if (why || !mind.tactic) { mind.why = why || 'start'; choose(G, mind, obs, dt); mind.decideT = 0.75; decided = true; }
 
   const ctx = context(G, mind, obs, dt), t = BY_NAME[mind.tactic];
   t.act(ctx);
@@ -311,19 +326,23 @@ export function thinkTactical(G, mind, obs, dt) {
   }
   if (mind.pressUse) gi.use = true;
 
-  tools(G, mind, obs, gi, decided);
+  // the giant's own tools get their own look every half second, whatever the plan
+  mind.toolT = (mind.toolT ?? 0.5) - dt;
+  const toolTurn = mind.toolT <= 0;
+  if (toolTurn) mind.toolT = 0.5;
+  tools(G, mind, obs, gi, toolTurn);
   return gi;
 }
 
 // The giant's own tools, decided alongside whatever the monster is doing: the searchlight when it has lost track of
 // you, the hand when it is frustrated and has a fair idea where you are.
-function tools(G, mind, obs, gi, decided) {
+function tools(G, mind, obs, gi, turn) {
   const p = mind.persona, best = mind.lastHint;
   if (obs.beam.state === 'on') {
     const tgt = obs.kid || best;
     if (tgt) { const dx = tgt.x - obs.beam.x, dz = tgt.z - obs.beam.z, n = Math.hypot(dx, dz) || 1; gi.lx = dx / n; gi.lz = dz / n; }
   }
-  if (!decided || gi.yell) return;
+  if (!turn || gi.yell) return;
   const spread = best ? best.spread : 12, at = best || obs.self;
   if (obs.canLight && obs.reach.state === 'idle' && !obs.sees) {
     const s = p.tools * Math.min(1, spread / 6) * (0.5 + mind.frustration);

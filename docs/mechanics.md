@@ -157,8 +157,8 @@ needs the run button.
   - it crouches and growls for 0.25 s at half speed;
   - it lunges at 5.4 m/s for 0.4 s;
   - it recovers for 1.5 s at half speed, then chases again.
-- **B3 Bloodlust.** Seeing you for 15 / 25 / 35 s of one chase → +0.15 / 0.30 / 0.45 m/s. It resets when you take
-  a gap or it loses you.
+- **B3 Bloodlust.** Seeing you for 6 / 10 / 15 s of one chase → +0.15 / 0.30 / 0.45 m/s. It resets when you take a
+  gap or it loses you. Chases in this house are short; at the old 15 / 25 / 35 s it never happened.
 - **B4 Lost you.** It runs to where it last saw you. On arriving (or after 2.5 s), it does the first of these that
   fits:
   - checks a wardrobe there (W5);
@@ -247,11 +247,17 @@ shifts the others.
   "Nothing happened" is an event too: `blowNothing`, `useNothing`, `shutRefused`, `unhideRefused`, `throwRefused`.
 - **Z2 Yell.** It stops and roars for 0.8 s, at most once every 6 s. A persona yells when its anger crosses 0.7, or
   as a fury starts, and the event says why (`gapEscape`, `doorInFace`, `candleOut`, `lungeMiss`, `fury`).
-- **Z3 Fury.** Anger ≥ 0.75 with frustration ≥ 0.6 → 4 s of fury:
+- **Z3 Fury.** Anger ≥ 0.85 with frustration ≥ 0.7 → 4 s of fury:
   - it charges its best guess (never a thrown toy), running, smashing doors;
-  - then it is spent for 2.5 s, at no more than patrol speed.
-- **Z4 Tactics.** A persona re-decides every 0.5 s, or at once when something happens: it sees you, loses you, feels
-  a setback, gets an alert, or hears a noise.
+  - then it is spent for 2.5 s, at no more than patrol speed;
+  - then at least 30 s before another fury, so it stays an event (about once a game).
+- **Z4 Tactics.** A persona commits to its plan.
+  - It re-decides at once on something big: it sees you, loses you, sees you hide, gets an alert, finishes its plan,
+    flies into a fury, or gets a lead more than 4 m from where it is heading.
+  - Small things (a noise, its fuzzy sense of you, a setback) and the 0.75 s timer count only once it has held the plan
+    1-2 s (by patience).
+  - It does not hunt a lead within 1.5 m; it searches round it.
+  - Result: about 30 plans a minute (it was 62), and few changes within a second without a reason (11%; it was 58%).
   - The tactics: fury, chase, hunt, search, check, intercept (at a candle), ambush (at a gap's exit), guard, wander,
     breather.
   - The draw is softmax at its temperature: raised by frustration, lowered by confidence.

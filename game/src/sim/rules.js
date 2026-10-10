@@ -29,7 +29,7 @@ export const MON = {
   patrol: 2.2,
   hunt: 3.0,
   chase: 3.55, // ~111% of the kid's run
-  lust: [[15, 0.15], [25, 0.3], [35, 0.45]], // a long unbroken chase makes it faster
+  lust: [[6, 0.15], [10, 0.3], [15, 0.45]], // a long unbroken chase makes it faster (chases in this house are short)
   accel: 10,
   lungeRange: 2.0,
   windup: 0.25, // a visible, audible crouch before the lunge

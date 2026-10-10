@@ -80,3 +80,24 @@ test('in a fury it ignores a toy landing 3 m away', () => {
     assert.ok(Math.abs(mind.target.x - 23.5) > 1, `went for the lure: ${JSON.stringify(mind.target)}`);
   }
 });
+
+import { configFor, runEpisode } from '../src/sim/episode.js';
+// Switching at once because it saw you, lost you or got an alert is a reaction, not dithering; changing plan for no
+// such reason within a second of the last change is.
+const REACT = new Set(['saw', 'lostSight', 'alert', 'sawHide', 'fury', 'newLead']);
+// (before the fix: 62 plans a minute, 58% of changes within a second for no reason)
+test('a monster holds its plan: at most 35 plans a minute, rarely changing within a second for no reason', () => {
+  let switches = 0, quick = 0, secs = 0;
+  for (const [i, type] of [[1, 'stalker'], [2, 'brute'], [3, 'hound'], [4, 'pathfinder']]) {
+    let last = -99;
+    const r = runEpisode({ ...configFor('hold', i), persona: { type }, kid: { style: 'sneaker', skill: 0.6 }, start: 'fresh', maxT: 120 }, {
+      onRecord(row, G, ki, gi, events) {
+        for (const e of events) if (e.type === 'tactic') { switches++; if (row - last <= 20 && !REACT.has(e.why)) quick++; last = row; }
+      },
+    });
+    secs += r.t;
+  }
+  const perMin = (switches / secs) * 60;
+  assert.ok(perMin <= 35, `${perMin.toFixed(1)} plans a minute`);
+  assert.ok(quick / switches < 0.15, `${((quick / switches) * 100).toFixed(0)}% within 1 s for no reason`);
+});

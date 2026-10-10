@@ -76,7 +76,7 @@ test('fury needs both anger and frustration, lasts 4 s, then it is spent for 2.5
   const m = mind(); m.anger = 0.9; m.frustration = 0.3;
   const quiet = { r: 0, sharp: 0, why: '' };
   assert.equal(updateEmotion(m, quiet, DT, P()).furyStarted, false);
-  m.anger = 0.9; m.frustration = 0.7;
+  m.anger = 0.95; m.frustration = 0.8;
   assert.equal(updateEmotion(m, quiet, DT, P()).furyStarted, true);
   let furyFor = 0, spentFor = 0;
   for (let i = 0; i < 200; i++) { updateEmotion(m, quiet, DT, P()); if (m.furyT > 0) furyFor += DT; else if (m.spentT > 0) spentFor += DT; }
@@ -127,4 +127,18 @@ test('a candle going out and losing sight of the kid are felt', () => {
   feltAfter(G, [[{ mx: 0, mz: 0 }, {}]]);
   Object.assign(G.kid, { x: 18.5, z: 13.5 }); // gone (back in the playroom)
   assert.ok(feltAfter(G, [[{ mx: 0, mz: 0 }, {}]]).includes('lostSight'));
+});
+
+test('fury needs anger 0.85 and frustration 0.7, and rests 30 s after it is spent', () => {
+  const m = mind(), quiet = { r: 0, sharp: 0, why: '' };
+  m.anger = 0.8; m.frustration = 0.9;
+  assert.equal(updateEmotion(m, quiet, DT, P()).furyStarted, false, 'anger 0.8 is not enough');
+  m.anger = 0.95; m.frustration = 0.9;
+  assert.equal(updateEmotion(m, quiet, DT, P()).furyStarted, true);
+  for (let i = 0; i < Math.round(6.6 / DT); i++) updateEmotion(m, quiet, DT, P()); // through fury and spent
+  assert.equal(m.furyT, 0); assert.equal(m.spentT, 0);
+  m.anger = 0.95; m.frustration = 0.9;
+  assert.equal(updateEmotion(m, quiet, DT, P()).furyStarted, false, 'not again so soon');
+  for (let i = 0; i < Math.round(30 / DT); i++) { m.anger = 0.95; m.frustration = 0.9; updateEmotion(m, quiet, DT, P()); if (m.furyT > 0) break; }
+  assert.ok(m.furyT > 0, 'possible again after the rest');
 });

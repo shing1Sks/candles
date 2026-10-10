@@ -3,7 +3,8 @@
 //   anger        sharp setbacks; cools fast          -> runs, smashes doors, lunges from further, yells
 //   frustration  setbacks adding up; cools slowly    -> drops its plan for another, tries bolder options
 //   confidence   things going its way                -> steadier, more predictable
-//   fury         anger and frustration both high     -> a 4 s rampage, then 2.5 s spent (the kid's chance)
+//   fury         anger and frustration both high     -> a 4 s rampage, then 2.5 s spent (the kid's chance); then
+//                at least 30 s before another, so it stays an event
 // The same r can later be the reward for training a monster with RL.
 
 // sharp setbacks (anger) and their cost; other things it feels, good or bad
@@ -38,9 +39,10 @@ export function updateEmotion(m, ap, dt, p, { canYell = true } = {}) {
   m.frustration = clamp01((m.frustration + Math.max(0, -ap.r) * 0.8 - Math.max(0, ap.r) * 0.5) * 0.5 ** (dt / (30 + 30 * p.patience)));
   m.confidence = clamp01((m.confidence + Math.max(0, ap.r)) * 0.5 ** (dt / 8));
   let furyStarted = false;
+  m.furyRest = Math.max(0, (m.furyRest || 0) - dt);
   if (m.furyT > 0) { m.furyT -= dt; if (m.furyT <= 1e-9) { m.furyT = 0; m.spentT = 2.5; } }
-  else if (m.spentT > 0) m.spentT = Math.max(0, m.spentT - dt);
-  else if (m.anger >= 0.75 && m.frustration >= 0.6 && canYell) { m.furyT = 4; furyStarted = true; }
+  else if (m.spentT > 0) { m.spentT = Math.max(0, m.spentT - dt); if (m.spentT === 0) m.furyRest = 30; }
+  else if (m.anger >= 0.85 && m.frustration >= 0.7 && m.furyRest === 0 && canYell) { m.furyT = 4; furyStarted = true; }
   return { furyStarted };
 }
 
