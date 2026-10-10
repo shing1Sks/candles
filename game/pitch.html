@@ -5,308 +5,199 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>GameNet · the plan</title>
 <style>
-  :root { --bg: #0a0a0a; --card: #151515; --line: #2a2a2a; --dim: #8a8a8a; --text: #e8e8e8; --hi: #ffffff; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font: 20px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  main { height: 100vh; overflow-y: scroll; scroll-snap-type: y mandatory; scroll-behavior: smooth; }
-  section { min-height: 100vh; scroll-snap-align: start; display: flex; flex-direction: column; justify-content: center; padding: 6vh 9vw; position: relative; }
-  section::after { content: attr(data-n); position: absolute; right: 3vw; bottom: 3vh; color: #444; font-size: 14px; }
-  h1 { font: 400 64px/1.1 Georgia, serif; color: var(--hi); margin-bottom: 18px; }
-  h2 { font: 400 44px/1.15 Georgia, serif; color: var(--hi); margin-bottom: 28px; }
-  .kicker { color: var(--dim); text-transform: uppercase; letter-spacing: .18em; font-size: 14px; margin-bottom: 14px; }
-  .lead { font-size: 26px; color: #cfcfcf; max-width: 900px; }
-  ul.pts { list-style: none; max-width: 980px; }
-  ul.pts li { padding: 10px 0 10px 34px; position: relative; border-bottom: 1px solid #1c1c1c; }
-  ul.pts li::before { content: ""; position: absolute; left: 6px; top: 22px; width: 10px; height: 10px; border-radius: 50%; background: #d8d8d8; box-shadow: 0 0 12px #fff8; }
-  b { color: var(--hi); font-weight: 600; }
-  .dim { color: var(--dim); }
-  .row { display: flex; gap: 18px; flex-wrap: wrap; align-items: stretch; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; flex: 1 1 200px; }
-  .card h3 { font: 400 24px Georgia, serif; color: var(--hi); margin-bottom: 6px; }
-  .card p { font-size: 17px; color: #bbb; }
-  .big { font: 400 54px Georgia, serif; color: var(--hi); line-height: 1; }
-  .cap { font-size: 15px; color: var(--dim); margin-top: 6px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 10px; max-width: 1100px; }
-  .chip { border: 1px solid #3a3a3a; border-radius: 999px; padding: 8px 16px; font-size: 18px; background: #121212; }
-  .chip i { font-style: normal; color: var(--dim); margin-left: 6px; }
-  .chip.you { border-color: #fff; color: #fff; box-shadow: 0 0 18px #fff3; }
-  /* loop diagram */
-  .loop { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 10px 0 30px; }
-  .node { background: var(--card); border: 1px solid #444; border-radius: 14px; padding: 18px 22px; text-align: center; min-width: 180px; }
-  .node.model { border-color: #fff; box-shadow: 0 0 40px #ffffff22; padding: 26px 30px; }
-  .node small { display: block; color: var(--dim); font-size: 15px; }
-  .arrow { width: 70px; height: 2px; background: #555; position: relative; margin: 0 6px; overflow: hidden; }
-  .arrow::after { content: ""; position: absolute; top: -3px; width: 18px; height: 8px; border-radius: 4px; background: #fff; box-shadow: 0 0 10px #fff; animation: flow 1.6s linear infinite; }
-  @keyframes flow { from { left: -20px; } to { left: 72px; } }
-  /* inside the model */
-  .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 1100px; margin-bottom: 22px; }
-  .step { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
-  .step .num { font: 400 40px Georgia, serif; color: #666; float: left; margin-right: 14px; line-height: 1; }
-  .step h3 { font: 400 24px Georgia, serif; color: #fff; }
-  .step p { color: #bbb; font-size: 18px; clear: both; padding-top: 8px; }
-  /* bars */
-  .bar { height: 8px; background: #222; border-radius: 4px; margin: 4px 0 8px; overflow: hidden; }
-  .bar > span { display: block; height: 100%; background: #d0d0d0; border-radius: 4px; transition: width .6s ease; }
-  .lbl { font-size: 13px; color: var(--dim); display: flex; justify-content: space-between; }
-  /* mood demo */
-  .mood { display: grid; grid-template-columns: 1.2fr 1fr; gap: 26px; max-width: 1150px; }
-  .feed { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; min-height: 270px; }
-  .feed div { padding: 7px 0; border-bottom: 1px solid #1f1f1f; font-size: 17px; opacity: 0; transform: translateY(6px); transition: all .4s; }
-  .feed div.on { opacity: 1; transform: none; }
-  .feed .act { color: #fff; }
-  .meters .lbl { font-size: 16px; color: #ccc; }
-  .meters .bar { height: 14px; }
-  .fury { margin-top: 12px; font: 400 22px Georgia, serif; color: #555; transition: color .3s, text-shadow .3s; }
-  .fury.on { color: #fff; text-shadow: 0 0 18px #fff; }
-  /* pipeline */
-  .pipe { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin-bottom: 34px; }
-  .pipe .node { min-width: 150px; padding: 14px 16px; font-size: 18px; }
-  .pipe .arrow { width: 44px; }
-  .timeline { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; max-width: 1200px; }
-  .tl { border-top: 3px solid #555; padding-top: 12px; font-size: 17px; color: #ccc; }
-  .tl b { display: block; font: 400 30px Georgia, serif; color: #fff; }
-  .tl.first { border-color: #fff; }
-  nav { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 10px; z-index: 5; }
-  nav a { width: 9px; height: 9px; border-radius: 50%; background: #333; display: block; }
-  nav a.on { background: #fff; box-shadow: 0 0 8px #fff; }
-  .hint { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); color: #555; font-size: 13px; letter-spacing: .1em; }
-  .flame { width: 14px; height: 22px; border-radius: 50% 50% 45% 45%; background: radial-gradient(circle at 50% 70%, #fff, #bbb 40%, #0000 70%); display: inline-block; margin-right: 14px; vertical-align: middle; animation: flick 1.3s infinite alternate ease-in-out; filter: blur(.3px); }
-  @keyframes flick { 0% { transform: scale(1, 1) translateX(0); opacity: .9; } 50% { transform: scale(.92, 1.08) translateX(1px); } 100% { transform: scale(1.04, .95) translateX(-1px); opacity: 1; } }
-  .q { font-size: 22px; padding: 14px 0; border-bottom: 1px solid #1f1f1f; max-width: 1000px; }
-  .q span { color: var(--dim); margin-right: 12px; }
+  body { background: #0d0d0d; color: #ddd; font: 18px/1.55 system-ui, "Segoe UI", sans-serif; max-width: 1240px; margin: 0 auto; padding: 40px 32px 80px; }
+  h1 { font: 400 40px Georgia, serif; color: #fff; margin: 0 0 6px; }
+  h2 { font: 400 28px Georgia, serif; color: #fff; margin: 48px 0 10px; border-top: 1px solid #2a2a2a; padding-top: 28px; }
+  p, li { color: #ccc; } b { color: #fff; } .dim { color: #888; }
+  ul { padding-left: 22px; } li { margin: 4px 0; }
+  svg { width: 100%; height: auto; display: block; margin: 18px 0 8px; }
+  table { border-collapse: collapse; font-size: 16px; margin: 10px 0; }
+  td, th { border-bottom: 1px solid #262626; padding: 6px 14px 6px 0; text-align: left; vertical-align: top; }
+  th { color: #888; font-weight: 400; }
+  code { color: #fff; font-size: 15px; }
 </style>
 </head>
 <body>
-<nav id="nav"></nav>
-<div class="hint">scroll or ↑ ↓</div>
-<main id="deck">
 
-<section data-n="1">
-  <div class="kicker">GameNet · Candles</div>
-  <h1><span class="flame"></span>One model that <i>is</i> the game.</h1>
-  <p class="lead">You press the buttons. The model plays everything else: the house, every rule, and the monster.</p>
-</section>
+<h1>GameNet: the plan</h1>
+<p class="dim">One model is the whole game. You press the buttons; it plays everything else.</p>
 
-<section data-n="2">
-  <div class="kicker">How it plays</div>
-  <h2>A loop, every 50 ms</h2>
-  <div class="loop">
-    <div class="node">Your controller<small>stick · creep · blow · use · throw</small></div>
-    <div class="arrow"></div>
-    <div class="node model"><b>Main model</b><small>this moment → the next moment</small></div>
-    <div class="arrow"></div>
-    <div class="node">Screen + sound<small>today's renderer, unchanged</small></div>
-  </div>
-  <ul class="pts">
-    <li>It runs <b>20 times a second</b>, and the screen smooths it to 60 fps.</li>
-    <li>It predicts the <b>game state</b>, not pixels. That's cheaper, needs less data, and lets us test each rule.</li>
-    <li>It runs <b>in the browser</b>, on the laptop.</li>
-  </ul>
-</section>
+<h2>1. The model: what goes in, what comes out</h2>
+<p><b>One model.</b> Each tick it reads the game as <b>115 pieces</b>: the game cut into small parts, each a short list of numbers. It writes out the next moment.</p>
 
-<section data-n="3">
-  <div class="kicker">What the model sees</div>
-  <h2>The game, as about 115 small pieces</h2>
-  <div class="chips">
-    <span class="chip">map <i>×60 patches</i></span>
-    <span class="chip">kid</span>
-    <span class="chip">monster body</span>
-    <span class="chip">monster mind <i>mood · plan · where it thinks you are ×4</i></span>
-    <span class="chip">candles <i>×6</i></span>
-    <span class="chip">doors <i>×11</i></span>
-    <span class="chip">wardrobes <i>×3</i></span>
-    <span class="chip">toys <i>×7</i></span>
-    <span class="chip">squeaky toys <i>×5</i></span>
-    <span class="chip">gaps <i>×10</i></span>
-    <span class="chip">searchlight</span>
-    <span class="chip">hand</span>
-    <span class="chip">clock</span>
-    <span class="chip">monster type</span>
-    <span class="chip you">your input</span>
-  </div>
-  <ul class="pts" style="margin-top:28px">
-    <li>Each piece is a <b>short list of numbers</b>: where it is, how it's moving, whether it's on or off.</li>
-    <li>The monster's <b>mind is part of the state</b>, so the model needs no hidden memory.</li>
-  </ul>
-</section>
+<svg viewBox="0 0 1200 760" font-family="system-ui, Segoe UI, sans-serif" font-size="14">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#888"/></marker>
+  </defs>
+  <style>
+    .box { fill: #161616; stroke: #555; }
+    .hi { fill: #1d1d1d; stroke: #fff; }
+    .t { fill: #ddd; } .s { fill: #888; font-size: 12px; } .h { fill: #fff; font-size: 17px; font-family: Georgia, serif; }
+    .w { fill: #fff; }
+    .ln { stroke: #777; stroke-width: 1.4; fill: none; marker-end: url(#a); }
+  </style>
 
-<section data-n="4">
-  <div class="kicker">Inside the model</div>
-  <h2>Two steps each tick</h2>
-  <div class="steps">
-    <div class="step"><span class="num">1</span><h3>The monster decides</h3><p>The <b>monster head</b> reads the state and presses the giant's buttons: move, run, lunge, open, smash, yell, searchlight, hand.</p></div>
-    <div class="step"><span class="num">2</span><h3>The world moves</h3><p>The <b>core</b> takes both controllers and plays the tick. Out comes the next state, plus what happened ("candle out", "door smashed").</p></div>
-  </div>
-  <ul class="pts">
-    <li>A <b>transformer</b>: every piece looks at every other piece.</li>
-    <li>That is how it learns <b>"kid next to a lit candle + blowing → candle goes out"</b>.</li>
-    <li>Small: <b>about 6 million numbers</b> (8 layers, width 256).</li>
-  </ul>
-</section>
+  <!-- column titles -->
+  <text x="20" y="28" class="h">IN · this moment</text>
+  <text x="320" y="28" class="h">1 · encode</text>
+  <text x="550" y="28" class="h">2 · think</text>
+  <text x="800" y="28" class="h">3 · heads</text>
+  <text x="1010" y="28" class="h">OUT · next moment</text>
 
-<section data-n="5">
-  <div class="kicker">Randomness</div>
-  <h2>Reasonable, never wild</h2>
-  <ul class="pts">
-    <li>The model gives <b>odds</b>, not one answer, and we draw from them.</li>
-    <li>A move is one of <b>64 bins</b>, so "it might go left or right" can both be true.</li>
-    <li>A <b>temperature</b> sets how adventurous the draw is.</li>
-    <li>The monster's <b>mood raises the temperature</b>: a frustrated monster tries new things, a confident one stays steady.</li>
-  </ul>
-</section>
+  <!-- inputs -->
+  <rect x="20" y="44" width="260" height="34" rx="6" class="box"/><text x="32" y="66" class="t">map</text><text x="268" y="66" class="s" text-anchor="end">60 patches</text>
+  <rect x="20" y="84" width="260" height="34" rx="6" class="box"/><text x="32" y="106" class="t">kid</text><text x="268" y="106" class="s" text-anchor="end">1</text>
+  <rect x="20" y="124" width="260" height="34" rx="6" class="box"/><text x="32" y="146" class="t">monster body</text><text x="268" y="146" class="s" text-anchor="end">1</text>
+  <rect x="20" y="164" width="260" height="34" rx="6" class="box"/><text x="32" y="186" class="t">monster mind <tspan class="s">mood, plan, 4 guesses</tspan></text><text x="268" y="186" class="s" text-anchor="end">5</text>
+  <rect x="20" y="204" width="260" height="34" rx="6" class="box"/><text x="32" y="226" class="t">candles</text><text x="268" y="226" class="s" text-anchor="end">6</text>
+  <rect x="20" y="244" width="260" height="34" rx="6" class="box"/><text x="32" y="266" class="t">doors</text><text x="268" y="266" class="s" text-anchor="end">11</text>
+  <rect x="20" y="284" width="260" height="34" rx="6" class="box"/><text x="32" y="306" class="t">wardrobes</text><text x="268" y="306" class="s" text-anchor="end">3</text>
+  <rect x="20" y="324" width="260" height="34" rx="6" class="box"/><text x="32" y="346" class="t">toys · squeaky toys</text><text x="268" y="346" class="s" text-anchor="end">7 + 5</text>
+  <rect x="20" y="364" width="260" height="34" rx="6" class="box"/><text x="32" y="386" class="t">gaps (vents, cracks)</text><text x="268" y="386" class="s" text-anchor="end">10</text>
+  <rect x="20" y="404" width="260" height="34" rx="6" class="box"/><text x="32" y="426" class="t">searchlight · hand · clock</text><text x="268" y="426" class="s" text-anchor="end">3</text>
+  <rect x="20" y="444" width="260" height="34" rx="6" class="box"/><text x="32" y="466" class="t">monster type</text><text x="268" y="466" class="s" text-anchor="end">1</text>
+  <rect x="20" y="494" width="260" height="34" rx="6" class="hi"/><text x="32" y="516" class="w">YOUR INPUT</text><text x="268" y="516" class="s" text-anchor="end">1</text>
+  <rect x="20" y="534" width="260" height="34" rx="6" class="hi"/><text x="32" y="556" class="w">GIANT'S BUTTONS</text><text x="268" y="556" class="s" text-anchor="end">1</text>
+  <text x="20" y="592" class="s">total ≈ 115 pieces</text>
 
-<section data-n="6">
-  <div class="kicker">The monster</div>
-  <h2>Five types, one goal: catch the kid</h2>
-  <div class="row" id="personas"></div>
-  <p class="cap" style="margin-top:16px">Each game jitters its type's settings, so no two games play the same. Each type is tuned so a decent kid wins 5–25% of games.</p>
-</section>
+  <!-- encode -->
+  <rect x="320" y="44" width="190" height="524" rx="10" class="box"/>
+  <text x="415" y="250" class="t" text-anchor="middle">each piece →</text>
+  <text x="415" y="272" class="t" text-anchor="middle">256 numbers</text>
+  <text x="415" y="304" class="s" text-anchor="middle">one small encoder</text>
+  <text x="415" y="320" class="s" text-anchor="middle">per kind of piece</text>
+  <line x1="282" y1="306" x2="318" y2="306" class="ln"/>
 
-<section data-n="7">
-  <div class="kicker">Its feelings have reasons</div>
-  <h2>A "how am I doing" score drives its mood</h2>
-  <div class="mood">
-    <div class="feed" id="feed"></div>
-    <div class="meters">
-      <div class="lbl"><span>anger <span class="dim">· runs, smashes, yells</span></span><span id="va"></span></div><div class="bar"><span id="ba"></span></div>
-      <div class="lbl"><span>frustration <span class="dim">· tries another way</span></span><span id="vf"></span></div><div class="bar"><span id="bf"></span></div>
-      <div class="lbl"><span>confidence <span class="dim">· steady, predictable</span></span><span id="vc"></span></div><div class="bar"><span id="bc"></span></div>
-      <div class="fury" id="fury">FURY: 4 s rampage, then exhausted</div>
-      <p class="cap" style="margin-top:14px">Every yell is logged with its reason. The same score can later be the reward for RL.</p>
-    </div>
-  </div>
-</section>
+  <!-- transformer -->
+  <rect x="550" y="44" width="210" height="524" rx="10" class="hi"/>
+  <text x="655" y="220" class="w" text-anchor="middle">transformer</text>
+  <text x="655" y="244" class="t" text-anchor="middle">8 layers</text>
+  <text x="655" y="280" class="s" text-anchor="middle">every piece looks at</text>
+  <text x="655" y="296" class="s" text-anchor="middle">every other piece</text>
+  <text x="655" y="330" class="s" text-anchor="middle">"kid near a lit candle</text>
+  <text x="655" y="346" class="s" text-anchor="middle">+ blowing" → "candle out"</text>
+  <text x="655" y="390" class="s" text-anchor="middle">≈ 6 M numbers in total</text>
+  <line x1="512" y1="306" x2="548" y2="306" class="ln"/>
 
-<section data-n="8">
-  <div class="kicker">The data</div>
-  <h2>Bots play, we record</h2>
-  <div class="pipe">
-    <div class="node">Rules engine<small>the real game, no graphics</small></div><div class="arrow"></div>
-    <div class="node">Kid bot vs monster bot</div><div class="arrow"></div>
-    <div class="node">Recorder<small>20 moments / s</small></div><div class="arrow"></div>
-    <div class="node">Dataset<small>+ coverage check</small></div>
-  </div>
-  <div class="row">
-    <div class="card"><div class="big">2,000</div><div class="cap">games in the first batch</div></div>
-    <div class="card"><div class="big">~80 h</div><div class="cap">of play</div></div>
-    <div class="card"><div class="big">5.8 M</div><div class="cap">recorded moments</div></div>
-    <div class="card"><div class="big">&lt;30 min</div><div class="cap">to make, on the laptop</div></div>
-  </div>
-</section>
+  <!-- heads -->
+  <rect x="800" y="44" width="170" height="34" rx="6" class="box"/><text x="812" y="66" class="t">kid head</text>
+  <rect x="800" y="84" width="170" height="34" rx="6" class="box"/><text x="812" y="106" class="t">monster head</text>
+  <rect x="800" y="124" width="170" height="34" rx="6" class="box"/><text x="812" y="146" class="t">mind head</text>
+  <rect x="800" y="164" width="170" height="34" rx="6" class="box"/><text x="812" y="186" class="t">candle head</text>
+  <rect x="800" y="204" width="170" height="34" rx="6" class="box"/><text x="812" y="226" class="t">door head</text>
+  <rect x="800" y="244" width="170" height="34" rx="6" class="box"/><text x="812" y="266" class="t">… one per kind</text>
+  <rect x="800" y="304" width="170" height="34" rx="6" class="box"/><text x="812" y="326" class="t">events head</text>
+  <rect x="800" y="534" width="170" height="34" rx="6" class="hi"/><text x="812" y="556" class="w">giant-buttons head</text>
+  <line x1="762" y1="306" x2="798" y2="306" class="ln"/>
+  <line x1="762" y1="551" x2="798" y2="551" class="ln"/>
 
-<section data-n="9">
-  <div class="kicker">Every case shows up</div>
-  <h2>Data that covers every rule</h2>
-  <ul class="pts">
-    <li><b>Kid bots in 5 styles</b>: Sneaker, Sprinter, Hider, Trickster, Greedy. Each has a skill level.</li>
-    <li><b>5% chaos kids</b> press random buttons, so the model learns what does <i>not</i> happen.</li>
-    <li><b>30% of games start mid-game</b>, so late moments (the hand, the last candle) are common.</li>
-    <li>A <b>coverage check</b> counts every rule in <span class="dim">docs/mechanics.md</span>: at least 1,000 each.</li>
-    <li>Any game <b>replays exactly</b> and can be <b>watched in the browser</b>.</li>
-  </ul>
-</section>
+  <!-- outputs -->
+  <rect x="1010" y="44" width="170" height="234" rx="8" class="box"/>
+  <text x="1022" y="68" class="t">next state of</text>
+  <text x="1022" y="88" class="t">every piece</text>
+  <text x="1022" y="116" class="s">kid moved 0.16 m left</text>
+  <text x="1022" y="134" class="s">candle 3: out</text>
+  <text x="1022" y="152" class="s">door 7: shut</text>
+  <text x="1022" y="170" class="s">monster anger 0.6</text>
+  <text x="1022" y="188" class="s">…</text>
+  <text x="1022" y="222" class="s">given as odds:</text>
+  <text x="1022" y="238" class="s">moves in 64 bins,</text>
+  <text x="1022" y="254" class="s">yes/no as chances</text>
+  <rect x="1010" y="304" width="170" height="54" rx="8" class="box"/>
+  <text x="1022" y="326" class="t">events</text>
+  <text x="1022" y="344" class="s">candleOut, doorSmash, yell…</text>
+  <rect x="1010" y="534" width="170" height="34" rx="8" class="hi"/>
+  <text x="1022" y="556" class="w">giant's buttons</text>
+  <line x1="972" y1="161" x2="1008" y2="161" class="ln"/>
+  <line x1="972" y1="321" x2="1008" y2="321" class="ln"/>
+  <line x1="972" y1="551" x2="1008" y2="551" class="ln"/>
 
-<section data-n="10">
-  <div class="kicker">Training (next step, its own plan)</div>
-  <h2>Teach it, then test it like an exam</h2>
-  <ul class="pts">
-    <li><b>Step 1:</b> predict one tick ahead.</li>
-    <li><b>Step 2:</b> play 32 ticks on its own predictions, so small errors don't snowball.</li>
-    <li><b>Exam:</b> every rule as a mini test, model vs the real rules.</li>
-    <li><b>Sanity:</b> 5-minute games where nobody walks through walls and candles never relight.</li>
-    <li><b>Final test:</b> you play it.</li>
-  </ul>
-</section>
+  <!-- the two loops -->
+  <path d="M1095,570 L1095,640 L150,640 L150,572" class="ln"/>
+  <text x="620" y="632" class="s" text-anchor="middle">pass 1 → pass 2: the giant's buttons go back in</text>
+  <path d="M1180,170 L1192,170 L1192,700 L8,700 L8,300 L18,300" class="ln"/>
+  <text x="600" y="692" class="s" text-anchor="middle">after pass 2: the next moment becomes "this moment" · every 50 ms</text>
+  <path d="M1095,360 L1095,410" class="ln"/>
+  <text x="1095" y="432" class="t" text-anchor="middle">screen + sound</text>
+</svg>
 
-<section data-n="11">
-  <div class="kicker">Build order</div>
-  <h2>From here to the first dataset</h2>
-  <div class="timeline">
-    <div class="tl first"><b>0</b>Top view only at the start</div>
-    <div class="tl"><b>1</b>Monster gets a controller</div>
-    <div class="tl"><b>2</b>Recorder + replays</div>
-    <div class="tl"><b>3</b>New mind: moods + 5 types</div>
-    <div class="tl"><b>4</b>Kid bots</div>
-    <div class="tl"><b>5</b>Rule tests + coverage</div>
-    <div class="tl"><b>6</b>First 2,000 games</div>
-  </div>
-</section>
+<p><b>Each tick, the same model runs twice:</b></p>
+<ol>
+  <li><b>Pass 1:</b> the giant's buttons are left empty. The <b>giant-buttons head</b> decides what the monster presses: move, run, lunge, open, smash, yell, light, hand.</li>
+  <li><b>Pass 2:</b> your input and those buttons go in. Every other head writes the <b>next moment</b> and the <b>events</b>.</li>
+  <li>The screen draws it, and the next moment becomes the input. Twenty times a second.</li>
+</ol>
 
-<section data-n="12">
-  <div class="kicker">Please confirm</div>
-  <h2>My assumptions</h2>
-  <div class="q"><span>1</span>The model predicts the <b>state</b>; pixels maybe later.</div>
-  <div class="q"><span>2</span>Today's rules stay. New: the giant's controller, <b>yell</b> and <b>fury</b>.</div>
-  <div class="q"><span>3</span>One house for now.</div>
-  <div class="q"><span>4</span>RL for the monster comes <b>later</b>.</div>
-  <div class="q"><span>5</span>Training runs on a <b>rented GPU</b>, in the next plan.</div>
-</section>
+<p><b>One piece up close: the kid.</b></p>
+<table>
+  <tr><th>in (13 numbers)</th><th>out (next moment)</th></tr>
+  <tr><td>position x, z · velocity · facing · crawling · running · creeping · hidden in · holding · blowing · noise</td><td>how far it moved (odds over 64 bins per axis) · each yes/no as a chance · the rest as numbers</td></tr>
+</table>
 
-</main>
-<script>
-  // personas
-  const P = [
-    ['Pathfinder', 'The dumb baseline. Goes straight to where it last saw you.', [0.1, 0.5, 0.4]],
-    ['Brute', 'Charges, smashes doors, yells, lunges early.', [0.3, 0.9, 0.9]],
-    ['Stalker', 'Predicts where you will go and cuts you off. Quiet and patient.', [0.9, 0.5, 0.2]],
-    ['Hound', 'Hunts by ear. Quick to every sound, easy to lure.', [0.5, 0.6, 0.5]],
-    ['Warden', 'Holds the last candles, checks every wardrobe.', [0.6, 0.4, 0.4]],
-  ];
-  document.getElementById('personas').innerHTML = P.map(([n, d, [s, a, t]]) => `
-    <div class="card"><h3>${n}</h3><p>${d}</p><div style="margin-top:12px">
-      <div class="lbl"><span>smart</span></div><div class="bar"><span style="width:${s * 100}%"></span></div>
-      <div class="lbl"><span>aggression</span></div><div class="bar"><span style="width:${a * 100}%"></span></div>
-      <div class="lbl"><span>temper</span></div><div class="bar"><span style="width:${t * 100}%"></span></div>
-    </div></div>`).join('');
+<p><b>Training</b> (later, its own plan):</p>
+<ul>
+  <li>Pass 2 gets the bot's real giant buttons, and its outputs are compared with what the real rules did.</li>
+  <li>The giant-buttons head learns to press what the bots pressed.</li>
+  <li>Then it plays 32 ticks on its own predictions, so small errors don't snowball.</li>
+</ul>
+<p><b>No hidden memory.</b> The monster's mind (mood, plan, guesses where you are) is part of the pieces, so one moment in is enough.</p>
 
-  // the mood demo: a scripted little chase
-  const S = [
-    ['Spots the kid', 0, -0.05, 0.3],
-    ['Closing in…', 0, -0.05, 0.15],
-    ['Kid slips into the vent', 0.2, 0.25, -0.3],
-    ['Kid takes the same gap again', 0.25, 0.2, -0.1],
-    ['→ gives up the chase, goes round to the far end', 0, 0, 0, true],
-    ['Kid shuts a door in its face', 0.3, 0.1, 0],
-    ['A candle goes out', 0.27, 0.15, -0.1],
-    ['→ YELLS', 0, 0, 0, true],
-    ['Lunge misses', 0.35, 0.1, -0.1],
-    ['→ FURY: smashes through, ignores the thrown toy', 0, 0, 0, true],
-    ['→ exhausted for 2.5 s: the kid\'s chance', 0, 0, 0, true],
-  ];
-  const feed = document.getElementById('feed'), m = { a: 0, f: 0.1, c: 0 };
-  let i = 0;
-  function show() {
-    for (const k of 'afc') {
-      document.getElementById('b' + k).style.width = (m[k] * 100).toFixed(0) + '%';
-      document.getElementById('v' + k).textContent = m[k].toFixed(2);
-    }
-    document.getElementById('fury').classList.toggle('on', m.a >= 0.75 && m.f >= 0.6);
-  }
-  function tick() {
-    if (i >= S.length) { i = 0; feed.innerHTML = ''; Object.assign(m, { a: 0, f: 0.1, c: 0 }); show(); setTimeout(tick, 900); return; }
-    const [text, da, df, dc, act] = S[i++];
-    if (!act) m.a *= 0.75; // anger cools fast between moments
-    m.a = Math.min(1, Math.max(0, m.a + da)); m.f = Math.min(1, Math.max(0, m.f + df)); m.c = Math.min(1, Math.max(0, m.c + dc));
-    const el = document.createElement('div');
-    el.textContent = text; if (act) el.className = 'act';
-    feed.appendChild(el); requestAnimationFrame(() => el.classList.add('on'));
-    if (feed.children.length > 8) feed.removeChild(feed.firstChild);
-    show();
-    setTimeout(tick, act ? 1700 : 1300);
-  }
-  show(); tick();
+<h2>2. The monster</h2>
+<ul>
+  <li><b>Five types, one goal: catch the kid.</b>
+    <ul>
+      <li><b>Pathfinder</b> (dumb baseline)</li>
+      <li><b>Brute</b> (charges and smashes)</li>
+      <li><b>Stalker</b> (predicts you and cuts you off)</li>
+      <li><b>Hound</b> (hunts by ear, easy to lure)</li>
+      <li><b>Warden</b> (guards the last candles)</li>
+    </ul>
+  </li>
+  <li>Each game jitters its type's settings, so no two games play the same.</li>
+  <li><b>A "how am I doing" score</b> drives its mood:
+    <ul>
+      <li>a vent escape, a door in its face, a candle out → <b>anger</b> and <b>frustration</b>;</li>
+      <li>spotting you → <b>confidence</b>.</li>
+    </ul>
+  </li>
+  <li><b>What mood does:</b>
+    <ul>
+      <li>anger makes it run, smash and <b>yell</b>;</li>
+      <li>frustration makes it try another way round;</li>
+      <li>both high → a 4 s <b>fury</b>, then exhausted (your chance).</li>
+    </ul>
+  </li>
+  <li><b>Randomness is reasonable:</b> it always picks among sensible moves, more boldly when frustrated. Every yell is logged with its reason.</li>
+</ul>
 
-  // nav dots + arrow keys
-  const deck = document.getElementById('deck'), secs = [...document.querySelectorAll('section')], nav = document.getElementById('nav');
-  secs.forEach((s, k) => { const a = document.createElement('a'); a.href = '#'; a.onclick = (e) => { e.preventDefault(); s.scrollIntoView(); }; nav.appendChild(a); });
-  const cur = () => Math.round(deck.scrollTop / innerHeight);
-  deck.addEventListener('scroll', () => [...nav.children].forEach((a, k) => a.classList.toggle('on', k === cur())));
-  nav.children[0].classList.add('on');
-  addEventListener('keydown', (e) => {
-    const k = cur();
-    if (['ArrowDown', 'PageDown', ' ', 'ArrowRight'].includes(e.key)) { e.preventDefault(); secs[Math.min(secs.length - 1, k + 1)].scrollIntoView(); }
-    if (['ArrowUp', 'PageUp', 'ArrowLeft'].includes(e.key)) { e.preventDefault(); secs[Math.max(0, k - 1)].scrollIntoView(); }
-  });
-</script>
+<h2>3. The data</h2>
+<ul>
+  <li><b>Kid bots vs monster bots</b> play the real rules (no graphics). We record every piece, 20 times a second.</li>
+  <li><b>Kid bots in 5 styles</b> (Sneaker, Sprinter, Hider, Trickster, Greedy) at different skill levels.</li>
+  <li><b>5% chaos kids</b> press random buttons, so the model learns what does <i>not</i> happen.</li>
+  <li><b>30% of games start mid-game</b>, so late moments (the hand, the last candle) are common.</li>
+  <li>A <b>coverage check</b> counts every rule in <code>docs/mechanics.md</code>: at least 1,000 each.</li>
+  <li>Any game <b>replays exactly</b> and can be watched in the browser.</li>
+  <li><b>First batch:</b> 2,000 games ≈ 80 h of play ≈ 5.8 M moments, made in under 30 min on the laptop.</li>
+</ul>
+
+<h2>4. Build order</h2>
+<ol start="0">
+  <li>Top view only at the start of a game</li>
+  <li>The monster gets a controller</li>
+  <li>Recorder + replays</li>
+  <li>New mind: moods + 5 types</li>
+  <li>Kid bots</li>
+  <li>Rule tests + coverage check</li>
+  <li>First 2,000 games</li>
+</ol>
+
+<h2>5. Please confirm</h2>
+<ul>
+  <li>The model predicts the <b>game state</b> (pixels maybe later).</li>
+  <li>Today's rules stay. New: the giant's controller, <b>yell</b> and <b>fury</b>.</li>
+  <li>One house for now. RL for the monster comes later. Training runs on a rented GPU.</li>
+</ul>
+
 </body>
 </html>
