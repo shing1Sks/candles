@@ -109,6 +109,7 @@ export function createView(canvas, L) {
     },
     get zoom() { return zoomWant; },
     setZoom(z) { zoom = zoomWant = z; mode = 'table'; },
+    setDist(d) { inDist = d; },
     frame(G, dt, t, input = {}) {
       const k = G.kid, M = G.monster;
       zoom += (zoomWant - zoom) * Math.min(1, dt * 3);
@@ -156,7 +157,7 @@ export function createView(canvas, L) {
       const d = Math.hypot(M.x - k.x, M.z - k.z);
       const awake = M.mode !== 'sleep';
       k.fear = awake ? Math.max(0, 1 - d / HEART.radius) : 0;
-      kid.update(k, dt, t);
+      kid.update(k, dt, t, M);
       monster.update(M, k, dt, t);
       // you only see it if the kid could
       // behind walls you still see its eye on the stalk poking up over them

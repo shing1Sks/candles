@@ -10,10 +10,21 @@ export const U = {
 };
 
 const vert = /* glsl */ `
+  uniform float uTime, uSway;
   varying vec3 vW; varying vec3 vN; varying vec3 vC; varying vec2 vUv;
   void main() {
-    vec4 w = modelMatrix * vec4(position, 1.0);
-    vW = w.xyz; vN = normalize(mat3(modelMatrix) * normal); vUv = uv;
+    mat4 m = modelMatrix;
+    #ifdef USE_INSTANCING
+      m = modelMatrix * instanceMatrix;
+    #endif
+    vec4 w = m * vec4(position, 1.0);
+    #ifdef USE_INSTANCING
+      // fur: each strand bends toward its tip, on its own phase
+      vec3 root = (m * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+      float ph = dot(root, vec3(3.7, 7.1, 5.3));
+      w.xyz += uSway * position.y * position.y * vec3(sin(uTime * 2.3 + ph), -0.2, cos(uTime * 1.9 + ph * 1.3));
+    #endif
+    vW = w.xyz; vN = normalize(mat3(m) * normal); vUv = uv;
     #ifdef USE_COLOR
       vC = color;
     #else
@@ -77,7 +88,7 @@ const frag = /* glsl */ `
     }
     if (uFade < 0.999 && uFade < bayer(gl_FragCoord.xy)) discard;
     if (vW.y < uClipY) discard; // the monster behind a wall: only what pokes above it
-    vec3 n = normalize(vN);
+    vec3 n = normalize(gl_FrontFacing ? vN : -vN);
     if (uPattern > 3.5 && n.y > 0.7 && fract(vW.x * 5.0) < 0.55 && fract(vW.z * 5.0) < 0.55) discard; // vent grate
     vec2 p = vW.xz + n.xz * 0.07;
     vec2 uv = p / uSize, e = vec2(0.06) / uSize;
@@ -99,12 +110,12 @@ const frag = /* glsl */ `
   }`;
 
 // opts: color (grey 0..1), emis, pattern (1 floor, 2 wall, 3 wall with dark tops), cut (dither away near the kid)
-export function mat({ color = 0.5, emis = 0, pattern = 0, cut = false, vcol = false, lit = 1, side = THREE.FrontSide } = {}) {
+export function mat({ color = 0.5, emis = 0, pattern = 0, cut = false, vcol = false, lit = 1, side = THREE.FrontSide, sway = 0 } = {}) {
   return new THREE.ShaderMaterial({
     uniforms: {
       ...U,
       uColor: { value: new THREE.Color(color, color, color) }, uEmis: { value: new THREE.Color(emis, emis, emis) },
-      uPattern: { value: pattern }, uCut: { value: cut === true ? 1 : cut || 0 }, uFade: { value: 1 }, uLit: { value: lit }, uClipY: { value: -100 },
+      uPattern: { value: pattern }, uCut: { value: cut === true ? 1 : cut || 0 }, uFade: { value: 1 }, uLit: { value: lit }, uClipY: { value: -100 }, uSway: { value: sway },
     },
     vertexShader: vert, fragmentShader: frag, vertexColors: vcol, side,
   });

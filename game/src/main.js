@@ -21,6 +21,7 @@ function newGame() {
 }
 newGame();
 if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
+if (q.has('dist')) view.setDist(Number(q.get('dist')));
 
 // ---------- input ----------
 const keys = new Set();
