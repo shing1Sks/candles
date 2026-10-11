@@ -8,3 +8,4 @@ data/
 game/public/clips/
 .work/
 game/public/models/
+game/train/rl/runs/

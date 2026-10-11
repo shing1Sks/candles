@@ -84,7 +84,9 @@ test('in a fury it ignores a toy landing 3 m away', () => {
 import { configFor, runEpisode } from '../src/sim/episode.js';
 // Switching at once because it saw you, lost you or got an alert is a reaction, not dithering; changing plan for no
 // such reason within a second of the last change is.
-const REACT = new Set(['saw', 'lostSight', 'alert', 'sawHide', 'fury', 'newLead']);
+// reasons to change plan at once: something happened, or the plan is finished (with waking at 1.5 s a hunt or search often ends
+// within a second of starting; picking the next one then is not dithering)
+const REACT = new Set(['saw', 'lostSight', 'alert', 'sawHide', 'fury', 'newLead', 'done']);
 // (before the fix: 62 plans a minute, 58% of changes within a second for no reason)
 test('a monster holds its plan: at most 35 plans a minute, rarely changing within a second for no reason', () => {
   let switches = 0, quick = 0, secs = 0;

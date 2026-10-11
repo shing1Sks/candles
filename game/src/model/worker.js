@@ -6,7 +6,7 @@
 //   out: ready { threads, isolated, stride }, step { prev, row, odds, ms }, error { message }
 import * as ort from 'onnxruntime-web/webgpu';
 import { decode } from './decode.js';
-import { layout, patchIds, cohere, unwall } from './layout.js';
+import { layout, viewIds, cohere, unwall } from './layout.js';
 import { STATE_SIZE, KI_SIZE } from '../sim/schema.js';
 
 const NG = 4 * 21 + 2 * 32; // the giant's stick and aim bins (train/model.py)
@@ -27,12 +27,12 @@ onmessage = async ({ data: m }) => {
       // [gi | world | events] (on WebGPU every tensor moved costs a few ms)
       session = await ort.InferenceSession.create(`/models/${m.name}/${m.int8 ? 'packed_int8' : 'packed'}.onnx`,
         { executionProviders: [m.ep, 'wasm'], graphOptimizationLevel: 'all' });
-      const sizes = [STATE_SIZE, meta.persona, 225, KI_SIZE, NG, 1, 7];
+      const sizes = [STATE_SIZE, meta.persona, meta.ids || 225, KI_SIZE, NG, 1, 7]; // ids: 225 patches, or (a whole-map model) the house too
       at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
       x = new Float32Array(at[6] + 7);
       postMessage({ type: 'ready', threads: ort.env.wasm.numThreads, isolated: self.crossOriginIsolated, stride: meta.stride || 1 });
     } else if (m.type === 'reset') {
-      row = Float32Array.from(m.row); x.set(m.persona, at[1]); ki.fill(0);
+      row = Float32Array.from(m.row); x.set(m.persona.slice(0, meta.persona), at[1]); ki.fill(0);
       loop(++epoch);
     } else if (m.type === 'input') {
       for (let i = 0; i < KI_SIZE; i++) ki[i] = i >= 4 ? Math.max(ki[i], m.ki[i]) : m.ki[i];
@@ -45,13 +45,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // a step every 1/20 s (or back to back if the model is slower); a new game starts a new loop, and the old one ends
 async function loop(my) {
-  const ids = new Float32Array(9 * 25);
+  const ids = new Float32Array(meta.ids || 225);
   await inflight.catch(() => {});
   for (let t0 = performance.now(); my === epoch; ) {
     if (!active || (opts.lockstep && !fresh)) { await sleep(active ? 1 : 20); if (!active) t0 = performance.now(); continue; }
     fresh = false;
     const t1 = performance.now();
-    patchIds(map, row, col, ids);
+    viewIds(map, row, col, ids);
     x.set(row, at[0]); x.set(ids, at[2]); x.set(ki, at[3]); x[at[5]] = opts.gtemp;
     ki[4] = ki[5] = 0; // a press is used once
     for (let i = 0; i < NG; i++) x[at[4] + i] = -Math.log(-Math.log(Math.random() + 1e-12) + 1e-12);

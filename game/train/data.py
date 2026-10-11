@@ -42,11 +42,11 @@ class Schema:
         raise KeyError(name)
 
 
-PERSONA_TYPES = ['classic', 'pathfinder', 'brute', 'stalker', 'hound', 'warden']
+PERSONA_TYPES = ['classic', 'pathfinder', 'brute', 'stalker', 'hound', 'warden', 'nightmare']  # the game's personaVec uses this order
 
 
 class Data:
-    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None, endgame=0.0, stride=1):
+    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None, endgame=0.0, stride=1, oversample=0):
         """stride: each example spans this many recorded steps (state r -> r + stride), for a model that steps 0.05 * stride s"""
         """device: where the rows are kept; out: where batches go (rows in RAM, batches to the GPU, for data bigger than it)"""
         self.schema = S = Schema(os.path.join(root, 'schema.json'))
@@ -108,8 +108,28 @@ class Data:
                 ix = self.idx[name]; ix = ix[ix + stride - 1 < len(self.ep_of)]
                 self.idx[name] = ix[self.ep_of[ix + stride - 1] == self.ep_of[ix]]
         self.weight = self._weights()
+        if oversample: self._oversample(oversample)
         self.gen = torch.Generator(device=dev).manual_seed(seed)
         self.out = torch.device(out) if out else dev
+
+    # the moments a game turns on that are rare among rows: a door, a toy, a squeak, a hiding place, a candle out, the
+    # monster spotting you, lunging, catching you. A loss weight (capped at 5) was not enough: door use is 1 row in
+    # 2,300 and the model never learned it. These rows are also drawn more often.
+    RARE = ['candleOut', 'won', 'caught', 'door', 'shutRefused', 'hide', 'unhide', 'unhideRefused', 'creak', 'squeak', 'pickup', 'throw',
+            'throwRefused', 'land', 'beamSpot', 'grab', 'grabbed', 'wake', 'spotted', 'windup', 'lunge', 'checkOpen', 'found']
+
+    def _oversample(self, times):
+        """training rows with a rare moment (or a kid's press of use or throw, or the monster starting to see the kid)
+        are drawn `times` more often"""
+        S = self.schema
+        ev = [S.events.index(e) for e in self.RARE if e in S.events]
+        rare = self.ev[:, ev].any(1) | (self.ki[:, 4:6] > 0.5).any(1)
+        sees = S.field('monster', 'sees')
+        rare = rare | ((self.states[self.cur, sees] < 0.5) & (self.states[self.cur + 1, sees] > 0.5))
+        ix = self.idx['train']
+        r = ix[rare[ix]]
+        self.idx['train'] = torch.cat([ix] + [r] * int(times))
+        self.rare_share = len(r) / max(1, len(ix))
 
     def _weights(self):
         """Down-weight standoffs (the kid still in cover beside the monster); up-weight rows with rare events and rows

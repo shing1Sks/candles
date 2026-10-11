@@ -30,8 +30,30 @@ export function patchIds(map, row, col, out) {
   return out;
 }
 
-// the monster's traits and type, as train/data.py
-export const personaVec = (p) => Float32Array.from([...schemaJSON().personaTraits.map((k) => +(p[k] ?? 0)), ...PERSONA_TYPES.map((t) => (p.type === t ? 1 : 0))]);
+// A whole-map model (play.json ids > 225) also sees the house and the line from the kid to the monster: after the
+// patches, every tile row by row (a shut door its own type), then RAY tiles along the line, as train/model.py view_ids.
+const RAY = 16;
+export function viewIds(map, row, col, out) {
+  patchIds(map, row, col, out);
+  if (out.length <= 225) return out;
+  const nT = 8, open = Array.from({ length: 11 }, (_, i) => row[col('door', 'open', i).c]);
+  const tile = (x, z) => { const d = map.doorAt[z * map.w + x]; return d >= 0 && open[d] < 0.5 ? nT : map.tiles[z * map.w + x]; };
+  let o = 225;
+  for (let z = 0; z < map.h; z++) for (let x = 0; x < map.w; x++) out[o++] = tile(x, z);
+  const f = Math.fround, kx = f(row[col('kid', 'x').c] * map.w), kz = f(row[col('kid', 'z').c] * map.h);
+  const mx = f(row[col('monster', 'x').c] * map.w), mz = f(row[col('monster', 'z').c] * map.h);
+  for (let i = 0; i < RAY; i++) {
+    const t = f((i + 0.5) / RAY);
+    const x = Math.min(map.w - 1, Math.max(0, Math.floor(f(kx + f(f(mx - kx) * t))))), z = Math.min(map.h - 1, Math.max(0, Math.floor(f(kz + f(f(mz - kz) * t)))));
+    out[o++] = tile(x, z);
+  }
+  return out;
+}
+
+// the monster's traits and type, as train/data.py PERSONA_TYPES (classic first, the nightmare last); n: the model's
+// persona size (models before the nightmare have one type fewer)
+const TYPES = ['classic', ...PERSONA_TYPES, 'nightmare'];
+export const personaVec = (p, n = 9 + TYPES.length) => Float32Array.from([...schemaJSON().personaTraits.map((k) => +(p[k] ?? 0)), ...TYPES.map((t) => (p.type === t ? 1 : 0))].slice(0, n));
 
 // Constrained decoding: a drawn row the model's own world contradicts is not taken. A catch stands only with the
 // model's monster within 2 m of the kid (a touch reaches 0.72 m, a lunge further) or its hand out and within 1.5 m;

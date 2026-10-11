@@ -4,6 +4,7 @@ import { rng, hash } from '../rng.js';
 import { createClassic, thinkClassic } from './classic.js';
 import { createTactical, thinkTactical } from './tactics.js';
 import { PERSONAS, samplePersona } from './personas.js';
+import { createNightmare, thinkNightmare, NIGHTMARE } from './nightmare.js';
 
 export const MODES = ['sleep', 'idle', 'patrol', 'guard', 'hunt', 'search', 'chase', 'ambush', 'intercept', 'check', 'breather', 'fury', 'spent'];
 
@@ -14,6 +15,7 @@ export function createMind(G, persona = { type: 'classic' }, seed = G.seed) {
     anger: 0, frustration: 0, confidence: 0, furyT: 0, spentT: 0, menace: 0, beliefs: [],
   };
   if (persona.type === 'classic') { Object.assign(mind, createClassic()); mind.think = thinkClassic; }
+  else if (persona.type === 'nightmare') { mind.persona = { ...NIGHTMARE, ...persona }; Object.assign(mind, createNightmare()); mind.think = thinkNightmare; }
   else if (PERSONAS[persona.type]) {
     // a persona given only by type gets its type's traits jittered (from the mind's own stream)
     if (persona.smart === undefined) mind.persona = samplePersona(persona.type, mind.rand);

@@ -10,7 +10,7 @@ import { configFor, createEpisode, startEpisode, stepEpisode, episodeOver, STEP 
 import { observeKid } from '../src/sim/bots/kid.js';
 import { encode, encodeKI, STATE_SIZE, KI_SIZE } from '../src/sim/schema.js';
 import { decode } from '../src/model/decode.js';
-import { layout, patchIds, personaVec, cohere, unwall } from '../src/model/layout.js';
+import { layout, viewIds, personaVec, cohere, unwall } from '../src/model/layout.js';
 import { apply, events } from '../src/model/dream.js';
 import { readFileSync, existsSync } from 'node:fs';
 
@@ -45,7 +45,7 @@ async function run(x) {
   return y;
 }
 const col = layout(), NG = 4 * 21 + 2 * 32;
-const sizes = [STATE_SIZE, meta.persona, 225, KI_SIZE, NG, 1, 7], at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
+const sizes = [STATE_SIZE, meta.persona, meta.ids || 225, KI_SIZE, NG, 1, 7], at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
 
 // what a game looked like, sampled every step
 function tally() {
@@ -83,12 +83,12 @@ function rules(config) {
 
 async function dream(config) {
   const { G, kidBot } = createEpisode(config), s = tally(), t0 = G.t;
-  const x = new Float32Array(at[6] + 7), ids = new Float32Array(225), ki = new Float32Array(KI_SIZE);
+  const x = new Float32Array(at[6] + 7), ids = new Float32Array(meta.ids || 225), ki = new Float32Array(KI_SIZE);
   let row = new Float32Array(STATE_SIZE); encode(G, row, 0);
-  x.set(personaVec(G.mind.persona), at[1]); x[at[5]] = 1;
+  x.set(personaVec(G.mind.persona, meta.persona), at[1]); x[at[5]] = 1;
   while (G.state === 'play' && G.t - t0 < SECONDS - 1e-9) {
     encodeKI(kidBot(observeKid(G), STEP * STRIDE), ki, 0);
-    patchIds(MAP, row, col, ids);
+    viewIds(MAP, row, col, ids);
     x.set(row, at[0]); x.set(ids, at[2]); x.set(ki, at[3]);
     for (let i = 0; i < NG; i++) x[at[4] + i] = -Math.log(-Math.log(Math.random() + 1e-12) + 1e-12);
     for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();

@@ -12,6 +12,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from data import PERSONA_TYPES
 
 NB = 96  # bins per number
 SCALE = 1e-3  # changes are measured in thousandths of the stored unit before symlog
@@ -54,10 +55,13 @@ GI_STICK, GI_AIM = 21, 32
 GI_BUTTONS = ['run', 'lunge', 'use', 'bash', 'yell', 'light', 'reach']
 
 
+RAY = 16  # tiles sampled along the line between the kid and the monster
+
+
 class WorldModel(nn.Module):
-    def __init__(s, schema, d=256, layers_a=4, layers_b=4, heads=None, fourier=0):
+    def __init__(s, schema, d=256, layers_a=4, layers_b=4, heads=None, fourier=0, whole_map=False):
         super().__init__()
-        s.S, s.d, s.fourier = schema, d, fourier
+        s.S, s.d, s.fourier, s.whole_map = schema, d, fourier, whole_map
         heads = heads or max(2, d // 64)
         s.register_buffer('bins', BINS.clone(), persistent=False)
         # positions (fields stored as a share of the house's width or depth) also go in as sines and cosines at
@@ -74,7 +78,7 @@ class WorldModel(nn.Module):
         s.inp = nn.ModuleDict({k['kind']: nn.Linear(k['width'] + 2 * fourier * len(s.pos[k['kind']]), d) for k in schema.kinds})
         s.out = nn.ModuleDict({k['kind']: nn.Linear(d, len(k['num']) * NB + len(k['flag']) + sum(n for _, n in k['cat'])) for k in schema.kinds})
         s.slot = nn.Embedding(schema.n_tokens, d)  # which piece (candle 3, door 7)
-        s.persona = nn.Linear(len(schema.traits) + 6, d)
+        s.persona = nn.Linear(len(schema.traits) + len(PERSONA_TYPES), d)
         s.ki = nn.Linear(len(schema.ki), d)
         s.gi = nn.Linear(len(schema.gi), d)
         s.qa, s.qb = nn.Parameter(torch.randn(d) * 0.02), nn.Parameter(torch.randn(d) * 0.02)
@@ -85,6 +89,19 @@ class WorldModel(nn.Module):
         s.register_buffer('door_at', torch.tensor(M['doorAt'], dtype=torch.long).view(M['h'], M['w']), persistent=False)
         s.tile_emb = nn.Embedding(s.n_types + 2, 8)
         s.patch = nn.Linear(25 * 8, d)
+        # the whole house (whole_map): every tile, shut doors marked, through a small conv net into a 6 x 10 grid of map
+        # pieces the others attend to; and the tiles on the line between the kid and the monster, added to both (what
+        # stands between them: whether it can see you is a fact about that line). With only the 5 x 5 round each mover
+        # the model had to remember the rest of the house, and its monster rarely spotted a kid 5 m away in plain view.
+        s.n_map = 0
+        if whole_map:
+            s.map_conv = nn.Sequential(nn.Conv2d(8, 32, 3, padding=1), nn.GELU(), nn.Conv2d(32, 64, 3, stride=2, padding=1), nn.GELU(),
+                                       nn.Conv2d(64, d, 3, stride=2, padding=1))
+            gh, gw = (M['h'] + 3) // 4, (M['w'] + 3) // 4
+            s.n_map = gh * gw
+            s.map_pos = nn.Parameter(torch.randn(s.n_map, d) * 0.02)
+            s.ray = nn.Linear(RAY * 8, d)
+            s.register_buffer('ray_t', (torch.arange(RAY) + 0.5) / RAY, persistent=False)
         s.blocks_a = nn.ModuleList([Block(d, heads) for _ in range(layers_a)])
         s.blocks_b = nn.ModuleList([Block(d, heads) for _ in range(layers_b)])
         s.norm_a, s.norm_b = nn.LayerNorm(d), nn.LayerNorm(d)
@@ -111,15 +128,48 @@ class WorldModel(nn.Module):
         gx, gz = gx.expand(-1, -1, 5, 5), gz.expand(-1, -1, 5, 5)
         inside = (gx >= 0) & (gx < M['w']) & (gz >= 0) & (gz < M['h'])
         cx, cz = gx.clamp(0, M['w'] - 1), gz.clamp(0, M['h'] - 1)
-        t = s.tiles[cz, cx]
-        d = s.door_at[cz, cx]
-        shut = (d >= 0) & (cur[:, s.door_open].gather(1, d.clamp(min=0).flatten(1)).view_as(d) < 0.5)
-        t = torch.where(shut, s.n_types, t)
+        t = s.shut_tiles(cur, cx.flatten(1), cz.flatten(1)).view_as(cx)
         return torch.where(inside, t, s.n_types + 1)  # B, movers, 5, 5
 
+    def shut_tiles(s, cur, gx, gz):
+        """tile types at (gx, gz) ([B, n] each), a shut door as its own type"""
+        t = s.tiles[gz, gx]
+        d = s.door_at[gz, gx]
+        shut = (d >= 0) & (cur[:, s.door_open].gather(1, d.clamp(min=0)) < 0.5)
+        return torch.where(shut, s.n_types, t)
+
+    def view_ids(s, cur):
+        """every tile id the model sees, flat: the patches (9 x 25), then (whole_map) the house (h x w, row by row) and
+        the line from the kid to the monster (RAY); the game computes the same (src/model/layout.js viewIds)"""
+        B, M = cur.shape[0], s.S.map
+        ids = [s.patch_ids(cur).flatten(1)]
+        if s.whole_map:
+            gz, gx = torch.meshgrid(torch.arange(M['h'], device=cur.device), torch.arange(M['w'], device=cur.device), indexing='ij')
+            ids.append(s.shut_tiles(cur, gx.flatten().expand(B, -1), gz.flatten().expand(B, -1)))
+            kx, kz = cur[:, s.mover_x[0]] * M['w'], cur[:, s.mover_z[0]] * M['h']
+            mx, mz = cur[:, s.mover_x[1]] * M['w'], cur[:, s.mover_z[1]] * M['h']
+            px = torch.floor(kx.unsqueeze(1) + (mx - kx).unsqueeze(1) * s.ray_t).long().clamp(0, M['w'] - 1)
+            pz = torch.floor(kz.unsqueeze(1) + (mz - kz).unsqueeze(1) * s.ray_t).long().clamp(0, M['h'] - 1)
+            ids.append(s.shut_tiles(cur, px, pz))
+        return torch.cat(ids, 1)
+
+    def embed_ids(s, ids):
+        if ids.is_floating_point():  # tile ids as floats (the play graphs: no integer ops, which WebGPU runs on the CPU)
+            return (ids.unsqueeze(-1) == torch.arange(s.n_types + 2, device=ids.device, dtype=ids.dtype)).to(s.tile_emb.weight.dtype) @ s.tile_emb.weight
+        return s.tile_emb(ids)
+
     def tokens(s, cur, ids=None):
+        """the pieces (n), then (whole_map) the map pieces (n_map). ids: patch ids [B, 9, 5, 5], or (whole_map) view_ids"""
         B = cur.shape[0]
-        if ids is None: ids = s.patch_ids(cur)
+        if ids is None: ids = s.view_ids(cur) if s.whole_map else s.patch_ids(cur)
+        if s.whole_map:
+            M, np_ = s.S.map, 9 * 25
+            nm = M['h'] * M['w']
+            e = s.embed_ids(ids.reshape(B, -1))
+            house = e[:, np_: np_ + nm].reshape(B, M['h'], M['w'], 8).permute(0, 3, 1, 2)
+            map_tok = s.map_conv(house).flatten(2).transpose(1, 2) + s.map_pos
+            ray = s.ray(e[:, np_ + nm:].flatten(1))
+            ids = ids.reshape(B, -1)[:, :np_].reshape(B, 9, 5, 5)
         out = []
         for k in s.S.kinds:
             x = cur[:, k['offset']: k['offset'] + k['count'] * k['width']].view(B, k['count'], k['width'])
@@ -127,28 +177,35 @@ class WorldModel(nn.Module):
                 a = x[..., s.pos[k['kind']]].unsqueeze(-1) * s.freqs  # B, count, positions, fourier
                 x = torch.cat([x, torch.sin(a).flatten(2), torch.cos(a).flatten(2)], -1)
             out.append(s.inp[k['kind']](x))
-        if ids.is_floating_point():  # tile ids as floats (the play graphs: no integer ops, which WebGPU runs on the CPU)
-            e = (ids.unsqueeze(-1) == torch.arange(s.n_types + 2, device=ids.device, dtype=ids.dtype)).to(cur.dtype) @ s.tile_emb.weight
-        else: e = s.tile_emb(ids)
-        patches = s.patch(e.flatten(2))  # B, movers, d
+        e = s.embed_ids(ids.reshape(B, 9 * 5 * 5)).reshape(B, 9, 25 * 8)
+        patches = s.patch(e)  # B, movers, d
+        if s.whole_map: patches = patches + torch.cat([ray.unsqueeze(1), ray.unsqueeze(1), torch.zeros_like(patches[:, 2:])], 1)  # the line: kid, monster
         # added to the movers' pieces through a fixed placement matrix (no in-place writes: friendlier to export)
-        return torch.cat(out, 1) + s.slot.weight.unsqueeze(0) + torch.einsum('nm,bmd->bnd', s.place, patches)
+        pieces = torch.cat(out, 1) + s.slot.weight.unsqueeze(0) + torch.einsum('nm,bmd->bnd', s.place, patches)
+        return torch.cat([pieces, map_tok], 1) if s.whole_map else pieces
 
-    def forward(s, cur, ki, gi, persona, ids=None):
-        B = cur.shape[0]
-        n = s.S.n_tokens
-        a = torch.cat([s.tokens(cur, ids), s.persona(persona).unsqueeze(1), s.qa.expand(B, 1, -1)], 1)
+    def stage_a(s, cur, persona, ids=None):
+        """stage A: the pieces, the monster type, the map pieces -> its sequence after the blocks (without the query), the
+        giant's buttons"""
+        B, n = cur.shape[0], s.S.n_tokens
+        t = s.tokens(cur, ids)
+        a = torch.cat([t[:, :n], s.persona(persona).unsqueeze(1), t[:, n:], s.qa.expand(B, 1, -1)], 1)
         for blk in s.blocks_a: a = blk(a)
         a = s.norm_a(a)
-        giant = s.giant(a[:, -1])
-        b = torch.cat([a[:, : n + 1], s.ki(ki).unsqueeze(1), s.gi(gi).unsqueeze(1), s.qb.expand(B, 1, -1)], 1)
+        return a[:, :-1], s.giant(a[:, -1])
+
+    def stage_b(s, a, ki, gi):
+        """stage B: stage A's sequence with your input and the giant's -> every piece's head output, the step's events"""
+        B = a.shape[0]
+        b = torch.cat([a, s.ki(ki).unsqueeze(1), s.gi(gi).unsqueeze(1), s.qb.expand(B, 1, -1)], 1)
         for blk in s.blocks_b: b = blk(b)
         b = s.norm_b(b)
-        heads = {}
-        for k in s.S.kinds:
-            h = b[:, k['first']: k['first'] + k['count']]
-            heads[k['kind']] = s.out[k['kind']](h)
-        return dict(world=heads, events=s.events(b[:, -1]), giant=giant)
+        return {k['kind']: s.out[k['kind']](b[:, k['first']: k['first'] + k['count']]) for k in s.S.kinds}, s.events(b[:, -1])
+
+    def forward(s, cur, ki, gi, persona, ids=None):
+        a, giant = s.stage_a(cur, persona, ids)
+        heads, events = s.stage_b(a, ki, gi)
+        return dict(world=heads, events=events, giant=giant)
 
 
 def split_head(k, y):

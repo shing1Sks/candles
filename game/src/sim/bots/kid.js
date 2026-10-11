@@ -69,6 +69,46 @@ export function keyboard(bot, rand) {
   };
 }
 
+// A curious kid, around any kid bot: now and then it goes to fiddle with the nearest thing (a door it opens or shuts,
+// a toy it picks up and throws, a squeaky toy or a creaky board it steps on, a wardrobe it gets into), a few seconds
+// at a time, then its own plan again. The bots do these only when their plan needs them (a door used 1 step in 2,300),
+// too rarely for the model to learn them; the monster does not hold back meanwhile.
+export function curious(bot, G, rand) {
+  let goal = null, left = 0, wait = 0;
+  const near = (list, k, r, at = (o) => o) => list.map((o) => ({ o, p: at(o) })).filter(({ p }) => Math.hypot(p.x - k.x, p.z - k.z) < r)
+    .sort((a, b) => Math.hypot(a.p.x - k.x, a.p.z - k.z) - Math.hypot(b.p.x - k.x, b.p.z - k.z))[0];
+  const boards = [...G.L.creaks].map((i) => ({ x: (i % G.L.w) + 0.5, z: Math.floor(i / G.L.w) + 0.5 }));
+  return (obs, dt) => {
+    const inp = bot(obs, dt), k = obs.kid;
+    left -= dt; wait -= dt;
+    if (k.hidden >= 0) { if (goal?.kind === 'wardrobe' && left < 0 && rand() < dt) { goal = null; return { ...inp, use: true }; } return goal?.kind === 'wardrobe' ? { ...IDLE } : inp; }
+    if (!goal && wait <= 0 && rand() < dt / 2) {
+      const pick = rand(), toy = k.held < 0 && near(obs.items.filter((it) => !it.held && !it.fly), k, 6);
+      const door = near(obs.doors, k, 6), sq = near(G.squeaks, k, 6), cr = near(boards, k, 6), w = near(obs.wardrobes, k, 6, (q) => ({ x: q.fx, z: q.fz }));
+      if (k.held >= 0 && pick < 0.3) goal = { kind: 'throw' };
+      else if (toy && pick < 0.45) goal = { kind: 'toy', x: toy.p.x, z: toy.p.z };
+      else if (door && pick < 0.7) goal = { kind: 'door', x: door.p.x, z: door.p.z, presses: 1 + Math.floor(rand() * 3) };
+      else if (sq && pick < 0.8) goal = { kind: 'step', x: sq.p.x, z: sq.p.z, creep: rand() < 0.3 };
+      else if (cr && pick < 0.9) goal = { kind: 'step', x: cr.p.x, z: cr.p.z, creep: rand() < 0.3 };
+      else if (w) goal = { kind: 'wardrobe', x: w.p.x, z: w.p.z };
+      left = 3 + rand() * 2;
+    }
+    if (!goal) return inp;
+    if (left < -3) { goal = null; wait = 2 + rand() * 6; return inp; }
+    if (goal.kind === 'throw') { goal = null; wait = 1 + rand() * 4; return { ...inp, throw: true }; }
+    const dx = goal.x - k.x, dz = goal.z - k.z, d = Math.hypot(dx, dz);
+    const reach = goal.kind === 'door' ? 1.1 : goal.kind === 'wardrobe' ? 0.7 : 0.25;
+    if (d < reach || left < 0) {
+      if (goal.kind === 'door' && d < 1.3) { if (wait <= 0) { wait = 0.3 + rand() * 0.8; if (--goal.presses <= 0) { goal = null; wait = 1 + rand() * 4; } return { ...IDLE, use: true }; } return { ...IDLE }; }
+      if (goal.kind === 'wardrobe' && d < 0.9) { goal = { ...goal, left: 0 }; left = 0.6 + rand() * 2; return { ...IDLE, use: true }; }
+      goal = null; wait = 2 + rand() * 6;
+      return inp;
+    }
+    const s = goal.kind === 'step' && !goal.creep ? 1 : d < 1 ? 0.6 : 1;
+    return { ...IDLE, mx: (dx / d) * s, mz: (dz / d) * s, creep: !!goal.creep };
+  };
+}
+
 function chaos(rand) {
   let inp = { ...IDLE }, left = 0;
   return (obs, dt) => {
