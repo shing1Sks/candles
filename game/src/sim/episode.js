@@ -6,6 +6,7 @@ import { createGame, stepWorld } from './game.js';
 import { observe } from './senses.js';
 import { createMind, think } from './mind/index.js';
 import { createKidBot, observeKid, keyboard, curious, KID_STYLES } from './bots/kid.js';
+import { createEvader } from './bots/evader.js';
 import { randomStart } from './bots/start.js';
 import { PERSONA_TYPES } from './mind/personas.js';
 import { countCases } from './coverage.js';
@@ -29,9 +30,9 @@ function pickStyle(r) {
 // (5% chaos) and skill, and 40% of the time a random mid-game start; keys: the share of kids played as on a keyboard
 // (data v3 on; 0 keeps the earlier batches as they were); curious: the share of kids that fiddle with things (doors,
 // toys, squeaky toys, boards, wardrobes: bots/kid.js curious); nightmare: the share of games against the learned
-// monster (data v4); vary: the share of kid bots with their style's numbers varied (bots/kid.js). Each new option draws
+// monster (data v4); evaders: the share of kids that are the learned evader (bots/evader.js, gen.mjs --evader); vary: the share of kid bots with their style's numbers varied (bots/kid.js). Each new option draws
 // only when it is on, so earlier batches stay as they were.
-export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0, vary = 0 } = {}) {
+export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0, vary = 0, evaders = 0 } = {}) {
   const seed = hash(batch, i), r = rng(hash(seed, 'config'));
   const persona = { type: PERSONA_TYPES[Math.floor(r() * PERSONA_TYPES.length)] };
   const chaos = r() < 0.05;
@@ -41,6 +42,7 @@ export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0,
   if (cur && r() < cur) kid.curious = true;
   if (nightmare && r() < nightmare) persona.type = 'nightmare';
   if (vary && r() < vary) kid.vary = true;
+  if (evaders && r() < evaders) kid.style = 'evader';
   return { id: `${batch}:${i}`, seed, persona, kid, start, maxT: 300 };
 }
 
@@ -48,7 +50,8 @@ export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0,
 export function createEpisode(config) {
   const G = createGame(L, config.seed);
   G.mind = createMind(G, config.persona, hash(config.seed, 1));
-  let kidBot = createKidBot(G, config.kid, rng(config.kidSeed ?? hash(config.seed, 2)));
+  const kr = rng(config.kidSeed ?? hash(config.seed, 2));
+  let kidBot = config.kid.style === 'evader' ? createEvader(G, null, kr) : createKidBot(G, config.kid, kr); // the learned kid (bots/evader.js)
   if (config.kid.keys) kidBot = keyboard(kidBot, rng(hash(config.seed, 4)));
   if (config.kid.curious) kidBot = curious(kidBot, G, rng(hash(config.seed, 5)));
   if (config.start === 'mid') randomStart(G, rng(hash(config.seed, 3)));

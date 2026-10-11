@@ -10,8 +10,10 @@
 set -e
 cd /workspace/gn
 SIZE=${1:-M}; EPOCHS=${2:-3}; GAMES=${3:-15000}; OVER=${OVER:-6}; R3=${R3:-2}
+# EVADER=path: that share (EVADERS, 0.2) of the kids are the learned evader
+EV=""; [ -n "$EVADER" ] && EV="--evaders ${EVADERS:-0.2} --evader $EVADER"
 [ -f data/v4/schema.json ] || (cd game && node tools/gen.mjs v4 "$GAMES" "${WORKERS:-16}" --out /workspace/gn/data --keys 0.35 --curious 0.5 --vary 0.5 \
-  --nightmare 1 --policy /workspace/gn/game/public/nightmare.json > /workspace/gn/gen_v4.log 2>&1)
+  --nightmare 1 --policy /workspace/gn/game/public/nightmare.json $EV > /workspace/gn/gen_v4.log 2>&1)
 tail -2 gen_v4.log 2>/dev/null || true
 COMMON="--data data/v4 --size $SIZE --data_device cpu --whole_map --oversample $OVER $EXTRA"
 bash game/train/pod/job.sh "v4_$SIZE" $COMMON --epochs "$EPOCHS" --rollout_from "${ROLL:-0.7}"

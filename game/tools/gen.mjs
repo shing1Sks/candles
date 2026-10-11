@@ -4,6 +4,7 @@
 //   --keys 0.35: that share of kids played as on a keyboard (data v3; see bots/kid.js keyboard)
 //   --curious 0.5: that share of kids fiddle with doors, toys and the rest (bots/kid.js curious)
 //   --nightmare 1 --policy POLICY.json: that share of games against the learned monster (train/rl), its weights
+//   --evaders 0.2 --evader EVADER.json: that share of kids are the learned evader (train/rl --side kid), its weights
 //   --vary 0.5: that share of kid bots with their style's numbers varied (bots/kid.js createKidBot)
 //   data/<batch>/schema.json                 the row layout (src/sim/schema.js)
 //   data/<batch>/shard-NNN/ (256 episodes each)
@@ -22,16 +23,18 @@ import { configFor, runEpisode } from '../src/sim/episode.js';
 import { schemaJSON } from '../src/sim/schema.js';
 import { parseLevel } from '../src/sim/level.js';
 import { setNightmarePolicy, mlpPolicy } from '../src/sim/mind/nightmare.js';
+import { setEvaderWeights } from '../src/sim/bots/evader.js';
 
 const SHARD = 256;
 const NL = String.fromCharCode(10);
 
 if (!isMainThread) {
   // a worker: run each episode it is sent, send back its rows
-  const { batch, maxT, keys, curious, nightmare, policy, vary } = workerData;
+  const { batch, maxT, keys, curious, nightmare, policy, vary, evaders, evader } = workerData;
+  if (evader) setEvaderWeights(JSON.parse(fs.readFileSync(evader, 'utf8')));
   if (policy) setNightmarePolicy(mlpPolicy(JSON.parse(fs.readFileSync(policy, 'utf8'))));
   parentPort.on('message', (i) => {
-    const config = configFor(batch, i, { keys, curious, nightmare, vary });
+    const config = configFor(batch, i, { keys, curious, nightmare, vary, evaders });
     if (maxT) config.maxT = maxT;
     try {
       if (process.env.GEN_FAIL !== undefined && Number(process.env.GEN_FAIL) === i) throw new Error('GEN_FAIL: a forced failure');
@@ -49,6 +52,8 @@ if (!isMainThread) {
   const outRoot = flag('--out') || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
   const maxT = Number(flag('--maxT')) || 0, keys = Number(flag('--keys')) || 0, curious = Number(flag('--curious')) || 0;
   const nightmare = Number(flag('--nightmare')) || 0, policy = flag('--policy'), vary = Number(flag('--vary')) || 0;
+  const evaders = Number(flag('--evaders')) || 0, evader = flag('--evader');
+  if (evaders && !evader) { console.error('--evaders needs --evader'); process.exit(2); }
   if (nightmare && !policy) { console.error('--nightmare needs --policy'); process.exit(2); }
   const [batch, countArg, workersArg] = args;
   if (!batch || !countArg) { console.error('usage: node tools/gen.mjs <batch> <count> [workers] [--out DIR] [--maxT S] [--keys SHARE]'); process.exit(2); }
@@ -82,11 +87,11 @@ if (!isMainThread) {
   await new Promise((resolve) => {
     const finish = () => { done++; if (done % 50 === 0 || done === count) report(); if (done === count) resolve(); };
     const spawn = () => {
-      const worker = new Worker(new URL(import.meta.url), { workerData: { batch, maxT, keys, curious, nightmare, policy, vary } });
+      const worker = new Worker(new URL(import.meta.url), { workerData: { batch, maxT, keys, curious, nightmare, policy, vary, evaders, evader } });
       const feed = () => { if (next < count) { worker.job = next; worker.postMessage(next++); } else worker.terminate(); };
       // a worker that dies outright: log its episode as failed, carry on with a fresh worker
       worker.on('error', (e) => {
-        line(errFd, { i: worker.job, config: configFor(batch, worker.job, { keys, curious, nightmare, vary }), message: e.message, stack: e.stack });
+        line(errFd, { i: worker.job, config: configFor(batch, worker.job, { keys, curious, nightmare, vary, evaders }), message: e.message, stack: e.stack });
         failed++; finish(); spawn();
       });
       worker.on('message', (m) => {

@@ -29,8 +29,13 @@ function standSpots(G) {
   }));
 }
 
+// the weights every evader in this process plays with, unless given its own (data generation: gen.mjs --evader)
+let shared = null;
+export function setEvaderWeights(w) { shared = w; }
+
 // the evader's decision-making; policy: (x, goalMask, toolMask) -> { goal, run, tool }, or weights (an mlpPolicy is made)
 export function createEvader(G, policy, rand = Math.random) {
+  policy = policy ?? shared;
   const pol = typeof policy === 'function' ? policy : policy ? mlpPolicy(policy, { rand }) : null;
   const st = { pick: -1, pickT: 0, decideT: 0, run: true, plan: [], planT: 0, spots: [], useT: 0, throwPhase: 0, throwDir: null, lastM: null };
   const bot = (obs, dt) => {
