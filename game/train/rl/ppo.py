@@ -24,7 +24,10 @@ ap.add_argument('--lam', type=float, default=0.95)
 ap.add_argument('--ent', type=float, default=0.01)
 ap.add_argument('--init', default='')
 ap.add_argument('--hidden', type=int, default=256)
-ap.add_argument('--switch', type=float, default=0.03, help='reward cost of a change of mind')
+ap.add_argument('--switch', type=float, default=None, help='reward cost of a change of mind (collect.mjs default by side)')
+ap.add_argument('--side', default='monster', help='who learns: monster (the nightmare) or kid (the evader)')
+ap.add_argument('--opp', default='', help='the weights of the other side: the evader in the kid league, or the nightmare the kid plays')
+ap.add_argument('--evaders', type=float, default=0.3, help='side monster with --opp: the share of games against the evader')
 a = ap.parse_args()
 os.makedirs(a.out, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -66,7 +69,8 @@ def collect(rnd, wpath):
     for k in range(a.workers):
         p = os.path.join(a.out, f'part{k}')
         procs.append((subprocess.Popen(['node', os.path.join(HERE, 'collect.mjs'), '--weights', wpath, '--decisions', str(per), '--seed', str(rnd * 1000 + k),
-                                        '--out', p + '.bin', '--stats', p + '.json', '--gamma', str(a.gamma), '--switch', str(a.switch)], cwd=GAME), p))
+                                        '--out', p + '.bin', '--stats', p + '.json', '--gamma', str(a.gamma), '--side', a.side]
+                                        + (['--switch', str(a.switch)] if a.switch is not None else []) + (['--opp', a.opp, '--evaders', str(a.evaders)] if a.opp else []), cwd=GAME), p))
     parts, games = [], []
     for proc, p in procs:
         if proc.wait() != 0: raise SystemExit(f'collect failed: {p}')
@@ -136,8 +140,11 @@ for rnd in range(a.rounds):
     row = dict(round=rnd, games=g, caught=round(caught / g, 3), won=round(won / g, 3), t_catch=round(float(np.mean(tc)), 1) if tc else None,
                out=round(float(np.mean([x['out'] for x in games])), 2), switch_min=round(60 * sum(x.get('switches', 0) for x in games) / max(1, sum(x['t'] for x in games)), 1), reward=round(float(sum(p[:, -2].sum() for p in parts)) / g, 3),
                decisions=n, secs=round(time.time() - t0, 1), **stats)
+    if a.opp and a.side == 'monster':  # how it does against the evader alone
+        ev = [x for x in games if x['style'] == 'evader']
+        if ev: row['vs_evader'] = dict(n=len(ev), caught=round(sum(x['outcome'] == 'caught' for x in ev) / len(ev), 3), won=round(sum(x['outcome'] == 'won' for x in ev) / len(ev), 3))
     print(json.dumps(row), flush=True); log.write(json.dumps(row) + '\n'); log.flush()
-    score = row['caught'] - row['won'] - 0.002 * (row['t_catch'] or 150)
+    score = row['caught'] - row['won'] - 0.002 * (row['t_catch'] or 150) if a.side == 'monster' else row['won'] - row['caught']
     if score > best and rnd > 0:
         best = score
         json.dump(net.weights(), open(os.path.join(a.out, 'best.json'), 'w')); torch.save(net.state_dict(), os.path.join(a.out, 'best.pt'))
