@@ -1,9 +1,9 @@
 // The main model's own thread: it holds the state row, runs the model on it 20 times a second (or as fast as it can),
 // decides every number, flag and choice, and posts each new row to the game. The game's thread only draws and reads
 // your input, so neither waits on the other.
-//   in:  init { name, ep, int8, temp, mix, topP, mixFor, gtemp, map, lockstep }, reset { row, persona }, input { ki, active } (any
+//   in:  init { name, ep, int8, temp, mix, topP, mixFor, snap, gtemp, map, lockstep }, reset { row, persona }, input { ki, active } (any
 //        time; with lockstep each step waits for an input sent after the last one: a bot answering every row)
-//   out: ready { meta }, step { prev, row, odds, ms }, error { message }
+//   out: ready { threads, isolated, stride }, step { prev, row, odds, ms }, error { message }
 import * as ort from 'onnxruntime-web/webgpu';
 import { decode } from './decode.js';
 import { layout, patchIds } from './layout.js';
@@ -30,7 +30,7 @@ onmessage = async ({ data: m }) => {
       const sizes = [STATE_SIZE, meta.persona, 225, KI_SIZE, NG, 1, 7];
       at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
       x = new Float32Array(at[6] + 7);
-      postMessage({ type: 'ready', threads: ort.env.wasm.numThreads, isolated: self.crossOriginIsolated });
+      postMessage({ type: 'ready', threads: ort.env.wasm.numThreads, isolated: self.crossOriginIsolated, stride: meta.stride || 1 });
     } else if (m.type === 'reset') {
       row = Float32Array.from(m.row); x.set(m.persona, at[1]); ki.fill(0);
       loop(++epoch);
@@ -60,10 +60,10 @@ async function loop(my) {
     const y = (await inflight).y.data;
     if (my !== epoch) return;
     const prev = row;
-    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix, topP: opts.topP, mixFor: opts.mixFor });
+    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix, topP: opts.topP, mixFor: opts.mixFor, snap: opts.snap });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i])); // a runaway number cannot run far
     postMessage({ type: 'step', prev, row, odds: y.slice(13 + meta.world), ms: performance.now() - t1 });
-    const wait = 50 - (performance.now() - t0);
+    const wait = 50 * (meta.stride || 1) - (performance.now() - t0); // a step is 0.05 s x the model's stride
     if (wait > 0) await sleep(wait);
     t0 = performance.now();
   }

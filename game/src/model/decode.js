@@ -10,8 +10,12 @@
 //   topP:  draws come only from the likeliest options holding this much of the odds (nucleus sampling). Drawing
 //          every flag 20 times a second lets a 0.1% chance happen: a candle goes out by itself, a game is won at 5
 //          candles. With topP 0.9 what is near certain stays certain and only real doubt is drawn.
-export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, topP = 1, rand = Math.random } = {}) {
+//   snap:  when the model is sure a number does not change (over half the odds on the two bins round zero), it does
+//          not change at all; the expected value is never exactly zero, so timers, cooldowns and still things crept
+export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, topP = 1, snap = false, rand = Math.random } = {}) {
   const base = mix;
+  let z0 = 0;
+  while (z0 < meta.nb - 1 && meta.bins[z0 + 1] < 0) z0++; // bins z0 and z0 + 1 straddle zero
   const next = Float32Array.from(cur), bins = meta.bins, NB = meta.nb, scale = meta.scale;
   const p = new Float64Array(NB);
   for (const k of meta.kinds) {
@@ -27,6 +31,7 @@ export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, top
         for (let b = 0; b < NB; b++) { p[b] = Math.exp(world[o + b] - mx); z += p[b]; mean += p[b] * bins[b]; }
         mean /= z;
         let v = mean;
+        if (snap && (p[z0] + p[z0 + 1]) / z > 0.5) { next[row + f] = cur[row + f]; o += NB; continue; }
         if (mix > 0) {
           for (let b = 0; b < NB; b++) p[b] = Math.exp((world[o + b] - mx) / temp);
           v = mean * (1 - mix) + bins[nucleus(p, NB, topP, rand)] * mix;

@@ -26,10 +26,11 @@ with sync_playwright() as p:
     persona = f'&persona={a.persona}' if a.persona else ''
     page.goto(f"http://localhost:{a.port}/?model={a.model}&bot={a.bot}&seed={a.seed}{persona}&rec=1&manual=1&zoom=0.4&reveal=1&ep=webgpu{a.query}")
     page.wait_for_function('window.__g && window.__g.dream', timeout=120000)
+    stride = page.evaluate('window.__g.stride')  # a step of 0.05 x stride s: the video runs at 20 / stride fps
     tmp = tempfile.mkdtemp(prefix='model-clip-')
     for _ in range(10): page.evaluate('window.__frame(0.05)')  # settle the camera and lights
     n, tail = 0, 0
-    while n < a.seconds * FPS and tail < TAIL:
+    while n < a.seconds * FPS / stride and tail < TAIL:
         page.evaluate('window.__dreamFrame()')
         page.screenshot(path=os.path.join(tmp, f'f{n:05d}.jpg'), type='jpeg', quality=85)
         n += 1
@@ -37,8 +38,8 @@ with sync_playwright() as p:
     state = page.evaluate("[window.__g.G.state, window.__g.G.candles.filter((c) => !c.lit).length, +window.__g.G.t.toFixed(1)]")
     b.close()
 mp4, jpg = os.path.join(OUT, a.name + '.mp4'), os.path.join(OUT, a.name + '.jpg')
-subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(FPS), '-i', os.path.join(tmp, 'f%05d.jpg'),
+subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-framerate', str(FPS / stride), '-i', os.path.join(tmp, 'f%05d.jpg'), '-r', '20',
                 '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mp4], check=True)
 shutil.copy(os.path.join(tmp, f'f{min(n - 1, 60):05d}.jpg'), jpg)
 shutil.rmtree(tmp, ignore_errors=True)
-print(f'{a.name}: {n / FPS:.1f} s, ended {state[0]} with {state[1]} candles out at t {state[2]}', 'ERRORS ' + '; '.join(errors) if errors else 'ok')
+print(f'{a.name}: {n * stride / FPS:.1f} s, ended {state[0]} with {state[1]} candles out at t {state[2]}', 'ERRORS ' + '; '.join(errors) if errors else 'ok')

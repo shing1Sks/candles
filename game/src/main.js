@@ -59,12 +59,12 @@ if (q.has('model')) {
   // a kid bot decides once per model step, on the row that just landed
   const onStep = (g) => {
     if (manual) { landedFrame?.(); landedFrame = null; return; } // recording: __dreamFrame paces every step
-    if (kidBot) dream.input(kidBot(observeKid(g), STEP), phase === 'play');
+    if (kidBot) dream.input(kidBot(observeKid(g), STEP * dream.stride), phase === 'play');
   };
   createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), topP: Number(q.get('top_p') ?? 0.9),
     // &mind=1: the monster's mind drawn at that mix; &game=1: the game's state (play, won, caught) drawn at its odds
     mixFor: { ...(q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : {}),
-      ...(q.has('game') ? { game: Number(q.get('game')) } : {}) }, int8: q.has('int8'), lockstep: q.has('bot') || manual, onStep })
+      ...(q.has('game') ? { game: Number(q.get('game')) } : {}) }, int8: q.has('int8'), snap: q.get('snap') !== '0', lockstep: q.has('bot') || manual, onStep })
     .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot && !manual) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints
@@ -157,10 +157,10 @@ let landedFrame = null;
 window.__dreamFrame = async () => {
   if (dream && phase === 'play' && G.state === 'play') {
     const landed = new Promise((r) => { landedFrame = r; });
-    dream.input(kidBot ? kidBot(observeKid(G), STEP) : dreamIn, true);
+    dream.input(kidBot ? kidBot(observeKid(G), STEP * dream.stride) : dreamIn, true);
     await Promise.race([landed, new Promise((r) => setTimeout(r, 5000))]);
   }
-  tick(STEP);
+  tick(STEP * (dream?.stride || 1));
 };
 function tick(dt) {
   t += dt;
@@ -248,8 +248,8 @@ function drawDream() {
   const m = G.mind; // the monster's mind, as the model has it
   dreamEl.textContent = (manual ? `${q.get('model')} · the model's world, recorded at real speed` : `${q.get('model')} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (20 = real time) · ${fps.toFixed(0)} fps`)
     + `
-monster: ${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}${m.furyT > 0 ? '  FURY' : ''}`;
+monster: ${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}${m.furyT > 0.1 ? '  FURY' : ''}`;
 }
 
 // for test tools
-window.__g = { get G() { return G; }, get dream() { return dream; }, get fps() { return fps; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };
+window.__g = { get G() { return G; }, get dream() { return dream; }, get stride() { return dream?.stride || 1; }, get fps() { return fps; }, get ep() { return ep; }, L, view, input, keys, newGame, begin, get phase() { return phase; } };

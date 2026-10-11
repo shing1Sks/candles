@@ -11,21 +11,21 @@ const ACTS = ['none', 'door', 'bash', 'check', 'windup', 'lunge', 'recover', 'ye
 const STATES = ['play', 'won', 'caught'], BEAMS = ['idle', 'warn', 'on'], HANDS = ['idle', 'shadow', 'down', 'hold', 'up'];
 
 // onStep(G): called after each row lands (a kid bot answers here)
-export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, topP = 0.9, mixFor = null, gtemp = 1, int8 = false, lockstep = false, onStep = null } = {}) {
+export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, topP = 0.9, mixFor = null, snap = true, gtemp = 1, int8 = false, lockstep = false, onStep = null } = {}) {
   const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
   const L = G0.L, map = { w: L.w, h: L.h, tiles: Array.from(L.tiles), doorAt: Array.from({ length: L.w * L.h }, (_, i) => L.doorAt(i % L.w, Math.floor(i / L.w))) };
   const col = layout(), ki = new Float32Array(KI_SIZE);
-  let G, from = null, to = null, ms = 0, landed = 0, rate = 0, n = 0, since = performance.now();
+  let G, from = null, to = null, ms = 0, landed = 0, rate = 0, n = 0, since = performance.now(), stride = 1;
   await new Promise((ok, fail) => {
-    worker.onmessage = ({ data: m }) => (m.type === 'ready' ? (console.log(`model worker: ${m.threads} threads, isolated ${m.isolated}`), ok()) : m.type === 'error' ? fail(new Error(m.message)) : null);
+    worker.onmessage = ({ data: m }) => (m.type === 'ready' ? (stride = m.stride, console.log(`model worker: ${m.threads} threads, isolated ${m.isolated}, stride ${m.stride}`), ok()) : m.type === 'error' ? fail(new Error(m.message)) : null);
     worker.onerror = (e) => fail(new Error(e.message || 'the model worker failed'));
-    worker.postMessage({ type: 'init', name, ep, int8, temp, mix, topP, mixFor, gtemp, map, lockstep });
+    worker.postMessage({ type: 'init', name, ep, int8, temp, mix, topP, mixFor, snap, gtemp, map, lockstep });
   });
   worker.onmessage = ({ data: m }) => {
     if (m.type === 'error') { console.error('model:', m.message); return; }
     if (m.type !== 'step' || G.state !== 'play') return;
     from = snapshot(G);
-    apply(G, m.row, col);
+    apply(G, m.row, col, 0.05 * stride);
     to = snapshot(G); landed = performance.now();
     events(G, m.prev, m.row, m.odds, col);
     ms = ms * 0.9 + m.ms * 0.1;
@@ -39,7 +39,7 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
   };
   reset(G0);
   return {
-    get ms() { return ms; }, get rate() { return rate; },
+    get ms() { return ms; }, get rate() { return rate; }, get stride() { return stride; }, // seconds a step: 0.05 x stride
     reset,
     // your input (any time; held keys replace, presses wait for the next step); active: the game is on
     input(inp, active) {
@@ -48,10 +48,10 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
       if (m > 1) { ki[0] /= m; ki[1] /= m; } // a diagonal on keys is (1, 1); the rules (and so the model) see length 1
       worker.postMessage({ type: 'input', ki, active: active && G.state === 'play' });
     },
-    // movers glide from the last row to the new one over the 1/20 s after it lands
+    // movers glide from the last row to the new one over the step after it lands
     blend(at) { // at: a fixed point of the glide (recording); else by the clock
       if (!from) return;
-      const f = at ?? Math.min(1, (performance.now() - landed) / 50);
+      const f = at ?? Math.min(1, (performance.now() - landed) / (50 * stride));
       for (let j = 0; j < from.length; j++) {
         const [o, x, z] = from[j], [, tx, tz] = to[j];
         if (Math.hypot(tx - x, tz - z) > 1.5) continue; // a jump: no glide
@@ -65,11 +65,11 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
 const snapshot = (G) => [G.kid, G.monster, ...G.items].map((o) => [o, o.x, o.z]);
 
 // the row back into the game's objects (what the renderer and the audio read)
-export function apply(G, r, col) {
+export function apply(G, r, col, dt = 0.05) {
   const num = (k, n, i) => { const c = col(k, n, i); return r[c.c] * c.s; };
   const flag = (k, n, i) => r[col(k, n, i).c] > 0.5;
   const cat = (k, n, i) => { const c = col(k, n, i); let b = 0; for (let j = 1; j < c.n; j++) if (r[c.c + j] > r[c.c + b]) b = j; return b; };
-  G.t += 0.05;
+  G.t += dt;
   G.state = STATES[cat('game', 'state')];
   const k = G.kid;
   k.x = num('kid', 'x'); k.z = num('kid', 'z');
