@@ -62,8 +62,9 @@ if (q.has('model')) {
     if (kidBot) dream.input(kidBot(observeKid(g), STEP * dream.stride), phase === 'play');
   };
   createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), topP: Number(q.get('top_p') ?? 0.9),
-    // &mind=1: the monster's mind drawn at that mix; &game=1: the game's state (play, won, caught) drawn at its odds
-    mixFor: { ...(q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : {}),
+    // the defaults are the ones that played best (the rollout exam, .work/day.md): your kid exact (&kid=), the monster's
+    // mind drawn (&mind=), the rest at &mix; &game= draws the game's state (play, won, caught) at that mix
+    mixFor: { ...Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind') ?? 1)])), kid: Number(q.get('kid') ?? 0),
       ...(q.has('game') ? { game: Number(q.get('game')) } : {}) }, int8: q.has('int8'), snap: q.get('snap') !== '0', lockstep: q.has('bot') || manual, onStep })
     .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot && !manual) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
