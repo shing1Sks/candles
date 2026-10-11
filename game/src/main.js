@@ -56,7 +56,8 @@ if (q.has('model')) {
   $('prompt').textContent = 'loading the model...';
   // a kid bot decides once per model step, on the row that just landed
   const onStep = (g) => { if (kidBot) dream.input(kidBot(observeKid(g), STEP), phase === 'play'); };
-  createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), int8: q.has('int8'), lockstep: q.has('bot'), onStep })
+  createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), topP: Number(q.get('top_p') ?? 0.9),
+    mixFor: q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : null, int8: q.has('int8'), lockstep: q.has('bot'), onStep })
     .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints

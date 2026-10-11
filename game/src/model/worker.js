@@ -1,7 +1,7 @@
 // The main model's own thread: it holds the state row, runs the model on it 20 times a second (or as fast as it can),
 // decides every number, flag and choice, and posts each new row to the game. The game's thread only draws and reads
 // your input, so neither waits on the other.
-//   in:  init { name, ep, int8, temp, mix, gtemp, map, lockstep }, reset { row, persona }, input { ki, active } (any
+//   in:  init { name, ep, int8, temp, mix, topP, mixFor, gtemp, map, lockstep }, reset { row, persona }, input { ki, active } (any
 //        time; with lockstep each step waits for an input sent after the last one: a bot answering every row)
 //   out: ready { meta }, step { prev, row, odds, ms }, error { message }
 import * as ort from 'onnxruntime-web/webgpu';
@@ -60,7 +60,7 @@ async function loop(my) {
     const y = (await inflight).y.data;
     if (my !== epoch) return;
     const prev = row;
-    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix });
+    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix, topP: opts.topP, mixFor: opts.mixFor });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i])); // a runaway number cannot run far
     postMessage({ type: 'step', prev, row, odds: y.slice(13 + meta.world), ms: performance.now() - t1 });
     const wait = 50 - (performance.now() - t0);

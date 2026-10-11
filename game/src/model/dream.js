@@ -11,7 +11,7 @@ const ACTS = ['none', 'door', 'bash', 'check', 'windup', 'lunge', 'recover', 'ye
 const STATES = ['play', 'won', 'caught'], BEAMS = ['idle', 'warn', 'on'], HANDS = ['idle', 'shadow', 'down', 'hold', 'up'];
 
 // onStep(G): called after each row lands (a kid bot answers here)
-export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, gtemp = 1, int8 = false, lockstep = false, onStep = null } = {}) {
+export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, topP = 0.9, mixFor = null, gtemp = 1, int8 = false, lockstep = false, onStep = null } = {}) {
   const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
   const L = G0.L, map = { w: L.w, h: L.h, tiles: Array.from(L.tiles), doorAt: Array.from({ length: L.w * L.h }, (_, i) => L.doorAt(i % L.w, Math.floor(i / L.w))) };
   const col = layout(), ki = new Float32Array(KI_SIZE);
@@ -19,7 +19,7 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
   await new Promise((ok, fail) => {
     worker.onmessage = ({ data: m }) => (m.type === 'ready' ? (console.log(`model worker: ${m.threads} threads, isolated ${m.isolated}`), ok()) : m.type === 'error' ? fail(new Error(m.message)) : null);
     worker.onerror = (e) => fail(new Error(e.message || 'the model worker failed'));
-    worker.postMessage({ type: 'init', name, ep, int8, temp, mix, gtemp, map, lockstep });
+    worker.postMessage({ type: 'init', name, ep, int8, temp, mix, topP, mixFor, gtemp, map, lockstep });
   });
   worker.onmessage = ({ data: m }) => {
     if (m.type === 'error') { console.error('model:', m.message); return; }
