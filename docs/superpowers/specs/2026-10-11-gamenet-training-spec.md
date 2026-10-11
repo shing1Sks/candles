@@ -337,3 +337,25 @@ same 40 seeded games, 2 minutes each, played by the rules and inside each model.
   `vast_up.sh` destroys anything without ssh after 5 minutes.
 - Rows stay in RAM (`--data_device cpu`).
 - Exams run on the GPU machine in 8 parallel parts (`exam.sh`).
+
+**The final settings (21:00).** Same 40 games; the play decode is: your kid exact, the monster's mind drawn, the rest
+at 0.3, snap, peak, coherent catches, and walls refused.
+
+| | Kid wins / caught / time-outs | Catches / min | Pressure | Kid m/s | In a wall |
+|---|---|---|---|---|---|
+| The rules | 6 / 27 / 7 | 0.57 | 47% | 1.12 | 0% |
+| **Round 3, the play decode** (`?model=v3_M_r3`) | 12 / 24 / 4 | 0.53 | 51% | 1.08 | 0% |
+| Stride 2 + 1 epoch of rollouts (`?model=v3_M_s2r3`) | 13 / 13 / 14 | 0.24 | 49% | 1.03 | 0% |
+
+- **Peak** decodes the mean round the likeliest bin only. Near a wall the odds have two humps (blocked, or a full
+  step), and their plain mean is a half step into the wall.
+- **The wall check is a crutch.** With every kid on keys, the model alone put the kid in a wall 4–8% of the time.
+- **Stride 2** runs in real time on the laptop (WebGPU) but catches half as often. It needs more rollout training,
+  or the catch rule learned per 0.1 s.
+- **Spend:** $7.21 on Vast.ai (credit went from $24.18 to $16.97). All machines are destroyed.
+
+**Next:**
+1. More wall-pushing data, plus held-key data for the monster, so the wall check can go.
+2. Stride 2 with the full round-3 recipe (2 epochs of rollouts).
+3. A real-time playtest by you on the stride-2 model.
+4. Fewer pieces per step (merge passages, squeaks, wardrobes, beliefs) for speed.
