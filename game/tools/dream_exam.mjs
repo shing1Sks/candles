@@ -12,11 +12,15 @@ import { encode, encodeKI, STATE_SIZE, KI_SIZE } from '../src/sim/schema.js';
 import { decode } from '../src/model/decode.js';
 import { layout, viewIds, personaVec, cohere, unwall } from '../src/model/layout.js';
 import { apply, events } from '../src/model/dream.js';
+import { setNightmarePolicy, mlpPolicy } from '../src/sim/mind/nightmare.js';
 import { readFileSync, existsSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
 const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seconds', 120)), BATCH = opt('batch', 'exam');
+// --nightmare 1 --policy P.json: the games against the learned monster (data v4), its weights for the rules' side
+const NIGHTMARE = Number(opt('nightmare', 0));
+if (opt('policy')) setNightmarePolicy(mlpPolicy(JSON.parse(readFileSync(opt('policy'), 'utf8'))));
 const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8'), TOP_P = Number(opt('top_p', 1)), SNAP = args.includes('--snap'), PEAK = args.includes('--peak'), COHERE = args.includes('--cohere'), WALLS = args.includes('--walls'), KEYS = Number(opt('keys', 0)); // --keys 1: every kid played as on a keyboard
 // --mind 1: the monster's mind pieces drawn at this mix (decode.js mixFor)
 const MIND = opt('mind', null), MIX_FOR = MIND === null ? {} : Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(MIND)]));
@@ -106,7 +110,7 @@ async function dream(config) {
   return s;
 }
 
-const { G: G0 } = createEpisode(configFor(BATCH, 0, { keys: KEYS }));
+const { G: G0 } = createEpisode(configFor(BATCH, 0, { keys: KEYS, nightmare: NIGHTMARE }));
 const DOOR_AT = Array.from({ length: G0.L.w * G0.L.h }, (_, i) => G0.L.doorAt(i % G0.L.w, Math.floor(i / G0.L.w)));
 const MAP = { w: G0.L.w, h: G0.L.h, tiles: G0.L.tiles, doorAt: DOOR_AT };
 
@@ -133,7 +137,7 @@ function sum(list) {
 const R = [], D = [];
 const [PART, PARTS] = (opt('part', '0/1')).split('/').map(Number);
 for (let i = PART; i < GAMES; i += PARTS) {
-  const config = configFor(BATCH, i, { keys: KEYS }), t = performance.now();
+  const config = configFor(BATCH, i, { keys: KEYS, nightmare: NIGHTMARE }), t = performance.now();
   R.push(rules(config));
   D.push(await dream(config));
   const r = R[R.length - 1], d = D[D.length - 1];

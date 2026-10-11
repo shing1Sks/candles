@@ -273,3 +273,22 @@ shifts the others.
   | Warden | holds the lit candles, checks wardrobes, works the light |
 
   Moods (anger, frustration, confidence) come from its sense of how it is doing; see `game/src/sim/mind/emotion.js`.
+
+## The mechanics exam (a main model playing these rules)
+
+`game/tools/mechanics/` plays the cases above inside a main model's world and checks the outcome, reading only what
+the model writes back (positions, states, doors, toys, the monster's mode, events). Each case is one moment, a few
+seconds of kid input, and a check; every case must pass by the rules (`game/test/mechanics_cases.test.mjs`).
+
+- `cases.mjs`: 38 hand-written cases (ids as in this file).
+- `families.mjs`: about 345 more, generated from the level, one per thing per situation, ids like `C2:candle3`,
+  `D1:door7:west`, `N4c:toy2:south`: every candle (blown out, kept over a rest, out of reach, already out, the last
+  one), every door from each side (toggled both ways, two presses, walked through, blocking, a toy in the doorway, the
+  monster opening it, the monster hearing it), every wardrobe (in, staying in, out by use or stick, refused with the
+  monster outside, found, empty), every toy (picked up, carried, thrown every free way, picked up again, no throw into
+  a wall, one at a time), every squeaky toy and creaky board (walking vs creeping), every passage (crawled through;
+  the monster kept out), and in every room and the corridor: running, creeping, stopping, facing, sliding along a
+  wall, the monster seeing, chasing, lunging and touching, the searchlight and the hand (and under every table and
+  bed: not seen, not spotted, not grabbed). Instances that can't be staged (no floor to stand on) are left out.
+- `exam.mjs MODEL_DIR --runs 10 [--part k/P] [--fam doors] [--only ids]` prints each case's pass rate and a summary
+  by family; `--part k/P` splits the cases over P processes.

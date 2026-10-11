@@ -9,6 +9,10 @@ import { eventDetail } from './sim/schema.js';
 import { createDream } from './model/dream.js';
 import { createKidBot, observeKid } from './sim/bots/kid.js';
 import { rng } from './sim/rng.js';
+import { setNightmarePolicy, mlpPolicy } from './sim/mind/nightmare.js';
+
+// ?persona=nightmare: the learned monster (train/rl); its weights load in a moment (until then it simply chases)
+if (new URLSearchParams(location.search).get('persona') === 'nightmare') fetch('/nightmare.json').then((r) => r.json()).then((w) => setNightmarePolicy(mlpPolicy(w)));
 
 const q = new URLSearchParams(location.search);
 // &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
@@ -38,7 +42,7 @@ function newGame() {
     watchLog.length = 0;
   } else {
     G = createGame(L, seed++);
-    G.mind = createMind(G, { type: q.get('persona') || 'classic' }); // ?persona=stalker (or brute, hound, warden, pathfinder)
+    G.mind = createMind(G, { type: q.get('persona') || 'classic' }); // ?persona=stalker (or brute, hound, warden, pathfinder, nightmare)
   }
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }

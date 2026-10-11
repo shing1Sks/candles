@@ -28,7 +28,7 @@ a = ap.parse_args()
 os.makedirs(a.out, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAME = os.path.dirname(os.path.dirname(HERE))
-torch.set_num_threads(2)
+torch.set_num_threads(int(os.environ.get('RL_THREADS', 2)))
 
 
 class Policy(nn.Module):
@@ -128,7 +128,7 @@ for rnd in range(a.rounds):
             opt.zero_grad(); loss.backward(); nn.utils.clip_grad_norm_(net.parameters(), 0.5); opt.step()
             stats['pl'] += pl.item(); stats['vl'] += vl.item(); stats['ent'] += ent.mean().item(); steps += 1
     stats = {k: round(v / steps, 4) for k, v in stats.items()}
-    json.dump(net.weights(), open(wpath if wpath.endswith('policy.json') else os.path.join(a.out, 'policy.json'), 'w'))
+    json.dump(net.weights(), open(os.path.join(a.out, 'policy.json'), 'w'))
     torch.save(net.state_dict(), os.path.join(a.out, 'policy.pt'))
     g = len(games); caught = sum(x['outcome'] == 'caught' for x in games); won = sum(x['outcome'] == 'won' for x in games)
     tc = [x['t'] for x in games if x['outcome'] == 'caught']

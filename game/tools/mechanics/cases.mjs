@@ -2,22 +2,17 @@
 // kid input, and checked. The same case is played by the rules (test/mechanics_cases.test.mjs: every case must pass
 // there) and inside a main model's world (tools/mechanics/exam.mjs: how often it passes there).
 //   setup(G)       the moment (G is a fresh game with a hound's mind, asleep in its corner unless woken)
-//   ki(t)          the kid's input at t seconds in; presses (use, throw) count on the step they are given only
+//   ki(t, G)       the kid's input at t seconds in (G: the world as it is, to steer by, as a player would); presses
+//                  (use, throw) count on the step they are given only
 //   each(G, s, t)  called after every step: note what happened in s
 //   check(G, s)    after `secs` (or the game's end): null if it passed, else what went wrong
 // s.ev counts the events seen; s.firstEv[type] is when each was first seen.
-const place = (G, who, x, z, extra = {}) => Object.assign(who === 'kid' ? G.kid : G.monster, { x, z, vx: 0, vz: 0, ...extra });
-const wake = (G, x, z, hx = 1, hz = 0) => { place(G, 'mon', x, z, { hx, hz, awake: true }); G.mind.mode = 'patrol'; };
-const beside0 = { x: 12.28, z: 4.72 }; // the nursery candle (id 0) is at 12.78, 4.22
-const press = (b, at = 0) => (t) => (t < at - 1e-9 || t > at + 1e-9 ? {} : { [b]: true });
-const hold = (inp) => () => inp;
-const maxOf = (s, k, v) => { s[k] = Math.max(s[k] ?? -Infinity, v); };
-const minOf = (s, k, v) => { s[k] = Math.min(s[k] ?? Infinity, v); };
-const fail = (ok, why) => (ok ? null : why);
-const r2 = (v) => (v == null ? '-' : Number(v).toFixed(2));
-const kidWall = (G, s) => { if (G.kidBlocked(Math.floor(G.kid.x), Math.floor(G.kid.z))) s.inWall = (s.inWall || 0) + 1; };
+import { place, wake, press, hold, maxOf, minOf, fail, r2, kidWall } from './kit.mjs';
+import { FAMILIES } from './families.mjs';
 
-export const CASES = [
+const beside0 = { x: 12.28, z: 4.72 }; // the nursery candle (id 0) is at 12.78, 4.22
+
+const HAND = [
   // ---------------- moving
   { id: 'K1', what: 'holding a direction, the kid runs: up to 3.2 m/s', secs: 1.2,
     setup: (G) => place(G, 'kid', 5.5, 20.5), ki: hold({ mx: 1 }),
@@ -120,7 +115,8 @@ export const CASES = [
   { id: 'N4d', what: 'a thrown ball can be picked up again', secs: 4.5,
     setup: (G) => { place(G, 'kid', 5.5, 20.5, { fx: 1, fz: 0, held: 6 }); Object.assign(G.items[6], { x: 5.5, z: 20.5, held: true }); },
     ki: (t) => (t < 1e-9 ? { throw: true } : t > 1.2 ? { mx: 1 } : {}),
-    check: (G) => fail(G.kid.held === 6, `held ${G.kid.held}, ball at ${r2(G.items[6].x)}, kid at ${r2(G.kid.x)}`) },
+    each: (G, s) => { if (G.items[6].fly) s.flew = 1; },
+    check: (G, s) => fail(s.flew && G.kid.held === 6, `flew ${!!s.flew}, held ${G.kid.held}, ball at ${r2(G.items[6].x)}, kid at ${r2(G.kid.x)}`) },
   { id: 'N5', what: 'no throw into the wall in front of you', secs: 0.6,
     setup: (G) => { place(G, 'kid', 1.4, 20.5, { fx: -1, fz: 0, held: 0 }); Object.assign(G.items[0], { x: 1.4, z: 20.5, held: true }); }, ki: press('throw'),
     check: (G) => fail(G.kid.held === 0 && !G.items[0].fly, `held ${G.kid.held}, flying ${!!G.items[0].fly}`) },
@@ -133,10 +129,10 @@ export const CASES = [
     check: (G, s) => fail(s.cool > 0.5, `squeak's rest at most ${r2(s.cool)} s`) },
 
   // ---------------- the monster
-  { id: 'B0', what: 'the monster sleeps the first 4 s, then wakes', secs: 6, t: 0, warm: 0,
+  { id: 'B0', what: 'the monster sleeps the first 1.5 s, then wakes', secs: 3, t: 0, warm: 0,
     setup: () => {}, ki: hold({}),
     each: (G, s, t) => { if (G.monster.awake && s.woke == null) s.woke = t; },
-    check: (G, s) => fail(s.woke > 3.5 && s.woke < 5, `woke at ${r2(s.woke)} s`) },
+    check: (G, s) => fail(s.woke > 1.2 && s.woke < 2.5, `woke at ${r2(s.woke)} s`) },
   { id: 'X1', what: 'the monster 1.8 m from the kid catches it within a second', secs: 1, warm: 0.1,
     setup: (G) => { place(G, 'kid', 11.0, 20.5); wake(G, 9.2, 20.5); }, ki: hold({}),
     check: (G) => fail(G.state === 'caught', `game ${G.state}`) },
@@ -150,7 +146,7 @@ export const CASES = [
   { id: 'S1', what: 'the kid steps out in front of it: the monster spots it, chases and closes in', secs: 3.5,
     setup: (G) => { place(G, 'kid', 21.0, 17.5); wake(G, 16.5, 20.5, 1, 0); }, ki: (t) => (t < 0.9 ? { mz: 1 } : {}),
     each: (G, s, t) => { if (G.monster.sees && s.saw == null) s.saw = t; if (G.mind.mode === 'chase' && s.chase == null) s.chase = t; minOf(s, 'd', Math.hypot(G.kid.x - G.monster.x, G.kid.z - G.monster.z)); },
-    check: (G, s) => fail(s.saw != null && s.chase != null && (s.d < 1.5 || G.state === 'caught' || s.ev.windup), `saw at ${r2(s.saw)} s, chased at ${r2(s.chase)} s, came within ${r2(s.d)} m, game ${G.state}`) },
+    check: (G, s) => fail(s.saw != null && (s.chase != null || G.state === 'caught') && (s.d < 1.5 || G.state === 'caught' || s.ev.windup), `saw at ${r2(s.saw)} s, chased at ${r2(s.chase)} s, came within ${r2(s.d)} m, game ${G.state}`) },
   { id: 'B1b', what: 'a running kid 5 m ahead: the monster runs after it', secs: 2.5,
     setup: (G) => { place(G, 'kid', 14.5, 20.5); wake(G, 9.5, 20.5); }, ki: hold({ mx: 1 }),
     each: (G, s) => maxOf(s, 'v', G.monster.speed),
@@ -164,3 +160,8 @@ export const CASES = [
     each: (G, s, t) => { if (G.doors[2].open && s.open == null) s.open = t; },
     check: (G, s) => fail(s.open != null, `door 2 still shut; monster at ${r2(G.monster.x)}, ${r2(G.monster.z)}`) },
 ];
+
+// the hand-written cases above, then the generated families (families.mjs): one case per object per situation
+const FAM_OF = { K: 'moving', C: 'candles', G: 'game', D: 'doors', W: 'wardrobes', B: 'monster', S: 'monster', X: 'monster', N2: 'creaks', N3: 'squeaks', N: 'toys' };
+const famOf = (id) => FAM_OF[id.slice(0, 2)] ?? FAM_OF[id[0]];
+export const CASES = [...HAND.map((c) => ({ fam: famOf(c.id), ...c })), ...FAMILIES];

@@ -195,8 +195,11 @@ class WorldModel(nn.Module):
         return a[:, :-1], s.giant(a[:, -1])
 
     def stage_b(s, a, ki, gi):
-        """stage B: stage A's sequence with your input and the giant's -> every piece's head output, the step's events"""
+        """stage B: stage A's pieces and type (the map pieces stay in stage A: the pieces have read the house there, and
+        the kid and the monster carry the line between them; half the cost) with your input and the giant's -> every
+        piece's head output, the step's events"""
         B = a.shape[0]
+        a = a[:, : s.S.n_tokens + 1]
         b = torch.cat([a, s.ki(ki).unsqueeze(1), s.gi(gi).unsqueeze(1), s.qb.expand(B, 1, -1)], 1)
         for blk in s.blocks_b: b = blk(b)
         b = s.norm_b(b)
