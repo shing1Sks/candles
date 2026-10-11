@@ -16,6 +16,8 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
 const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seconds', 120)), BATCH = opt('batch', 'exam');
 const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8');
+// --mind 1: the monster's mind pieces drawn at this mix (decode.js mixFor)
+const MIND = opt('mind', null), MIX_FOR = MIND === null ? null : Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(MIND)]));
 ort.env.wasm.numThreads = 8;
 const meta = JSON.parse(readFileSync(`${dir}/play.json`, 'utf8'));
 // packed.onnx (one row in, one out); older exports have only play.onnx (the same graph with its inputs apart)
@@ -79,7 +81,7 @@ async function dream(config) {
     for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();
     const y = await run(x);
     const prev = row;
-    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX });
+    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i]));
     apply(G, row, col);
     events(G, prev, row, y.subarray(13 + meta.world), col);
@@ -120,6 +122,6 @@ for (let i = 0; i < GAMES; i++) {
   const r = R[i], d = D[i];
   console.log(`game ${i} ${config.persona.type} vs ${config.kid.style} (${config.start}): rules ${r.outcome} ${r.candlesOut} out in ${r.t.toFixed(0)} s | model ${d.outcome} ${d.candlesOut} out in ${d.t.toFixed(0)} s, kid in wall ${(100 * d.kidClip / d.steps).toFixed(1)}%  [${((performance.now() - t) / 1000).toFixed(0)} s]`);
 }
-const report = { model: dir, int8: INT8, mix: MIX, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
+const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
 console.log(JSON.stringify(report, null, 1));
 if (opt('out')) writeFileSync(opt('out'), JSON.stringify({ ...report, games: { rules: R, model: D } }, null, 1));

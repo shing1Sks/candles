@@ -1,6 +1,7 @@
 #!/bin/bash
 # Run one training job, restarting it from its last checkpoint if it dies (up to 4 tries).
 # usage: job.sh NAME [train.py args...]      status: /workspace/gn/runs/NAME/status (running | done | failed)
+[ -d /venv/main/bin ] && export PATH=/venv/main/bin:$PATH  # Vast.ai images keep Python in a venv
 NAME=$1; shift
 D=/workspace/gn/runs/$NAME; mkdir -p "$D"
 echo running > "$D/status"

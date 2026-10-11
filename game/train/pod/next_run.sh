@@ -4,6 +4,7 @@
 # usage: next_run.sh [SIZE=L] [EPOCHS=3] [GAMES=10000]
 # The rows stay in RAM (--data_device cpu): 10,000 games are ~26 GB, more than a 4090 holds beside the model.
 # Copy runs/main_SIZE/best.pt and summary.json off the pod as soon as they exist: at a $0 balance the pod is deleted.
+[ -d /venv/main/bin ] && export PATH=/venv/main/bin:$PATH  # Vast.ai images keep Python in a venv
 set -e
 cd /workspace/gn
 SIZE=${1:-L}; EPOCHS=${2:-3}; GAMES=${3:-10000}

@@ -5,10 +5,14 @@
 //   mix 0: the expected change, the likelier flag, the likeliest choice (the trainer's exam decode)
 //   mix 1: every number, flag and choice drawn at `temp`; in between, numbers blend the two and each flag or
 //          choice is drawn with chance `mix`
-export function decode(meta, world, cur, { temp = 1, mix = 0, rand = Math.random } = {}) {
+//   mixFor: a mix per kind of piece, e.g. { mind: 1 }: the monster's mind drawn (it commits and varies) while the
+//          bodies and the house stay near their expected values (no wandering into walls)
+export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, rand = Math.random } = {}) {
+  const base = mix;
   const next = Float32Array.from(cur), bins = meta.bins, NB = meta.nb, scale = meta.scale;
   const p = new Float64Array(NB);
   for (const k of meta.kinds) {
+    mix = mixFor?.[k.kind] ?? base;
     for (let i = 0; i < k.count; i++) {
       const h = k.at + i * k.head, row = k.offset + i * k.width;
       let o = h;

@@ -5,6 +5,7 @@
 #  - past MAX_HOURS of pod time it stops all training and stops the machine (the budget cap): on Vast.ai with the
 #    instance's own key (CONTAINER_ID, CONTAINER_API_KEY), on Runpod with runpodctl (its key may be refused there, so
 #    the outside watcher is the real stop).
+[ -d /venv/main/bin ] && export PATH=/venv/main/bin:$PATH  # Vast.ai images keep Python in a venv
 STALL=${STALL:-900}; MAX_HOURS=${MAX_HOURS:-20}
 LOG=/workspace/gn/watchdog.log
 # the pod's own Runpod key and id live in its main process's environment (an ssh session does not have them)

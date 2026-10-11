@@ -1,6 +1,7 @@
 #!/bin/bash
 # One-time pod setup: Node (for the data generator), then generate the dataset on the pod's CPUs.
 # usage: setup.sh BATCH COUNT [WORKERS=24] [gen.mjs flags, e.g. --keys 0.35]   (nproc shows the host's cores, not the pod's share)
+[ -d /venv/main/bin ] && export PATH=/venv/main/bin:$PATH  # Vast.ai images keep Python in a venv
 set -e
 cd /workspace/gn
 if ! command -v node >/dev/null; then
