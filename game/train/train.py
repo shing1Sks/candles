@@ -97,6 +97,7 @@ def main():
     # rollout training: from this share of the schedule on, every batch is two steps in a row and the second starts
     # from the model's own guess of the first (drawn, as the game draws), so it learns to carry on from its own errors
     ap.add_argument('--rollout_from', type=float, default=1.0)
+    ap.add_argument('--stride', type=int, default=1, help='each step spans this many recorded steps (2: a model at 10 Hz)')
     ap.add_argument('--endgame', type=float, default=0.0, help='extra weight on the last 1.5 s before a catch')
     ap.add_argument('--fourier', type=int, default=0, help='positions also as sines and cosines at this many frequencies')
     ap.add_argument('--rollout_k', type=int, default=2, help='steps per rollout (each after the first starts from the guess of the model)')
@@ -105,7 +106,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = True
     t0 = time.time()
-    data = Data(a.data, a.data_device or a.device, frac=a.frac, out=a.device, endgame=a.endgame)
+    data = Data(a.data, a.data_device or a.device, frac=a.frac, out=a.device, endgame=a.endgame, stride=a.stride)
     log = open(os.path.join(a.out, 'log.jsonl'), 'a')
     def say(**kw):
         kw['time'] = round(time.time() - t0, 1)
@@ -170,12 +171,12 @@ def main():
             r = evaluate(model, data, 'check', batches=20)
             say(event='check', step=step, **r)
             if r['loss'] < best:
-                best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'fourier': a.fourier, 'step': step}, os.path.join(a.out, 'best.pt'))
-            torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size, 'fourier': a.fourier}, ck)
+                best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'fourier': a.fourier, 'stride': a.stride, 'step': step}, os.path.join(a.out, 'best.pt'))
+            torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size, 'fourier': a.fourier, 'stride': a.stride}, ck)
     r = evaluate(model, data, 'check', batches=40)
     if r['loss'] < best:
-        best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'fourier': a.fourier, 'step': step}, os.path.join(a.out, 'best.pt'))
-    torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size, 'fourier': a.fourier}, ck)
+        best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'fourier': a.fourier, 'stride': a.stride, 'step': step}, os.path.join(a.out, 'best.pt'))
+    torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size, 'fourier': a.fourier, 'stride': a.stride}, ck)
     st = torch.load(os.path.join(a.out, 'best.pt'), map_location=a.device)
     model.load_state_dict(st['model'])
     exam = evaluate(model, data, 'exam', batches=60)

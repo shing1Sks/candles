@@ -142,6 +142,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     if a.play:
         export_play(m, S, a.out)
+        pj = os.path.join(a.out, 'play.json'); j = json.load(open(pj)); j['stride'] = ck.get('stride', 1); json.dump(j, open(pj, 'w'))  # seconds per step = 0.05 * stride
         mb = lambda f: os.path.getsize(os.path.join(a.out, f)) / 1e6
         print(f"{a.size}: play_a {mb('play_a.onnx'):.1f} MB, play_b {mb('play_b.onnx'):.1f} MB, play {mb('play.onnx'):.1f} MB")
         return

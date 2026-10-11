@@ -46,7 +46,8 @@ PERSONA_TYPES = ['classic', 'pathfinder', 'brute', 'stalker', 'hound', 'warden']
 
 
 class Data:
-    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None, endgame=0.0):
+    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None, endgame=0.0, stride=1):
+        """stride: each example spans this many recorded steps (state r -> r + stride), for a model that steps 0.05 * stride s"""
         """device: where the rows are kept; out: where batches go (rows in RAM, batches to the GPU, for data bigger than it)"""
         self.schema = S = Schema(os.path.join(root, 'schema.json'))
         ki, gi, ev, cur, ep_of, persona, split = [], [], [], [], [], [], []  # cur/ep_of/split: numpy pieces
@@ -101,7 +102,11 @@ class Data:
                 ix = ix[chosen.to(dev)[self.ep_of[ix]]]
             self.idx[name] = ix
         self._idxk = {}  # rows with k - 1 more steps of the same game after them (rollout training), made when asked
-        self.endgame = endgame
+        self.endgame, self.stride = endgame, stride
+        if stride > 1:  # starts with stride - 1 more steps of the same game after them
+            for name in self.idx:
+                ix = self.idx[name]; ix = ix[ix + stride - 1 < len(self.ep_of)]
+                self.idx[name] = ix[self.ep_of[ix + stride - 1] == self.ep_of[ix]]
         self.weight = self._weights()
         self.gen = torch.Generator(device=dev).manual_seed(seed)
         self.out = torch.device(out) if out else dev
@@ -145,22 +150,30 @@ class Data:
 
     def batchk(self, split, B, k=2):
         """k steps in a row of the same games: [step 1, ..., step k]; each step's cur is the one before's nxt"""
+        S = self.stride
         if (split, k) not in self._idxk:
             ix = self.idx[split]
-            ok = (ix + k - 1 < len(self.ep_of))
-            ix = ix[ok]
-            self._idxk[(split, k)] = ix[self.ep_of[ix + k - 1] == self.ep_of[ix]]
+            ix = ix[ix + k * S - 1 < len(self.ep_of)]
+            self._idxk[(split, k)] = ix[self.ep_of[ix + k * S - 1] == self.ep_of[ix]]
         ix = self._idxk[(split, k)]
         pick = ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)]
-        return [self._rows(pick + j) for j in range(k)]
+        return [self._rows(pick + j * S) for j in range(k)]
 
     def batch2(self, split, B):
         return self.batchk(split, B, 2)
 
     def _rows(self, pick):
-        c = self.cur[pick]
-        b = dict(cur=self.states[c], nxt=self.states[c + 1], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
+        c, S = self.cur[pick], self.stride
+        b = dict(cur=self.states[c], nxt=self.states[c + S], ki=self.ki[pick], gi=self.gi[pick], ev=self.ev[pick].float(),
                  persona=self.persona[self.ep_of[pick]], w=self.weight[pick])
+        if S > 1:  # the window's held inputs are its first step's; a press anywhere in it counts; its events and weight too
+            ki, gi = b['ki'].clone(), b['gi'].clone()
+            for j in range(1, S):
+                ki[:, 4:6] = torch.maximum(ki[:, 4:6], self.ki[pick + j][:, 4:6])  # use, throw
+                gi[:, 2:9] = torch.maximum(gi[:, 2:9], self.gi[pick + j][:, 2:9])  # run lunge use bash yell light reach
+                b['ev'] = torch.maximum(b['ev'], self.ev[pick + j].float())
+                b['w'] = torch.maximum(b['w'], self.weight[pick + j])
+            b['ki'], b['gi'] = ki, gi
         return b if self.out == self.states.device else {k: v.to(self.out, non_blocking=True) for k, v in b.items()}
 
     def sizes(self):
