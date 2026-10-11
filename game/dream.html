@@ -28,6 +28,9 @@
 <body>
 <main>
   <h1>Candles, played inside the model</h1>
+  <p><b>Play it:</b> <a href="/?model=v3_M_r3">/?model=v3_M_r3</a> (the best; about half speed on this laptop) or
+  <a href="/?model=v3_M_s2r3">/?model=v3_M_s2r3</a> (10 steps a second: real time here). WASD to move, shift to creep,
+  space to blow. The top right shows the monster's mind as the model has it.</p>
   <p>No rules run here. Every step (20 a second) the state of the house and the kid's input go into the main model, and
   the model says how the whole world moves: walls, candles, doors, and the monster's mind and body. The videos are
   recorded one model step per frame, so they play at real speed.</p>
@@ -46,10 +49,11 @@ const clips = [
   ['model_r3_hound_vs_sneaker', 'Hound vs a sneaking kid'],
   ['model_r3_stalker_vs_hider', 'Stalker vs a hiding kid'],
   ['model_r3_brute_vs_sprinter', 'Brute vs a sprinting kid'],
+  ['model_s2r3_warden_vs_trickster', 'Warden vs a trickster · the 10 steps/s model (real time on the laptop)'],
 ];
 document.getElementById('vids').innerHTML = clips.map(([f, t]) =>
   `<figure><video src="/clips/${f}.mp4" poster="/clips/${f}.jpg" controls preload="metadata"></video>
-   <figcaption><b>${t}</b> · model M round 3, crisp (only the monster's mind drawn) · a kid bot plays (the model never moves the kid on its own)</figcaption></figure>`).join('');
+   <figcaption><b>${t}</b> · a kid bot plays (the model never moves the kid on its own)</figcaption></figure>`).join('');
 fetch('/clips/dream_results.json').then((r) => r.json()).then((rows) => {
   const f = (v, d = 2) => (v == null ? '' : Number(v).toFixed(d));
   document.querySelector('#t tbody').innerHTML = rows.map((r, i) => `<tr class="${i ? '' : 'rules'}">
