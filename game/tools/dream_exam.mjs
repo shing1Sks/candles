@@ -47,7 +47,7 @@ const sizes = [STATE_SIZE, meta.persona, 225, KI_SIZE, NG, 1, 7], at = sizes.map
 
 // what a game looked like, sampled every step
 function tally() {
-  return { steps: 0, kidClip: 0, monClip: 0, offMap: 0, kidSpeed: 0, monSpeed: 0, dist: 0, awake: 0, hidden: 0, modes: {}, ev: {}, firstOut: null, outcome: 'timeout', candlesOut: 0, t: 0 };
+  return { steps: 0, close: 0, kidClip: 0, monClip: 0, offMap: 0, kidSpeed: 0, monSpeed: 0, dist: 0, awake: 0, hidden: 0, modes: {}, ev: {}, firstOut: null, outcome: 'timeout', candlesOut: 0, t: 0 };
 }
 function look(G, s, t0) {
   const k = G.kid, M = G.monster, W = G.L.w, H = G.L.h;
@@ -59,6 +59,7 @@ function look(G, s, t0) {
     if (G.monBlocked(Math.floor(M.x), Math.floor(M.z))) s.monClip++;
   }
   s.kidSpeed += Math.hypot(k.vx, k.vz); s.monSpeed += M.speed; s.dist += Math.hypot(k.x - M.x, k.z - M.z);
+  if (M.awake && Math.hypot(k.x - M.x, k.z - M.z) < 5) s.close++; // pressure: the monster awake and near
   if (M.awake) s.awake++;
   if (k.hidden >= 0) s.hidden++;
   const m = G.mind.mode; s.modes[m] = (s.modes[m] || 0) + 1;
@@ -118,7 +119,7 @@ function sum(list) {
     first_candle_s: +(list.filter((s) => s.firstOut !== null).reduce((a, s) => a + s.firstOut, 0) / Math.max(1, list.filter((s) => s.firstOut !== null).length)).toFixed(1),
     kid_in_wall_pct: pct(list.reduce((a, s) => a + s.kidClip, 0)), monster_in_wall_pct: pct(list.reduce((a, s) => a + s.monClip, 0)), off_map_pct: pct(list.reduce((a, s) => a + s.offMap, 0)),
     kid_speed: +(list.reduce((a, s) => a + s.kidSpeed, 0) / n).toFixed(2), monster_speed: +(list.reduce((a, s) => a + s.monSpeed, 0) / n).toFixed(2),
-    distance: +(list.reduce((a, s) => a + s.dist, 0) / n).toFixed(1), awake_pct: pct(list.reduce((a, s) => a + s.awake, 0)), hidden_pct: pct(list.reduce((a, s) => a + s.hidden, 0)),
+    distance: +(list.reduce((a, s) => a + s.dist, 0) / n).toFixed(1), pressure_pct: pct(list.reduce((a, s) => a + (s.close || 0), 0)), awake_pct: pct(list.reduce((a, s) => a + s.awake, 0)), hidden_pct: pct(list.reduce((a, s) => a + s.hidden, 0)),
     modes_pct: Object.fromEntries(Object.entries(modes).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, pct(v)])),
     per_minute: Object.fromEntries(['candleOut', 'door', 'hide', 'pickup', 'throw', 'yell', 'lunge', 'windup', 'fury', 'caught', 'beam', 'reach', 'squeak', 'creak', 'spotted', 'lost'].map((k) => [k, per(k)])),
   };
