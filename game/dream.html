@@ -43,13 +43,13 @@
 </main>
 <script>
 const clips = [
-  ['model_M_hound_vs_sneaker', 'Hound vs a sneaking kid'],
-  ['model_M_stalker_vs_hider', 'Stalker vs a hiding kid'],
-  ['model_M_brute_vs_sprinter', 'Brute vs a sprinting kid'],
+  ['model_r3_hound_vs_sneaker', 'Hound vs a sneaking kid'],
+  ['model_r3_stalker_vs_hider', 'Stalker vs a hiding kid'],
+  ['model_r3_brute_vs_sprinter', 'Brute vs a sprinting kid'],
 ];
 document.getElementById('vids').innerHTML = clips.map(([f, t]) =>
   `<figure><video src="/clips/${f}.mp4" poster="/clips/${f}.jpg" controls preload="metadata"></video>
-   <figcaption><b>${t}</b> · model M, the monster's mind drawn · a kid bot plays (the model never moves the kid on its own)</figcaption></figure>`).join('');
+   <figcaption><b>${t}</b> · model M round 3, crisp (only the monster's mind drawn) · a kid bot plays (the model never moves the kid on its own)</figcaption></figure>`).join('');
 fetch('/clips/dream_results.json').then((r) => r.json()).then((rows) => {
   const f = (v, d = 2) => (v == null ? '' : Number(v).toFixed(d));
   document.querySelector('#t tbody').innerHTML = rows.map((r, i) => `<tr class="${i ? '' : 'rules'}">
