@@ -123,7 +123,7 @@ class Data:
         are drawn `times` more often"""
         S = self.schema
         ev = [S.events.index(e) for e in self.RARE if e in S.events]
-        rare = self.ev[:, ev].any(1) | (self.ki[:, 4:6] > 0.5).any(1)
+        rare = self.ev[:, ev].bool().any(1) | (self.ki[:, 4:6] > 0.5).any(1)
         sees = S.field('monster', 'sees')
         rare = rare | ((self.states[self.cur, sees] < 0.5) & (self.states[self.cur + 1, sees] > 0.5))
         ix = self.idx['train']

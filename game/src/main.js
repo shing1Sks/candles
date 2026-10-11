@@ -11,8 +11,11 @@ import { createKidBot, observeKid } from './sim/bots/kid.js';
 import { rng } from './sim/rng.js';
 import { setNightmarePolicy, mlpPolicy } from './sim/mind/nightmare.js';
 
-// ?persona=nightmare: the learned monster (train/rl); its weights load in a moment (until then it simply chases)
-if (new URLSearchParams(location.search).get('persona') === 'nightmare') fetch('/nightmare.json').then((r) => r.json()).then((w) => setNightmarePolicy(mlpPolicy(w)));
+// The monster: ?persona= (stalker, brute, hound, warden, pathfinder, classic, nightmare). The nightmare is the learned
+// monster (train/rl), and the one the v4 models (?model=v4_...) were trained against, so theirs unless asked;
+// its weights load in a moment (until then it simply chases)
+const PERSONA = new URLSearchParams(location.search).get('persona') || ((new URLSearchParams(location.search).get('model') || '').startsWith('v4') ? 'nightmare' : 'classic');
+if (PERSONA === 'nightmare') fetch('/nightmare.json').then((r) => r.json()).then((w) => setNightmarePolicy(mlpPolicy(w)));
 
 const q = new URLSearchParams(location.search);
 // &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
@@ -42,7 +45,7 @@ function newGame() {
     watchLog.length = 0;
   } else {
     G = createGame(L, seed++);
-    G.mind = createMind(G, { type: q.get('persona') || 'classic' }); // ?persona=stalker (or brute, hound, warden, pathfinder, nightmare)
+    G.mind = createMind(G, { type: PERSONA });
   }
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }
