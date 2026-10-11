@@ -299,9 +299,9 @@ test('S4 a lead inside a wall is moved to the nearest floor', () => {
 });
 
 // ---------------- 7. how the monster behaves (Classic)
-test('B0 asleep for the first 4 s', () => {
+test('B0 asleep for the first 1.5 s', () => {
   const G = game(); classic(G);
-  for (let t = 0; t < 3.9; t += DT) step(G, { mx: 0, mz: 0 }, DT);
+  for (let t = 0; t < 1.4; t += DT) step(G, { mx: 0, mz: 0 }, DT);
   assert.ok(!G.monster.awake);
   for (let t = 0; t < 0.3; t += DT) step(G, { mx: 0, mz: 0 }, DT);
   assert.ok(G.monster.awake);

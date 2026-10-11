@@ -151,7 +151,7 @@ Two kinds of mind play the giant's controller (section 12):
 Speeds: patrol 2.2, hunt 3.0, chase 3.55 m/s (111% of the kid's run), accelerating at 10 m/s². Running past hunt speed
 needs the run button.
 
-- **B0 Asleep** for the first 4 s, or until an alert. It can't catch you asleep.
+- **B0 Asleep** for the first 1.5 s, or until an alert. It can't catch you asleep.
 - **B1 Chase.** It sees you and isn't busy → chase, aiming a little ahead of where you are going.
 - **B2 Lunge.** Chasing, within 2 m, facing you, with a clear line:
   - it crouches and growls for 0.25 s at half speed;

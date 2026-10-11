@@ -47,7 +47,7 @@ export const MON = {
   sameGap: 3, // use the same gap this often in one chase and it waits at the other end instead
   menaceMax: 25, // seconds of close pressure before it backs off...
   breather: 9, // ...for this long
-  wake: 4, // grace period at the start
+  wake: 1.5, // grace period at the start (the user, 2026-10-12: wake it at once, 1-2 s)
   repath: 0.25,
   doorOpen: 0.6, // a shut door costs it this long to open...
   doorBash: 0.9, // ...or to smash through when it is chasing you
