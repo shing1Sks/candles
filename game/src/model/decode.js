@@ -7,7 +7,10 @@
 //          choice is drawn with chance `mix`
 //   mixFor: a mix per kind of piece, e.g. { mind: 1 }: the monster's mind drawn (it commits and varies) while the
 //          bodies and the house stay near their expected values (no wandering into walls)
-export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, rand = Math.random } = {}) {
+//   topP:  draws come only from the likeliest options holding this much of the odds (nucleus sampling). Drawing
+//          every flag 20 times a second lets a 0.1% chance happen: a candle goes out by itself, a game is won at 5
+//          candles. With topP 0.9 what is near certain stays certain and only real doubt is drawn.
+export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, topP = 1, rand = Math.random } = {}) {
   const base = mix;
   const next = Float32Array.from(cur), bins = meta.bins, NB = meta.nb, scale = meta.scale;
   const p = new Float64Array(NB);
@@ -25,28 +28,25 @@ export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, ran
         mean /= z;
         let v = mean;
         if (mix > 0) {
-          let zt = 0;
-          for (let b = 0; b < NB; b++) { p[b] = Math.exp((world[o + b] - mx) / temp); zt += p[b]; }
-          let u = rand() * zt, b = 0;
-          while (b < NB - 1 && (u -= p[b]) > 0) b++;
-          v = mean * (1 - mix) + bins[b] * mix;
+          for (let b = 0; b < NB; b++) p[b] = Math.exp((world[o + b] - mx) / temp);
+          v = mean * (1 - mix) + bins[nucleus(p, NB, topP, rand)] * mix;
         }
         next[row + f] = cur[row + f] + Math.sign(v) * Math.expm1(Math.abs(v)) * scale;
         o += NB;
       }
       for (const f of k.flag) {
-        const draw = mix > 0 && rand() < mix;
-        next[row + f] = draw ? (rand() < 1 / (1 + Math.exp(-world[o] / temp)) ? 1 : 0) : (world[o] > 0 ? 1 : 0);
+        const q = 1 / (1 + Math.exp(-world[o] / temp)), sure = Math.max(q, 1 - q) >= topP;
+        const draw = !sure && mix > 0 && rand() < mix;
+        next[row + f] = draw ? (rand() < q ? 1 : 0) : (world[o] > 0 ? 1 : 0);
         o++;
       }
       for (const [c, n] of k.cat) {
         let pick = 0;
         if (mix > 0 && rand() < mix) {
-          let mx = -Infinity, zt = 0;
+          let mx = -Infinity;
           for (let j = 0; j < n; j++) mx = Math.max(mx, world[o + j]);
-          for (let j = 0; j < n; j++) { p[j] = Math.exp((world[o + j] - mx) / temp); zt += p[j]; }
-          let u = rand() * zt;
-          while (pick < n - 1 && (u -= p[pick]) > 0) pick++;
+          for (let j = 0; j < n; j++) p[j] = Math.exp((world[o + j] - mx) / temp);
+          pick = nucleus(p, n, topP, rand);
         } else {
           for (let j = 1; j < n; j++) if (world[o + j] > world[o + pick]) pick = j;
         }
@@ -56,6 +56,24 @@ export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, ran
     }
   }
   return next;
+}
+
+// a draw from the first n odds p (unnormalised), among the likeliest options holding topP of the total
+const order = new Int32Array(128);
+function nucleus(p, n, topP, rand) {
+  let z = 0;
+  for (let j = 0; j < n; j++) { z += p[j]; order[j] = j; }
+  if (topP >= 1) {
+    let u = rand() * z, j = 0;
+    while (j < n - 1 && (u -= p[j]) > 0) j++;
+    return j;
+  }
+  const idx = Array.prototype.slice.call(order, 0, n).sort((a, b) => p[b] - p[a]);
+  let kept = 0, m = 0;
+  while (m < n && kept < topP * z) kept += p[idx[m++]];
+  let u = rand() * kept, j = 0;
+  while (j < m - 1 && (u -= p[idx[j]]) > 0) j++;
+  return idx[j];
 }
 
 export const sigmoid = (x) => 1 / (1 + Math.exp(-x));

@@ -27,3 +27,17 @@ test('mix 1 draws: numbers stay within the bins, choices stay one-hot', () => {
     assert.equal(n[2] + n[3], 1); assert.equal(n[6] + n[7], 1);
   }
 });
+
+test('topP: a near-certain flag or choice is never drawn the other way; real doubt still is', () => {
+  const meta = { nb: 3, scale: 1, bins: [-1, 0, 1], kinds: [{ count: 1, width: 3, offset: 0, num: [], flag: [0], cat: [[1, 2]], head: 3, at: 0 }] };
+  let flips = 0, catFlips = 0, doubt = 0;
+  for (let t = 0; t < 4000; t++) {
+    const n = decode(meta, [7, 7, 0], new Float32Array(3), { mix: 1, topP: 0.9 }); // flag p ~ 0.999, choice p ~ 0.999
+    if (n[0] === 0) flips++;
+    if (n[2] === 1) catFlips++;
+    const m = decode(meta, [0, 0, 0], new Float32Array(3), { mix: 1, topP: 0.9 }); // 50/50: drawn
+    doubt += m[0];
+  }
+  assert.equal(flips, 0); assert.equal(catFlips, 0);
+  assert.ok(doubt > 1700 && doubt < 2300, `50/50 flag drawn ${doubt}/4000`);
+});

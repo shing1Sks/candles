@@ -2,7 +2,7 @@
 // type, kid bot, start) are played twice: once by the rules (src/sim) and once inside the model's world (the model
 // runs every step on its own output, as in ?model=). Then what happened in each is compared.
 //   node tools/dream_exam.mjs MODEL_DIR [--games 8] [--seconds 120] [--batch exam] [--int8] [--mix 0.3] [--mind 1]
-//        [--part k/P] [--threads 8] [--out file.json]       (--part: only games i with i % P == k, for parallel runs)
+//        [--top_p 0.9] [--part k/P] [--threads 8] [--out file.json]       (--part: only games i with i % P == k, for parallel runs)
 //   node tools/dream_exam.mjs --merge part0.json part1.json ... [--out file.json]
 import * as ort from 'onnxruntime-web';
 import { writeFileSync } from 'node:fs';
@@ -17,7 +17,7 @@ import { readFileSync, existsSync } from 'node:fs';
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
 const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seconds', 120)), BATCH = opt('batch', 'exam');
-const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8');
+const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8'), TOP_P = Number(opt('top_p', 1));
 // --mind 1: the monster's mind pieces drawn at this mix (decode.js mixFor)
 const MIND = opt('mind', null), MIX_FOR = MIND === null ? null : Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(MIND)]));
 ort.env.wasm.numThreads = Number(opt('threads', 8));
@@ -92,7 +92,7 @@ async function dream(config) {
     for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();
     const y = await run(x);
     const prev = row;
-    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR });
+    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR, topP: TOP_P });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i]));
     apply(G, row, col);
     events(G, prev, row, y.subarray(13 + meta.world), col);
@@ -134,6 +134,6 @@ for (let i = PART; i < GAMES; i += PARTS) {
   const r = R[R.length - 1], d = D[D.length - 1];
   console.log(`game ${i} ${config.persona.type} vs ${config.kid.style} (${config.start}): rules ${r.outcome} ${r.candlesOut} out in ${r.t.toFixed(0)} s | model ${d.outcome} ${d.candlesOut} out in ${d.t.toFixed(0)} s, kid in wall ${(100 * d.kidClip / d.steps).toFixed(1)}%  [${((performance.now() - t) / 1000).toFixed(0)} s]`);
 }
-const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
+const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, top_p: TOP_P, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
 console.log(JSON.stringify(report, null, 1));
 if (opt('out')) writeFileSync(opt('out'), JSON.stringify({ ...report, games: { rules: R, model: D } }, null, 1));
