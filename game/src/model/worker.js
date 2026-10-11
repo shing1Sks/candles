@@ -60,7 +60,7 @@ async function loop(my) {
     const y = (await inflight).y.data;
     if (my !== epoch) return;
     const prev = row;
-    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix, topP: opts.topP, mixFor: opts.mixFor, snap: opts.snap });
+    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix, topP: opts.topP, mixFor: opts.mixFor, snap: opts.snap, peak: opts.peak });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i])); // a runaway number cannot run far
     if (opts.cohere !== false) cohere(prev, row, col, map);
     postMessage({ type: 'step', prev, row, odds: y.slice(13 + meta.world), ms: performance.now() - t1 });

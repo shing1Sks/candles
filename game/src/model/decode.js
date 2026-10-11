@@ -12,7 +12,9 @@
 //          candles. With topP 0.9 what is near certain stays certain and only real doubt is drawn.
 //   snap:  when the model is sure a number does not change (over half the odds on the two bins round zero), it does
 //          not change at all; the expected value is never exactly zero, so timers, cooldowns and still things crept
-export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, topP = 1, snap = false, rand = Math.random } = {}) {
+//   peak:  the expected value round the likeliest bin only (+-2 bins), not over all of them: where the odds have two
+//          humps (blocked by a wall, or a full step) the plain mean is a half step into the wall, and steps add up
+export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, topP = 1, snap = false, peak = false, rand = Math.random } = {}) {
   const base = mix;
   let z0 = 0;
   while (z0 < meta.nb - 1 && meta.bins[z0 + 1] < 0) z0++; // bins z0 and z0 + 1 straddle zero
@@ -30,6 +32,13 @@ export function decode(meta, world, cur, { temp = 1, mix = 0, mixFor = null, top
         let z = 0, mean = 0;
         for (let b = 0; b < NB; b++) { p[b] = Math.exp(world[o + b] - mx); z += p[b]; mean += p[b] * bins[b]; }
         mean /= z;
+        if (peak) {
+          let b0 = 0;
+          for (let b = 1; b < NB; b++) if (p[b] > p[b0]) b0 = b;
+          let zz = 0, mm = 0;
+          for (let b = Math.max(0, b0 - 2); b <= Math.min(NB - 1, b0 + 2); b++) { zz += p[b]; mm += p[b] * bins[b]; }
+          mean = mm / zz;
+        }
         let v = mean;
         if (snap && (p[z0] + p[z0 + 1]) / z > 0.5) { next[row + f] = cur[row + f]; o += NB; continue; }
         if (mix > 0) {

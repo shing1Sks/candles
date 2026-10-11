@@ -17,7 +17,7 @@ import { readFileSync, existsSync } from 'node:fs';
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
 const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seconds', 120)), BATCH = opt('batch', 'exam');
-const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8'), TOP_P = Number(opt('top_p', 1)), SNAP = args.includes('--snap'), COHERE = args.includes('--cohere');
+const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8'), TOP_P = Number(opt('top_p', 1)), SNAP = args.includes('--snap'), PEAK = args.includes('--peak'), COHERE = args.includes('--cohere'), KEYS = Number(opt('keys', 0)); // --keys 1: every kid played as on a keyboard
 // --mind 1: the monster's mind pieces drawn at this mix (decode.js mixFor)
 const MIND = opt('mind', null), MIX_FOR = MIND === null ? {} : Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(MIND)]));
 // --mixfor game=1,monster=0.5: a mix for any kinds of piece
@@ -94,7 +94,7 @@ async function dream(config) {
     for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();
     const y = await run(x);
     const prev = row;
-    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR, topP: TOP_P, snap: SNAP });
+    row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR, topP: TOP_P, snap: SNAP, peak: PEAK });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i]));
     if (COHERE) cohere(prev, row, col, MAP);
     apply(G, row, col, 0.05 * STRIDE);
@@ -105,7 +105,7 @@ async function dream(config) {
   return s;
 }
 
-const { G: G0 } = createEpisode(configFor(BATCH, 0));
+const { G: G0 } = createEpisode(configFor(BATCH, 0, { keys: KEYS }));
 const DOOR_AT = Array.from({ length: G0.L.w * G0.L.h }, (_, i) => G0.L.doorAt(i % G0.L.w, Math.floor(i / G0.L.w)));
 const MAP = { w: G0.L.w, h: G0.L.h, tiles: G0.L.tiles, doorAt: DOOR_AT };
 
@@ -132,12 +132,12 @@ function sum(list) {
 const R = [], D = [];
 const [PART, PARTS] = (opt('part', '0/1')).split('/').map(Number);
 for (let i = PART; i < GAMES; i += PARTS) {
-  const config = configFor(BATCH, i), t = performance.now();
+  const config = configFor(BATCH, i, { keys: KEYS }), t = performance.now();
   R.push(rules(config));
   D.push(await dream(config));
   const r = R[R.length - 1], d = D[D.length - 1];
   console.log(`game ${i} ${config.persona.type} vs ${config.kid.style} (${config.start}): rules ${r.outcome} ${r.candlesOut} out in ${r.t.toFixed(0)} s | model ${d.outcome} ${d.candlesOut} out in ${d.t.toFixed(0)} s, kid in wall ${(100 * d.kidClip / d.steps).toFixed(1)}%  [${((performance.now() - t) / 1000).toFixed(0)} s]`);
 }
-const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, mixfor: MIX_FOR, top_p: TOP_P, snap: SNAP, cohere: COHERE, stride: STRIDE, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
+const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, mixfor: MIX_FOR, top_p: TOP_P, snap: SNAP, peak: PEAK, cohere: COHERE, keys: KEYS, stride: STRIDE, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
 console.log(JSON.stringify(report, null, 1));
 if (opt('out')) writeFileSync(opt('out'), JSON.stringify({ ...report, games: { rules: R, model: D } }, null, 1));
