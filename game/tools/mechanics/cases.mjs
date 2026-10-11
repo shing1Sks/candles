@@ -1,0 +1,166 @@
+// The mechanics exam's cases: one moment of the game each (docs/mechanics.md ids), set up, played for a few seconds of
+// kid input, and checked. The same case is played by the rules (test/mechanics_cases.test.mjs: every case must pass
+// there) and inside a main model's world (tools/mechanics/exam.mjs: how often it passes there).
+//   setup(G)       the moment (G is a fresh game with a hound's mind, asleep in its corner unless woken)
+//   ki(t)          the kid's input at t seconds in; presses (use, throw) count on the step they are given only
+//   each(G, s, t)  called after every step: note what happened in s
+//   check(G, s)    after `secs` (or the game's end): null if it passed, else what went wrong
+// s.ev counts the events seen; s.firstEv[type] is when each was first seen.
+const place = (G, who, x, z, extra = {}) => Object.assign(who === 'kid' ? G.kid : G.monster, { x, z, vx: 0, vz: 0, ...extra });
+const wake = (G, x, z, hx = 1, hz = 0) => { place(G, 'mon', x, z, { hx, hz, awake: true }); G.mind.mode = 'patrol'; };
+const beside0 = { x: 12.28, z: 4.72 }; // the nursery candle (id 0) is at 12.78, 4.22
+const press = (b, at = 0) => (t) => (t < at - 1e-9 || t > at + 1e-9 ? {} : { [b]: true });
+const hold = (inp) => () => inp;
+const maxOf = (s, k, v) => { s[k] = Math.max(s[k] ?? -Infinity, v); };
+const minOf = (s, k, v) => { s[k] = Math.min(s[k] ?? Infinity, v); };
+const fail = (ok, why) => (ok ? null : why);
+const r2 = (v) => (v == null ? '-' : Number(v).toFixed(2));
+const kidWall = (G, s) => { if (G.kidBlocked(Math.floor(G.kid.x), Math.floor(G.kid.z))) s.inWall = (s.inWall || 0) + 1; };
+
+export const CASES = [
+  // ---------------- moving
+  { id: 'K1', what: 'holding a direction, the kid runs: up to 3.2 m/s', secs: 1.2,
+    setup: (G) => place(G, 'kid', 5.5, 20.5), ki: hold({ mx: 1 }),
+    each: (G, s) => maxOf(s, 'v', G.kid.speed),
+    check: (G, s) => fail(s.v > 2.8 && s.v < 3.6 && G.kid.x > 8, `top speed ${r2(s.v)} m/s, got to x ${r2(G.kid.x)}`) },
+  { id: 'K2', what: 'creeping: up to 1.4 m/s', secs: 1.2,
+    setup: (G) => place(G, 'kid', 5.5, 20.5), ki: hold({ mx: 1, creep: true }),
+    each: (G, s) => maxOf(s, 'v', G.kid.speed),
+    check: (G, s) => fail(s.v > 1.15 && s.v < 1.7, `top speed ${r2(s.v)} m/s`) },
+  { id: 'K3', what: 'in a vent the kid crawls: 1.7 m/s', secs: 1,
+    setup: (G) => place(G, 'kid', 15.5, 1.5), ki: hold({ mx: 1 }),
+    each: (G, s) => { maxOf(s, 'v', G.kid.speed); if (G.kid.crawl) s.crawl = 1; },
+    check: (G, s) => fail(s.crawl && s.v > 1.4 && s.v < 2.0, `crawling ${!!s.crawl}, top speed ${r2(s.v)} m/s`) },
+  { id: 'K4', what: 'pushing into a wall: the kid slides along it, never into it', secs: 1.5,
+    setup: (G) => place(G, 'kid', 1.5, 20.5), ki: hold({ mx: -0.7, mz: 0.7 }),
+    each: kidWall,
+    check: (G, s) => fail(!s.inWall && G.kid.x > 1.15 && G.kid.z < 22 - 0.15, `${s.inWall || 0} steps inside a wall, ends at ${r2(G.kid.x)}, ${r2(G.kid.z)}`) },
+  { id: 'K5', what: 'the kid faces where it moves', secs: 0.5,
+    setup: (G) => place(G, 'kid', 5.5, 20.5), ki: hold({ mz: 1 }),
+    check: (G) => fail(G.kid.fz > 0.9, `facing ${r2(G.kid.fx)}, ${r2(G.kid.fz)}`) },
+  { id: 'K7', what: 'letting go, the kid stops', secs: 1.5,
+    setup: (G) => place(G, 'kid', 5.5, 20.5), ki: (t) => (t < 0.7 ? { mx: 1 } : {}),
+    check: (G) => fail(G.kid.speed < 0.15, `still moving at ${r2(G.kid.speed)} m/s`) },
+
+  // ---------------- candles
+  { id: 'C1', what: 'blowing next to a lit candle: the kid stops and blows it', secs: 0.4,
+    setup: (G) => place(G, 'kid', beside0.x, beside0.z), ki: hold({ blow: true, mx: 1 }),
+    check: (G) => fail(G.kid.blowing === 0 && G.kid.speed < 0.15 && G.candles[0].progress > 0.1, `blowing ${G.kid.blowing}, speed ${r2(G.kid.speed)}, progress ${r2(G.candles[0].progress)}`) },
+  { id: 'C2', what: '1.5 s of blowing puts the candle out', secs: 2,
+    setup: (G) => place(G, 'kid', beside0.x, beside0.z), ki: hold({ blow: true }),
+    check: (G, s) => fail(!G.candles[0].lit && s.firstEv.candleOut > 1.2 && s.firstEv.candleOut < 1.8, `lit ${G.candles[0].lit}, out at ${r2(s.firstEv.candleOut)} s`) },
+  { id: 'C2b', what: 'progress is kept when you let go: 1 s, a rest, 0.7 s puts it out', secs: 2.7,
+    setup: (G) => place(G, 'kid', beside0.x, beside0.z), ki: (t) => (t < 1 || t >= 2 ? { blow: true } : {}),
+    each: (G, s, t) => { if (t > 1.4 && t < 1.95) { maxOf(s, 'mid', G.candles[0].progress); minOf(s, 'midLo', G.candles[0].progress); } },
+    check: (G, s) => fail(!G.candles[0].lit && s.midLo > 0.5 && s.mid < 0.8 && G.candles.filter((c) => !c.lit).length === 1, `lit ${G.candles[0].lit}, progress while resting ${r2(s.midLo)}..${r2(s.mid)}`) },
+  { id: 'C6', what: 'blowing at nothing does nothing', secs: 1.5,
+    setup: (G) => place(G, 'kid', 5.5, 20.5), ki: hold({ blow: true }),
+    check: (G) => fail(G.candles.every((c) => c.lit && c.progress < 0.05), `candles ${G.candles.map((c) => (c.lit ? r2(c.progress) : 'out')).join(' ')}`) },
+  { id: 'C6b', what: 'a candle out never relights', secs: 2,
+    setup: (G) => { place(G, 'kid', beside0.x, beside0.z); G.candles[0].lit = false; G.candles[0].progress = 1.01; }, ki: hold({ blow: true }),
+    check: (G) => fail(!G.candles[0].lit && G.candles.slice(1).every((c) => c.lit), `candles ${G.candles.map((c) => (c.lit ? 'lit' : 'out')).join(' ')}`) },
+  { id: 'G5', what: 'the last candle out wins', secs: 1,
+    setup: (G) => { G.candles.forEach((c) => { if (c.id) { c.lit = false; c.progress = 1.01; } }); place(G, 'kid', beside0.x, beside0.z); G.candles[0].progress = 0.8; },
+    ki: hold({ blow: true }),
+    check: (G) => fail(G.state === 'won', `game ${G.state}, candle 0 ${G.candles[0].lit ? 'lit' : 'out'}`) },
+
+  // ---------------- doors
+  { id: 'D1', what: 'use by an open door shuts it', secs: 0.6,
+    setup: (G) => place(G, 'kid', 11, 10.5), ki: press('use'),
+    check: (G) => fail(!G.doors[3].open, 'door 3 still open') },
+  { id: 'D1b', what: 'use by a shut door opens it', secs: 0.6,
+    setup: (G) => place(G, 'kid', 12.5, 9.5), ki: press('use'),
+    check: (G) => fail(G.doors[2].open, 'door 2 still shut') },
+  { id: 'D1c', what: 'open a shut door, then walk through it', secs: 2,
+    setup: (G) => place(G, 'kid', 12.5, 9.5), ki: (t) => (t < 0.01 ? { use: true } : t > 0.3 ? { mx: 1 } : {}),
+    each: kidWall,
+    check: (G, s) => fail(G.doors[2].open && G.kid.x > 14.5 && !s.inWall, `door ${G.doors[2].open ? 'open' : 'shut'}, kid at x ${r2(G.kid.x)}, ${s.inWall || 0} steps in a wall`) },
+  { id: 'D1d', what: 'shut, then open again: two presses, two toggles', secs: 1.2,
+    setup: (G) => place(G, 'kid', 11, 10.5), ki: (t) => (Math.abs(t) < 1e-9 || Math.abs(t - 0.6) < 1e-9 ? { use: true } : {}),
+    each: (G, s, t) => { if (t > 0.3 && t < 0.55 && !G.doors[3].open) s.shut = 1; },
+    check: (G, s) => fail(s.shut && G.doors[3].open, `shut in between ${!!s.shut}, open at the end ${G.doors[3].open}`) },
+  { id: 'D3', what: 'a door will not shut on a toy in the doorway', secs: 0.6,
+    setup: (G) => { place(G, 'kid', 11, 10.5); Object.assign(G.items[0], { x: 11, z: 11.5 }); }, ki: press('use'),
+    check: (G) => fail(G.doors[3].open, 'door 3 shut on the toy') },
+  { id: 'D4', what: 'a shut door blocks the kid', secs: 1.2,
+    setup: (G) => place(G, 'kid', 12.5, 9.5), ki: hold({ mx: 1 }),
+    check: (G) => fail(G.kid.x < 13 && !G.doors[2].open, `kid at x ${r2(G.kid.x)}, door ${G.doors[2].open ? 'open' : 'shut'}`) },
+  { id: 'D4b', what: 'an open door lets the kid through', secs: 1.5,
+    setup: (G) => { place(G, 'kid', 12.5, 9.5); G.doors[2].open = true; }, ki: hold({ mx: 1 }),
+    check: (G) => fail(G.kid.x > 14.5, `kid at x ${r2(G.kid.x)}`) },
+
+  // ---------------- wardrobes
+  { id: 'W1', what: 'use at a wardrobe front: the kid hides inside', secs: 0.5,
+    setup: (G) => place(G, 'kid', 4.5, 5.5), ki: press('use'),
+    check: (G) => fail(G.kid.hidden === 0, `hidden ${G.kid.hidden}`) },
+  { id: 'W2', what: 'use again inside: the kid comes out', secs: 1.4,
+    setup: (G) => place(G, 'kid', 4.5, 5.5), ki: (t) => (Math.abs(t) < 1e-9 || Math.abs(t - 0.8) < 1e-9 ? { use: true } : {}),
+    each: (G, s, t) => { if (t > 0.3 && t < 0.75 && G.kid.hidden === 0) s.inside = 1; },
+    check: (G, s) => fail(s.inside && G.kid.hidden === -1, `inside in between ${!!s.inside}, hidden at the end ${G.kid.hidden}`) },
+  { id: 'W2b', what: 'or push the stick (once let go) to come out', secs: 1.6,
+    setup: (G) => place(G, 'kid', 4.5, 5.5), ki: (t) => (t < 1e-9 ? { use: true } : t > 0.8 ? { mz: 1 } : {}),
+    each: (G, s, t) => { if (t > 0.3 && t < 0.75 && G.kid.hidden === 0) s.inside = 1; },
+    check: (G, s) => fail(s.inside && G.kid.hidden === -1, `inside in between ${!!s.inside}, hidden at the end ${G.kid.hidden}`) },
+  { id: 'W1b', what: 'hidden, held still: the kid stays in', secs: 2,
+    setup: (G) => place(G, 'kid', 4.5, 5.5), ki: press('use'),
+    check: (G) => fail(G.kid.hidden === 0, `hidden ${G.kid.hidden}`) },
+
+  // ---------------- toys and noise
+  { id: 'N4', what: 'walking over the ball picks it up', secs: 0.6,
+    setup: (G) => place(G, 'kid', 17.5, 20.6), ki: hold({ mx: 1 }),
+    check: (G) => fail(G.kid.held === 6 && G.items[6].held, `held ${G.kid.held}, ball held ${G.items[6].held}`) },
+  { id: 'N4b', what: 'the ball goes where the kid goes', secs: 1.6,
+    setup: (G) => place(G, 'kid', 17.5, 20.6), ki: hold({ mx: 1 }),
+    check: (G) => { const d = Math.hypot(G.items[6].x - G.kid.x, G.items[6].z - G.kid.z); return fail(G.kid.held === 6 && d < 0.8 && G.kid.x > 20, `held ${G.kid.held}, ball ${r2(d)} m from the kid, kid at x ${r2(G.kid.x)}`); } },
+  { id: 'N4c', what: 'thrown, the ball flies about 7.5 m and lands', secs: 1.6,
+    setup: (G) => { place(G, 'kid', 5.5, 20.5, { fx: 1, fz: 0, held: 6 }); Object.assign(G.items[6], { x: 5.5, z: 20.5, held: true }); }, ki: press('throw'),
+    each: (G, s) => { if (G.items[6].fly) s.flew = 1; maxOf(s, 'x', G.items[6].x); },
+    check: (G, s) => fail(s.flew && !G.items[6].fly && G.kid.held === -1 && G.items[6].x > 11.5 && G.items[6].x < 14.5 && Math.abs(G.items[6].z - 20.5) < 0.8,
+      `flew ${!!s.flew}, in the air ${!!G.items[6].fly}, held ${G.kid.held}, ball at ${r2(G.items[6].x)}, ${r2(G.items[6].z)}`) },
+  { id: 'N4d', what: 'a thrown ball can be picked up again', secs: 4.5,
+    setup: (G) => { place(G, 'kid', 5.5, 20.5, { fx: 1, fz: 0, held: 6 }); Object.assign(G.items[6], { x: 5.5, z: 20.5, held: true }); },
+    ki: (t) => (t < 1e-9 ? { throw: true } : t > 1.2 ? { mx: 1 } : {}),
+    check: (G) => fail(G.kid.held === 6, `held ${G.kid.held}, ball at ${r2(G.items[6].x)}, kid at ${r2(G.kid.x)}`) },
+  { id: 'N5', what: 'no throw into the wall in front of you', secs: 0.6,
+    setup: (G) => { place(G, 'kid', 1.4, 20.5, { fx: -1, fz: 0, held: 0 }); Object.assign(G.items[0], { x: 1.4, z: 20.5, held: true }); }, ki: press('throw'),
+    check: (G) => fail(G.kid.held === 0 && !G.items[0].fly, `held ${G.kid.held}, flying ${!!G.items[0].fly}`) },
+  { id: 'N2', what: 'a creaky board creaks under a walking foot', secs: 1,
+    setup: (G) => place(G, 'kid', 8.5, 21.5), ki: hold({ mx: 1 }),
+    check: (G, s) => fail(s.ev.creak, 'no creak') },
+  { id: 'N3', what: 'running past a squeaky toy squeaks it', secs: 1,
+    setup: (G) => place(G, 'kid', 2, 15.5), ki: hold({ mz: -1 }),
+    each: (G, s) => maxOf(s, 'cool', G.squeaks[3].cool),
+    check: (G, s) => fail(s.cool > 0.5, `squeak's rest at most ${r2(s.cool)} s`) },
+
+  // ---------------- the monster
+  { id: 'B0', what: 'the monster sleeps the first 4 s, then wakes', secs: 6, t: 0, warm: 0,
+    setup: () => {}, ki: hold({}),
+    each: (G, s, t) => { if (G.monster.awake && s.woke == null) s.woke = t; },
+    check: (G, s) => fail(s.woke > 3.5 && s.woke < 5, `woke at ${r2(s.woke)} s`) },
+  { id: 'X1', what: 'the monster 1.8 m from the kid catches it within a second', secs: 1, warm: 0.1,
+    setup: (G) => { place(G, 'kid', 11.0, 20.5); wake(G, 9.2, 20.5); }, ki: hold({}),
+    check: (G) => fail(G.state === 'caught', `game ${G.state}`) },
+  { id: 'B1', what: 'seeing the kid 6 m off, the monster chases and catches it', secs: 4,
+    setup: (G) => { place(G, 'kid', 15.5, 20.5); wake(G, 9.5, 20.5); }, ki: hold({}),
+    each: (G, s, t) => { if (G.mind.mode === 'chase' && s.chase == null) s.chase = t; },
+    check: (G, s) => fail(G.state === 'caught' && s.chase != null, `game ${G.state}, chasing from ${r2(s.chase)} s, ${r2(Math.hypot(G.kid.x - G.monster.x, G.kid.z - G.monster.z))} m apart`) },
+  { id: 'B2', what: 'close and facing the kid, it crouches and lunges', secs: 1.2, warm: 0.1,
+    setup: (G) => { place(G, 'kid', 11.3, 20.5); wake(G, 9.5, 20.5); }, ki: hold({}),
+    check: (G, s) => fail(s.ev.windup || s.ev.lunge || G.state === 'caught', `game ${G.state}, no windup or lunge`) },
+  { id: 'S1', what: 'the kid steps out in front of it: the monster spots it, chases and closes in', secs: 3.5,
+    setup: (G) => { place(G, 'kid', 21.0, 17.5); wake(G, 16.5, 20.5, 1, 0); }, ki: (t) => (t < 0.9 ? { mz: 1 } : {}),
+    each: (G, s, t) => { if (G.monster.sees && s.saw == null) s.saw = t; if (G.mind.mode === 'chase' && s.chase == null) s.chase = t; minOf(s, 'd', Math.hypot(G.kid.x - G.monster.x, G.kid.z - G.monster.z)); },
+    check: (G, s) => fail(s.saw != null && s.chase != null && (s.d < 1.5 || G.state === 'caught' || s.ev.windup), `saw at ${r2(s.saw)} s, chased at ${r2(s.chase)} s, came within ${r2(s.d)} m, game ${G.state}`) },
+  { id: 'B1b', what: 'a running kid 5 m ahead: the monster runs after it', secs: 2.5,
+    setup: (G) => { place(G, 'kid', 14.5, 20.5); wake(G, 9.5, 20.5); }, ki: hold({ mx: 1 }),
+    each: (G, s) => maxOf(s, 'v', G.monster.speed),
+    check: (G, s) => fail(G.state === 'caught' || (G.monster.x > 15 && s.v > 3), `monster got to x ${r2(G.monster.x)} at up to ${r2(s.v)} m/s (kid at ${r2(G.kid.x)})`) },
+  { id: 'K6', what: 'the monster never enters a crawl space (the kid under a table)', secs: 2,
+    setup: (G) => { place(G, 'kid', 18.5, 15.5); wake(G, 18.5, 14.4, 0, 1); }, ki: hold({}),
+    each: (G, s) => maxOf(s, 'z', G.monster.z),
+    check: (G, s) => fail(s.z < 15 - 0.3 && G.state === 'play', `monster reached z ${r2(s.z)}, game ${G.state}`) },
+  { id: 'D5', what: 'the monster opens a shut door to get at a noisy kid', secs: 5,
+    setup: (G) => { place(G, 'kid', 15.5, 9.5); wake(G, 12.2, 10, 1, 0); }, ki: (t) => ({ mz: Math.floor(t / 0.5) % 2 ? 1 : -1 }),
+    each: (G, s, t) => { if (G.doors[2].open && s.open == null) s.open = t; },
+    check: (G, s) => fail(s.open != null, `door 2 still shut; monster at ${r2(G.monster.x)}, ${r2(G.monster.z)}`) },
+];
