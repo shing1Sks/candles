@@ -97,6 +97,7 @@ def main():
     # rollout training: from this share of the schedule on, every batch is two steps in a row and the second starts
     # from the model's own guess of the first (drawn, as the game draws), so it learns to carry on from its own errors
     ap.add_argument('--rollout_from', type=float, default=1.0)
+    ap.add_argument('--endgame', type=float, default=0.0, help='extra weight on the last 1.5 s before a catch')
     ap.add_argument('--fourier', type=int, default=0, help='positions also as sines and cosines at this many frequencies')
     ap.add_argument('--rollout_k', type=int, default=2, help='steps per rollout (each after the first starts from the guess of the model)')
     ap.add_argument('--init', help='start from these weights (a best.pt or ckpt.pt), with a fresh optimizer')
@@ -104,7 +105,7 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     torch.backends.cuda.matmul.allow_tf32 = True
     t0 = time.time()
-    data = Data(a.data, a.data_device or a.device, frac=a.frac, out=a.device)
+    data = Data(a.data, a.data_device or a.device, frac=a.frac, out=a.device, endgame=a.endgame)
     log = open(os.path.join(a.out, 'log.jsonl'), 'a')
     def say(**kw):
         kw['time'] = round(time.time() - t0, 1)

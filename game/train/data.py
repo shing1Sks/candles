@@ -46,7 +46,7 @@ PERSONA_TYPES = ['classic', 'pathfinder', 'brute', 'stalker', 'hound', 'warden']
 
 
 class Data:
-    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None):
+    def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None, endgame=0.0):
         """device: where the rows are kept; out: where batches go (rows in RAM, batches to the GPU, for data bigger than it)"""
         self.schema = S = Schema(os.path.join(root, 'schema.json'))
         ki, gi, ev, cur, ep_of, persona, split = [], [], [], [], [], [], []  # cur/ep_of/split: numpy pieces
@@ -101,6 +101,7 @@ class Data:
                 ix = ix[chosen.to(dev)[self.ep_of[ix]]]
             self.idx[name] = ix
         self._idxk = {}  # rows with k - 1 more steps of the same game after them (rollout training), made when asked
+        self.endgame = endgame
         self.weight = self._weights()
         self.gen = torch.Generator(device=dev).manual_seed(seed)
         self.out = torch.device(out) if out else dev
@@ -127,6 +128,15 @@ class Data:
             a = torch.stack([self.states[self.cur, o + j] for j in range(n)], 1).argmax(1)
             b = torch.stack([self.states[self.cur + 1, o + j] for j in range(n)], 1).argmax(1)
             w = w + (a != b).float()
+        # the endgame: the last 1.5 s (30 steps) before a catch weigh +endgame. Catches are ~1 row in 1,700, so the
+        # model got little practice at the end of a hunt (in its world the monster lunged but rarely caught)
+        if self.endgame:
+            rows = torch.tensor([e['rows'] for e in self.episodes], device=w.device)
+            caught = torch.tensor([e['outcome'] == 'caught' for e in self.episodes], device=w.device)
+            starts = torch.cumsum(rows, 0) - rows
+            ep = self.ep_of.to(w.device)
+            to_end = rows[ep] - 1 - (torch.arange(len(ep), device=w.device) - starts[ep])
+            w = w + self.endgame * (caught[ep] & (to_end < 30)).float()
         return w.clamp(max=5.0)
 
     def batch(self, split, B):
