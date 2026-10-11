@@ -32,3 +32,22 @@ export function patchIds(map, row, col, out) {
 
 // the monster's traits and type, as train/data.py
 export const personaVec = (p) => Float32Array.from([...schemaJSON().personaTraits.map((k) => +(p[k] ?? 0)), ...PERSONA_TYPES.map((t) => (p.type === t ? 1 : 0))]);
+
+// Constrained decoding: a drawn row the model's own world contradicts is not taken. A catch stands only with the
+// model's monster within 2 m of the kid (a touch reaches 0.72 m, a lunge further) or its hand out and within 1.5 m;
+// a win only with every candle out; a candle out stays out. Nothing is forced, only refused (row is changed in place).
+export function cohere(prev, row, col, map) {
+  const st = col('game', 'state'), cat = (r) => (r[st.c + 1] > r[st.c] && r[st.c + 1] >= r[st.c + 2] ? 1 : r[st.c + 2] > r[st.c] ? 2 : 0);
+  const was = cat(prev), now = cat(row);
+  const setPlay = () => { row[st.c] = 1; row[st.c + 1] = 0; row[st.c + 2] = 0; };
+  const pos = (k) => [row[col(k, 'x').c] * map.w, row[col(k, 'z').c] * map.h];
+  const [kx, kz] = pos('kid');
+  if (was === 0 && now === 2) {
+    const [mx, mz] = pos('monster'), [hx, hz] = pos('hand');
+    const hs = col('hand', 'state'), handOut = row[hs.c] < 0.5; // hand state 0 = idle
+    if (Math.hypot(kx - mx, kz - mz) > 2 && !(handOut && Math.hypot(kx - hx, kz - hz) < 1.5)) setPlay();
+  }
+  for (let i = 0; i < 6; i++) { const c = col('candle', 'lit', i).c; if (prev[c] < 0.5) row[c] = 0; }
+  if (was === 0 && now === 1) for (let i = 0; i < 6; i++) if (row[col('candle', 'lit', i).c] > 0.5) { setPlay(); break; }
+  return row;
+}
