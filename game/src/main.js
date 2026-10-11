@@ -11,6 +11,8 @@ import { createKidBot, observeKid } from './sim/bots/kid.js';
 import { rng } from './sim/rng.js';
 
 const q = new URLSearchParams(location.search);
+// &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
+const manual = q.has('manual');
 const L = parseLevel();
 const view = createView(document.getElementById('c'), L);
 const audio = createAudio();
@@ -55,10 +57,13 @@ newGame();
 if (q.has('model')) {
   $('prompt').textContent = 'loading the model...';
   // a kid bot decides once per model step, on the row that just landed
-  const onStep = (g) => { if (kidBot) dream.input(kidBot(observeKid(g), STEP), phase === 'play'); };
+  const onStep = (g) => {
+    if (manual) { landedFrame?.(); landedFrame = null; return; } // recording: __dreamFrame paces every step
+    if (kidBot) dream.input(kidBot(observeKid(g), STEP), phase === 'play');
+  };
   createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), topP: Number(q.get('top_p') ?? 0.9),
-    mixFor: q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : null, int8: q.has('int8'), lockstep: q.has('bot'), onStep })
-    .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
+    mixFor: q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : null, int8: q.has('int8'), lockstep: q.has('bot') || manual, onStep })
+    .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot && !manual) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints
 if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
@@ -134,8 +139,6 @@ function end(kind) {
 const DT = 1 / 60;
 let lastHint = null;
 let last = performance.now(), acc = 0, t = 0;
-// &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
-const manual = q.has('manual');
 // &fps=30: draw at most this often; the model's world draws at 30 unless told (the house at 60 starves the model here)
 const fpsCap = Number(q.get('fps')) || (q.has('model') ? 30 : 0);
 function frame(now) {
@@ -146,6 +149,17 @@ function frame(now) {
   if (!manual) tick(dt);
 }
 window.__frame = (dt) => tick(dt);
+// recording the model's world (?model=&manual=1): one model step, then one 50 ms frame drawn, so a video at 20 fps
+// plays at real speed whatever the laptop manages
+let landedFrame = null;
+window.__dreamFrame = async () => {
+  if (dream && phase === 'play' && G.state === 'play') {
+    const landed = new Promise((r) => { landedFrame = r; });
+    dream.input(kidBot ? kidBot(observeKid(G), STEP) : dreamIn, true);
+    await Promise.race([landed, new Promise((r) => setTimeout(r, 5000))]);
+  }
+  tick(STEP);
+};
 function tick(dt) {
   t += dt;
   if (phase === 'play' && ep) {
@@ -160,8 +174,8 @@ function tick(dt) {
     // the model's world steps on its own thread and clock; here: your input for its next step, and the glide between
     const w = view.toWorld(readInput());
     if (!kidBot) Object.assign(dreamIn, { mx: w.mx, mz: w.mz, creep: w.creep, blow: w.blow, use: dreamIn.use || w.use, throw: dreamIn.throw || w.throw });
-    if (dream && !kidBot) { dream.input(dreamIn, true); dreamIn.use = dreamIn.throw = false; }
-    if (dream) { dream.blend(); drawDream(); }
+    if (dream && !kidBot && !manual) { dream.input(dreamIn, true); dreamIn.use = dreamIn.throw = false; }
+    if (dream) { dream.blend(manual ? 1 : undefined); drawDream(); }
   } else if (phase === 'play') {
     acc += dt;
     const inp = readInput();
@@ -230,7 +244,7 @@ function drawDream() {
     document.body.appendChild(dreamEl);
   }
   const m = G.mind; // the monster's mind, as the model has it
-  dreamEl.textContent = `${q.get('model')} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (20 = real time) · ${fps.toFixed(0)} fps`
+  dreamEl.textContent = (manual ? `${q.get('model')} · the model's world, recorded at real speed` : `${q.get('model')} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (20 = real time) · ${fps.toFixed(0)} fps`)
     + `
 monster: ${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}${m.furyT > 0 ? '  FURY' : ''}`;
 }

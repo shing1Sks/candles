@@ -49,9 +49,9 @@ export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3
       worker.postMessage({ type: 'input', ki, active: active && G.state === 'play' });
     },
     // movers glide from the last row to the new one over the 1/20 s after it lands
-    blend() {
+    blend(at) { // at: a fixed point of the glide (recording); else by the clock
       if (!from) return;
-      const f = Math.min(1, (performance.now() - landed) / 50);
+      const f = at ?? Math.min(1, (performance.now() - landed) / 50);
       for (let j = 0; j < from.length; j++) {
         const [o, x, z] = from[j], [, tx, tz] = to[j];
         if (Math.hypot(tx - x, tz - z) > 1.5) continue; // a jump: no glide
