@@ -24,6 +24,7 @@ ap.add_argument('--lam', type=float, default=0.95)
 ap.add_argument('--ent', type=float, default=0.01)
 ap.add_argument('--init', default='')
 ap.add_argument('--hidden', type=int, default=256)
+ap.add_argument('--switch', type=float, default=0.03, help='reward cost of a change of mind')
 a = ap.parse_args()
 os.makedirs(a.out, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +66,7 @@ def collect(rnd, wpath):
     for k in range(a.workers):
         p = os.path.join(a.out, f'part{k}')
         procs.append((subprocess.Popen(['node', os.path.join(HERE, 'collect.mjs'), '--weights', wpath, '--decisions', str(per), '--seed', str(rnd * 1000 + k),
-                                        '--out', p + '.bin', '--stats', p + '.json', '--gamma', str(a.gamma)], cwd=GAME), p))
+                                        '--out', p + '.bin', '--stats', p + '.json', '--gamma', str(a.gamma), '--switch', str(a.switch)], cwd=GAME), p))
     parts, games = [], []
     for proc, p in procs:
         if proc.wait() != 0: raise SystemExit(f'collect failed: {p}')
@@ -133,7 +134,7 @@ for rnd in range(a.rounds):
     g = len(games); caught = sum(x['outcome'] == 'caught' for x in games); won = sum(x['outcome'] == 'won' for x in games)
     tc = [x['t'] for x in games if x['outcome'] == 'caught']
     row = dict(round=rnd, games=g, caught=round(caught / g, 3), won=round(won / g, 3), t_catch=round(float(np.mean(tc)), 1) if tc else None,
-               out=round(float(np.mean([x['out'] for x in games])), 2), reward=round(float(sum(p[:, -2].sum() for p in parts)) / g, 3),
+               out=round(float(np.mean([x['out'] for x in games])), 2), switch_min=round(60 * sum(x.get('switches', 0) for x in games) / max(1, sum(x['t'] for x in games)), 1), reward=round(float(sum(p[:, -2].sum() for p in parts)) / g, 3),
                decisions=n, secs=round(time.time() - t0, 1), **stats)
     print(json.dumps(row), flush=True); log.write(json.dumps(row) + '\n'); log.flush()
     score = row['caught'] - row['won'] - 0.002 * (row['t_catch'] or 150)
