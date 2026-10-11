@@ -8,5 +8,8 @@ if ! command -v node >/dev/null; then
   ln -sf /opt/node-v24.19.0-linux-x64/bin/node /usr/local/bin/node
 fi
 node --version
+# onnx for export.py (pip may refuse the system Python without the flag)
+python -c "import onnx, onnxscript" 2>/dev/null || pip install -q onnx onnxscript 2>/dev/null || pip install -q --break-system-packages onnx onnxscript
+[ -z "$1" ] && exit 0  # no batch: tools only
 cd game && node tools/gen.mjs "$1" "$2" "${3:-24}" --out /workspace/gn/data "${@:4}" > /workspace/gn/gen.log 2>&1
 tail -2 /workspace/gn/gen.log

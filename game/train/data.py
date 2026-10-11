@@ -49,11 +49,16 @@ class Data:
     def __init__(self, root, device='cpu', frac=1.0, seed=0, out=None):
         """device: where the rows are kept; out: where batches go (rows in RAM, batches to the GPU, for data bigger than it)"""
         self.schema = S = Schema(os.path.join(root, 'schema.json'))
-        states, ki, gi, ev, cur, ep_of, persona, split = [], [], [], [], [], [], [], []  # cur/ep_of/split: numpy pieces
+        ki, gi, ev, cur, ep_of, persona, split = [], [], [], [], [], [], []  # cur/ep_of/split: numpy pieces
         base_s = base_i = 0
         eps = []
-        for shard in sorted(glob.glob(os.path.join(root, 'shard-*'))):
+        shards = sorted(glob.glob(os.path.join(root, 'shard-*')))
+        # the states (most of the data) are read straight into one array: no second copy while joining shards
+        total = sum(os.path.getsize(os.path.join(sh, 'states.f32')) for sh in shards) // (4 * S.size)
+        all_states = np.empty((total, S.size), np.float32)
+        for shard in shards:
             X = np.fromfile(os.path.join(shard, 'states.f32'), np.float32).reshape(-1, S.size)
+            all_states[base_s: base_s + len(X)] = X
             K = np.fromfile(os.path.join(shard, 'ki.f32'), np.float32).reshape(-1, len(S.ki))
             Gi = np.fromfile(os.path.join(shard, 'gi.f32'), np.float32).reshape(-1, len(S.gi))
             E = np.zeros((len(K), len(S.events)), np.uint8)
@@ -71,11 +76,11 @@ class Data:
                 ep_of.append(np.full(e['rows'], len(eps) - 1))
                 persona.append(vec)
                 split.append(np.full(e['rows'], sp))
-            states.append(X); ki.append(K); gi.append(Gi); ev.append(E)
-            base_s += len(X); base_i += len(K)
+            ki.append(K); gi.append(Gi); ev.append(E)
+            base_s += len(X); base_i += len(K); del X
         self.episodes = eps
         dev = torch.device(device)
-        self.states = torch.from_numpy(np.concatenate(states)).to(dev)
+        self.states = torch.from_numpy(all_states).to(dev)
         self.ki = torch.from_numpy(np.concatenate(ki)).to(dev)
         self.gi = torch.from_numpy(np.concatenate(gi)).to(dev)
         self.ev = torch.from_numpy(np.concatenate(ev)).to(dev)
@@ -104,17 +109,27 @@ class Data:
         self.out = torch.device(out) if out else dev
 
     def _weights(self):
-        """Down-weight standoffs (the kid still in cover beside the monster); up-weight rows with rare events."""
-        S, X = self.schema, self.states[self.cur]
-        crawl = X[:, S.field('kid', 'crawl')] > 0.5
-        speed = torch.hypot(X[:, S.field('kid', 'vx')], X[:, S.field('kid', 'vz')]) * 4  # vx is stored / 4
-        dx = (X[:, S.field('kid', 'x')] - X[:, S.field('monster', 'x')]) * S.map['w']
-        dz = (X[:, S.field('kid', 'z')] - X[:, S.field('monster', 'z')]) * S.map['h']
-        standoff = crawl & (speed < 0.1) & (X[:, S.field('monster', 'awake')] > 0.5) & (torch.hypot(dx, dz) < 3)
+        """Down-weight standoffs (the kid still in cover beside the monster); up-weight rows with rare events and rows
+        where the monster changes its mind. Columns are gathered one at a time: whole rows for every step would be
+        another copy of the data."""
+        S = self.schema
+        col = lambda kind, name, nxt=False: self.states[self.cur + int(nxt), S.field(kind, name)]
+        crawl = col('kid', 'crawl') > 0.5
+        speed = torch.hypot(col('kid', 'vx'), col('kid', 'vz')) * 4  # vx is stored / 4
+        dx = (col('kid', 'x') - col('monster', 'x')) * S.map['w']
+        dz = (col('kid', 'z') - col('monster', 'z')) * S.map['h']
+        standoff = crawl & (speed < 0.1) & (col('monster', 'awake') > 0.5) & (torch.hypot(dx, dz) < 3)
         w = torch.where(standoff, 0.5, 1.0)
-        freq = self.ev.float().mean(0).clamp_min(1e-7)
+        freq = torch.stack([self.ev[:, e].float().mean() for e in range(self.ev.shape[1])]).clamp_min(1e-7)
         bonus = (torch.log10(1.0 / freq) - 2).clamp(0, 3)  # events in under 1% of rows earn up to +3
-        w = w + (self.ev.float() * bonus).sum(1)
+        for e in range(self.ev.shape[1]): w = w + self.ev[:, e].float() * bonus[e]
+        # the monster changing its mind (its mode or what it is doing) is rare among rows and decides whether it chases:
+        # those rows count double, so it learns to switch instead of staying in one mode
+        for kind, name in (('mind', 'mode'), ('monster', 'act')):
+            o = S.field(kind, name); n = next(f['n'] for k in S.kinds if k['kind'] == kind for f in k['fields'] if f['name'] == name)
+            a = torch.stack([self.states[self.cur, o + j] for j in range(n)], 1).argmax(1)
+            b = torch.stack([self.states[self.cur + 1, o + j] for j in range(n)], 1).argmax(1)
+            w = w + (a != b).float()
         return w.clamp(max=5.0)
 
     def batch(self, split, B):

@@ -7,7 +7,7 @@
 set -e
 cd /workspace/gn
 SIZE=${1:-L}; EPOCHS=${2:-3}; GAMES=${3:-10000}
-[ -f data/v3/schema.json ] || (cd game && node tools/gen.mjs v3 "$GAMES" 24 --out /workspace/gn/data --keys 0.35 > /workspace/gn/gen_v3.log 2>&1)
+[ -f data/v3/schema.json ] || (cd game && node tools/gen.mjs v3 "$GAMES" "${WORKERS:-16}" --out /workspace/gn/data --keys 0.35 > /workspace/gn/gen_v3.log 2>&1)
 tail -2 gen_v3.log 2>/dev/null || true
 bash game/train/pod/job.sh "main_$SIZE" --data data/v3 --size "$SIZE" --epochs "$EPOCHS" --rollout_from 0.7 --data_device cpu
 python game/train/export.py --schema data/v3/schema.json --size "$SIZE" --ckpt "runs/main_$SIZE/best.pt" --out "onnx/play_$SIZE" --play
