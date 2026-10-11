@@ -225,10 +225,13 @@ function drawDream() {
   if (++fpsN, performance.now() - fpsT > 1000) { fps = fpsN * 1000 / (performance.now() - fpsT); fpsN = 0; fpsT = performance.now(); }
   if (!dreamEl) {
     dreamEl = document.createElement('div');
-    dreamEl.style.cssText = 'position:fixed;right:14px;top:12px;font:13px/1.4 monospace;color:#888;text-align:right;pointer-events:none';
+    dreamEl.style.cssText = 'position:fixed;right:14px;top:12px;font:13px/1.4 monospace;color:#888;text-align:right;white-space:pre;pointer-events:none';
     document.body.appendChild(dreamEl);
   }
-  dreamEl.textContent = `${q.get('model')} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (20 = real time) · ${fps.toFixed(0)} fps`;
+  const m = G.mind; // the monster's mind, as the model has it
+  dreamEl.textContent = `${q.get('model')} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (20 = real time) · ${fps.toFixed(0)} fps`
+    + `
+monster: ${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}${m.furyT > 0 ? '  FURY' : ''}`;
 }
 
 // for test tools
