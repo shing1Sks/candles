@@ -18,11 +18,12 @@ const REC = OBS_SIZE + NG + NT + 3 + 2; // obs, goal mask, tool mask, goal / run
 const rand = rng(hash(SEED, 'collect'));
 const net = weights && mlpPolicy(weights, { temp: TEMP, rand });
 
-// the kid league: every bot style (and a few chaos kids), any skill, a third on keyboards, 40% mid-game starts
+// the kid league: every bot style (60% with its numbers varied, and a few chaos kids), any skill, a third on
+// keyboards, 40% mid-game starts
 function config(i) {
   const r = rng(hash(SEED, i, 'cfg'));
   const style = r() < 0.05 ? 'chaos' : KID_STYLES[Math.floor(r() * KID_STYLES.length)];
-  const kid = { style, skill: 0.3 + 0.7 * r() };
+  const kid = { style, skill: 0.3 + 0.7 * r(), vary: r() < 0.6 };
   if (r() < 0.35) kid.keys = true;
   return { id: `rl:${SEED}:${i}`, seed: hash(SEED, i), persona: { type: 'nightmare' }, kid, start: r() < 0.4 ? 'mid' : 'fresh', maxT: 150 };
 }

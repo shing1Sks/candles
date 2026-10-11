@@ -41,11 +41,19 @@ const STYLE = {
 
 function gauss(rand) { return Math.sqrt(-2 * Math.log(Math.max(1e-12, rand()))) * Math.cos(2 * Math.PI * rand()); }
 
-export function createKidBot(G, { style = 'probe', skill = 0.6 } = {}, rand = Math.random) {
+// vary: the style's numbers each scaled by 0.6-1.6 for this game (and its choices' chances blended a little), so a
+// monster cannot learn five fixed kids (the learned monster trains against these, and data v4 has them)
+export function createKidBot(G, { style = 'probe', skill = 0.6, vary = false } = {}, rand = Math.random) {
   if (style === 'idle') return () => IDLE;
   if (style === 'chaos') return chaos(rand);
   if (!STYLE[style]) throw new Error(`unknown kid style ${style}`);
-  return player(G, STYLE[style], style === 'probe' ? 1 : skill, rand, style === 'probe');
+  let S = STYLE[style];
+  if (vary) {
+    S = { ...S };
+    for (const k of ['flee', 'creep', 'crawl', 'sit']) S[k] *= 0.6 + rand();
+    for (const k of ['hide', 'lure', 'shut', 'greed']) S[k] = Math.min(1, Math.max(0, S[k] * (0.5 + rand()) + (rand() < 0.25 ? rand() * 0.5 : 0)));
+  }
+  return player(G, S, style === 'probe' ? 1 : skill, rand, style === 'probe');
 }
 
 // random sticks held for a while, random buttons

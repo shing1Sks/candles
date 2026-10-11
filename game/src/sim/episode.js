@@ -29,8 +29,9 @@ function pickStyle(r) {
 // (5% chaos) and skill, and 40% of the time a random mid-game start; keys: the share of kids played as on a keyboard
 // (data v3 on; 0 keeps the earlier batches as they were); curious: the share of kids that fiddle with things (doors,
 // toys, squeaky toys, boards, wardrobes: bots/kid.js curious); nightmare: the share of games against the learned
-// monster (data v4). Each new option draws only when it is on, so earlier batches stay as they were.
-export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0 } = {}) {
+// monster (data v4); vary: the share of kid bots with their style's numbers varied (bots/kid.js). Each new option draws
+// only when it is on, so earlier batches stay as they were.
+export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0, vary = 0 } = {}) {
   const seed = hash(batch, i), r = rng(hash(seed, 'config'));
   const persona = { type: PERSONA_TYPES[Math.floor(r() * PERSONA_TYPES.length)] };
   const chaos = r() < 0.05;
@@ -39,6 +40,7 @@ export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0 
   if (r() < keys) kid.keys = true;
   if (cur && r() < cur) kid.curious = true;
   if (nightmare && r() < nightmare) persona.type = 'nightmare';
+  if (vary && r() < vary) kid.vary = true;
   return { id: `${batch}:${i}`, seed, persona, kid, start, maxT: 300 };
 }
 
