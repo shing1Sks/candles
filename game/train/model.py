@@ -55,12 +55,23 @@ GI_BUTTONS = ['run', 'lunge', 'use', 'bash', 'yell', 'light', 'reach']
 
 
 class WorldModel(nn.Module):
-    def __init__(s, schema, d=256, layers_a=4, layers_b=4, heads=None):
+    def __init__(s, schema, d=256, layers_a=4, layers_b=4, heads=None, fourier=0):
         super().__init__()
-        s.S, s.d = schema, d
+        s.S, s.d, s.fourier = schema, d, fourier
         heads = heads or max(2, d // 64)
         s.register_buffer('bins', BINS.clone(), persistent=False)
-        s.inp = nn.ModuleDict({k['kind']: nn.Linear(k['width'], d) for k in schema.kinds})
+        # positions (fields stored as a share of the house's width or depth) also go in as sines and cosines at
+        # `fourier` frequencies: sight, walls and doorways are sharp facts about places, which a plain linear code of
+        # x and z represents poorly (as in NeRF)
+        s.pos = {}
+        for k in schema.kinds:
+            cols, o = [], 0
+            for f in k['fields']:
+                if f['type'] == 'num' and f.get('scale') in (schema.map['w'], schema.map['h']): cols.append(o)
+                o += f.get('n', 1) if f['type'] == 'cat' else 1
+            s.pos[k['kind']] = cols if fourier else []
+        s.register_buffer('freqs', (2.0 ** torch.arange(max(1, fourier))) * math.pi, persistent=False)
+        s.inp = nn.ModuleDict({k['kind']: nn.Linear(k['width'] + 2 * fourier * len(s.pos[k['kind']]), d) for k in schema.kinds})
         s.out = nn.ModuleDict({k['kind']: nn.Linear(d, len(k['num']) * NB + len(k['flag']) + sum(n for _, n in k['cat'])) for k in schema.kinds})
         s.slot = nn.Embedding(schema.n_tokens, d)  # which piece (candle 3, door 7)
         s.persona = nn.Linear(len(schema.traits) + 6, d)
@@ -112,6 +123,9 @@ class WorldModel(nn.Module):
         out = []
         for k in s.S.kinds:
             x = cur[:, k['offset']: k['offset'] + k['count'] * k['width']].view(B, k['count'], k['width'])
+            if s.pos[k['kind']]:
+                a = x[..., s.pos[k['kind']]].unsqueeze(-1) * s.freqs  # B, count, positions, fourier
+                x = torch.cat([x, torch.sin(a).flatten(2), torch.cos(a).flatten(2)], -1)
             out.append(s.inp[k['kind']](x))
         if ids.is_floating_point():  # tile ids as floats (the play graphs: no integer ops, which WebGPU runs on the CPU)
             e = (ids.unsqueeze(-1) == torch.arange(s.n_types + 2, device=ids.device, dtype=ids.dtype)).to(cur.dtype) @ s.tile_emb.weight

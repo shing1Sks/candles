@@ -136,8 +136,9 @@ def main():
     a = ap.parse_args()
     S = Schema(a.schema)
     d, la, lb = SIZES[a.size]
-    m = WorldModel(S, d, la, lb).eval()
-    if a.ckpt: m.load_state_dict(torch.load(a.ckpt, map_location='cpu')['model'])
+    ck = torch.load(a.ckpt, map_location='cpu') if a.ckpt else {}
+    m = WorldModel(S, d, la, lb, fourier=ck.get('fourier', 0)).eval()
+    if a.ckpt: m.load_state_dict(ck['model'])
     os.makedirs(a.out, exist_ok=True)
     if a.play:
         export_play(m, S, a.out)

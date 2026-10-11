@@ -97,7 +97,8 @@ def main():
     # rollout training: from this share of the schedule on, every batch is two steps in a row and the second starts
     # from the model's own guess of the first (drawn, as the game draws), so it learns to carry on from its own errors
     ap.add_argument('--rollout_from', type=float, default=1.0)
-    ap.add_argument('--rollout_k', type=int, default=2, help='steps per rollout (each after the first starts from the model's guess)')
+    ap.add_argument('--fourier', type=int, default=0, help='positions also as sines and cosines at this many frequencies')
+    ap.add_argument('--rollout_k', type=int, default=2, help='steps per rollout (each after the first starts from the guess of the model)')
     ap.add_argument('--init', help='start from these weights (a best.pt or ckpt.pt), with a fresh optimizer')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -110,7 +111,7 @@ def main():
         line = json.dumps(kw); print(line, flush=True); log.write(line + '\n'); log.flush()
         with open(os.path.join(a.out, 'heartbeat'), 'w') as f: f.write(f"{time.time():.0f} {kw.get('step', -1)}\n")
     d, la, lb = SIZES[a.size]
-    model = WorldModel(data.schema, d, la, lb).to(a.device)
+    model = WorldModel(data.schema, d, la, lb, fourier=a.fourier).to(a.device)
     peak = a.lr or (6e-4 * (256 / d) ** 0.5)
     opt = torch.optim.AdamW(model.parameters(), lr=peak, betas=(0.9, 0.95), weight_decay=0.05)
     say(event='start', size=a.size, params=param_count(model), sizes=data.sizes(), load_s=round(time.time() - t0, 1), device=a.device, frac=a.frac)
@@ -168,12 +169,12 @@ def main():
             r = evaluate(model, data, 'check', batches=20)
             say(event='check', step=step, **r)
             if r['loss'] < best:
-                best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'step': step}, os.path.join(a.out, 'best.pt'))
-            torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size}, ck)
+                best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'fourier': a.fourier, 'step': step}, os.path.join(a.out, 'best.pt'))
+            torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size, 'fourier': a.fourier}, ck)
     r = evaluate(model, data, 'check', batches=40)
     if r['loss'] < best:
-        best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'step': step}, os.path.join(a.out, 'best.pt'))
-    torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size}, ck)
+        best = r['loss']; torch.save({'model': model.state_dict(), 'size': a.size, 'fourier': a.fourier, 'step': step}, os.path.join(a.out, 'best.pt'))
+    torch.save({'model': model.state_dict(), 'opt': opt.state_dict(), 'step': step, 'best': best, 'size': a.size, 'fourier': a.fourier}, ck)
     st = torch.load(os.path.join(a.out, 'best.pt'), map_location=a.device)
     model.load_state_dict(st['model'])
     exam = evaluate(model, data, 'exam', batches=60)
