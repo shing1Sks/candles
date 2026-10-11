@@ -97,6 +97,7 @@ def main():
     # rollout training: from this share of the schedule on, every batch is two steps in a row and the second starts
     # from the model's own guess of the first (drawn, as the game draws), so it learns to carry on from its own errors
     ap.add_argument('--rollout_from', type=float, default=1.0)
+    ap.add_argument('--rollout_k', type=int, default=2, help='steps per rollout (each after the first starts from the model's guess)')
     ap.add_argument('--init', help='start from these weights (a best.pt or ckpt.pt), with a fresh optimizer')
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -137,7 +138,7 @@ def main():
         if step >= sched_total or time.time() > deadline: break
         for g in opt.param_groups: g['lr'] = cosine(step, sched_total, 500, peak)
         rolling = step >= a.rollout_from * sched_total
-        steps = data.batch2('train', a.batch // 2) if rolling else [data.batch('train', a.batch)]
+        steps = data.batchk('train', a.batch // a.rollout_k, a.rollout_k) if rolling else [data.batch('train', a.batch)]
         loss, prev = 0.0, None
         for b in steps:
             if prev is not None:  # the second step starts where the model said the first would end

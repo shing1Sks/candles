@@ -100,10 +100,7 @@ class Data:
                 chosen[torch.tensor(keep_eps)[perm]] = True
                 ix = ix[chosen.to(dev)[self.ep_of[ix]]]
             self.idx[name] = ix
-        # rows whose next row is the same game's next step (two steps in a row, for rollout training)
-        same = torch.zeros(len(self.ep_of), dtype=torch.bool, device=dev)
-        same[:-1] = self.ep_of[1:] == self.ep_of[:-1]
-        self.idx2 = {k: v[same[v]] for k, v in self.idx.items()}
+        self._idxk = {}  # rows with k - 1 more steps of the same game after them (rollout training), made when asked
         self.weight = self._weights()
         self.gen = torch.Generator(device=dev).manual_seed(seed)
         self.out = torch.device(out) if out else dev
@@ -136,11 +133,19 @@ class Data:
         ix = self.idx[split]
         return self._rows(ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)])
 
-    def batch2(self, split, B):
-        """two steps in a row of the same games: (step 1, step 2); step 2's cur is step 1's nxt"""
-        ix = self.idx2[split]
+    def batchk(self, split, B, k=2):
+        """k steps in a row of the same games: [step 1, ..., step k]; each step's cur is the one before's nxt"""
+        if (split, k) not in self._idxk:
+            ix = self.idx[split]
+            ok = (ix + k - 1 < len(self.ep_of))
+            ix = ix[ok]
+            self._idxk[(split, k)] = ix[self.ep_of[ix + k - 1] == self.ep_of[ix]]
+        ix = self._idxk[(split, k)]
         pick = ix[torch.randint(len(ix), (B,), generator=self.gen, device=ix.device)]
-        return [self._rows(pick), self._rows(pick + 1)]
+        return [self._rows(pick + j) for j in range(k)]
+
+    def batch2(self, split, B):
+        return self.batchk(split, B, 2)
 
     def _rows(self, pick):
         c = self.cur[pick]
