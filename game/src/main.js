@@ -62,7 +62,9 @@ if (q.has('model')) {
     if (kidBot) dream.input(kidBot(observeKid(g), STEP), phase === 'play');
   };
   createDream(q.get('model'), G, { ep: q.get('ep') || 'webgpu', temp: Number(q.get('temp') || 1), mix: Number(q.get('mix') ?? 0.3), topP: Number(q.get('top_p') ?? 0.9),
-    mixFor: q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : null, int8: q.has('int8'), lockstep: q.has('bot') || manual, onStep })
+    // &mind=1: the monster's mind drawn at that mix; &game=1: the game's state (play, won, caught) drawn at its odds
+    mixFor: { ...(q.has('mind') ? Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind'))])) : {}),
+      ...(q.has('game') ? { game: Number(q.get('game')) } : {}) }, int8: q.has('int8'), lockstep: q.has('bot') || manual, onStep })
     .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot && !manual) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints

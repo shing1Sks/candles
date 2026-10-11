@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8" /><title>Candles · the model's world</title>
+<style>
+  :root { --bg: #0b0b0b; --panel: #141414; --line: #262626; --ink: #d8d8d8; --dim: #8a8a8a; --good: #e8e8e8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 Georgia, 'Times New Roman', serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 40px 28px 80px; }
+  h1 { font-weight: normal; font-size: 30px; letter-spacing: 0.02em; margin: 0 0 6px; }
+  h2 { font-weight: normal; font-size: 20px; margin: 44px 0 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+  p { color: var(--dim); max-width: 820px; }
+  .vids { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px; }
+  figure { margin: 0; background: var(--panel); border: 1px solid var(--line); }
+  video { width: 100%; display: block; background: #000; }
+  figcaption { padding: 10px 14px; color: var(--dim); font-size: 14px; }
+  figcaption b { color: var(--ink); font-weight: normal; }
+  table { width: 100%; border-collapse: collapse; font: 13px/1.4 ui-monospace, Consolas, monospace; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; white-space: normal; }
+  th { color: var(--dim); font-weight: normal; }
+  tr.rules td { color: var(--good); background: #181818; }
+  td .note { display: block; color: var(--dim); font-size: 12px; }
+  a { color: var(--ink); }
+  .play { font-size: 12px; }
+  code { color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Candles, played inside the model</h1>
+  <p>No rules run here. Every step (20 a second) the state of the house and the kid's input go into the main model, and
+  the model says how the whole world moves: walls, candles, doors, and the monster's mind and body. The videos are
+  recorded one model step per frame, so they play at real speed.</p>
+
+  <h2>Watch it</h2>
+  <div class="vids" id="vids"></div>
+
+  <h2>How close is it to the real game?</h2>
+  <p>The same 40 seeded games, the same kid bots, two minutes each: once by the rules, once inside each model's world.
+  Closer to the first row is better. "Pressure" is the share of time the monster is awake within 5 m of the kid.</p>
+  <table id="t"><thead><tr><th>world</th><th>kid wins</th><th>caught</th><th>time-outs</th><th>candles / min</th>
+    <th>kid m/s</th><th>pressure</th><th>catches / min</th><th>lunges / min</th><th>chasing</th><th>kid in wall</th><th></th></tr></thead><tbody></tbody></table>
+</main>
+<script>
+const clips = [
+  ['model_M_hound_vs_sneaker', 'Hound vs a sneaking kid'],
+  ['model_M_stalker_vs_hider', 'Stalker vs a hiding kid'],
+  ['model_M_brute_vs_sprinter', 'Brute vs a sprinting kid'],
+];
+document.getElementById('vids').innerHTML = clips.map(([f, t]) =>
+  `<figure><video src="/clips/${f}.mp4" poster="/clips/${f}.jpg" controls preload="metadata"></video>
+   <figcaption><b>${t}</b> · model M, the monster's mind drawn · a kid bot plays (the model never moves the kid on its own)</figcaption></figure>`).join('');
+fetch('/clips/dream_results.json').then((r) => r.json()).then((rows) => {
+  const f = (v, d = 2) => (v == null ? '' : Number(v).toFixed(d));
+  document.querySelector('#t tbody').innerHTML = rows.map((r, i) => `<tr class="${i ? '' : 'rules'}">
+    <td>${r.name}<span class="note">${r.note}</span></td><td>${r.won}</td><td>${r.caught}</td><td>${r.timeout}</td>
+    <td>${f(r.candles_per_min)}</td><td>${f(r.kid_speed)}</td><td>${f(r.pressure, 0)}%</td><td>${f(r.catches_per_min)}</td>
+    <td>${f(r.lunges_per_min)}</td><td>${f(r.chase, 1)}%</td><td>${f(r.kid_in_wall, 1)}%</td>
+    <td class="play">${r.play ? `<a href="/?model=${r.play}">play it</a>` : ''}</td></tr>`).join('');
+});
+</script>
+</body>
+</html>
