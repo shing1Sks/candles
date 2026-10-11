@@ -258,6 +258,10 @@ world). Model S, 10 games of 120 s, kid bots:
   7.9). What M still gets wrong:
   - in one game the kid slid into a wall and stayed in it (45% of that game);
   - the monster still checks too much (34%) and never chases.
+- **L, exported mid-epoch before its learning rate had wound down, drifts in another way.** The monster hangs back
+  (14.4 m from the kid, 0.07 lunges a minute), the kid is fast (1.71 m/s), and 6 games put out every candle without
+  the game ever ending in a win. Its one-step scores were the best of the three, so **one-step loss does not tell
+  how well a model holds up as a game**. Models are chosen by the rollout exam from now on.
 - This is the drift phase 2 (rollouts) exists for. `train.py --rollout_from 0.7` now trains the last 30% on two
   steps, where the second starts from the model's own drawn guess.
 
@@ -281,7 +285,11 @@ quietly, and now and then a key held into whatever is there. That gives 2.9% blo
 
 **The next run (once the account has funds, about $2 on a 4090):**
 1. Data v3: 10,000 games with `--keys 0.35`, generated on the pod (about 2 min).
-2. L for 3 epochs with `--rollout_from 0.7`; copy best.pt off the pod after every run.
-3. Export, then run the rollout exam on L against the rules. The targets: outcome mix and candle rate within 25% of
-   the rules, kid speed within 10%, no win short of 6 candles, wall clipping under 0.1% with keyboard kids.
+2. M and L, each for 3 epochs with `--rollout_from 0.7` (`next_run.sh M`, `next_run.sh L`: about 40 and 70 minutes
+   on a 5090). Copy best.pt and summary.json off the pod after every run.
+3. Export both and run the rollout exam against the rules. Pick by these targets:
+   - outcome mix and candle rate within 25% of the rules;
+   - kid speed within 10%;
+   - no win short of 6 candles, and none missed at 6;
+   - wall clipping under 0.1% with keyboard kids.
 4. If L is too slow for the laptop, distil it into a merged-piece S.
