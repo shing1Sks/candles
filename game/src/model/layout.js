@@ -78,16 +78,19 @@ export function cohere(prev, row, col, map) {
 // MON_BLOCK, or a shut door) is refused one axis at a time, so it slides along the wall instead. The model still moves
 // everything; this only refuses the moves its own map patches say are impossible. Held keys pushed the kid into walls
 // 4-8% of the time even after the keyboard data: a crutch until training fixes it.
+// The body counts, not only its centre: the points a radius away along each axis must be clear too (a little under
+// the rules' 0.24 and 0.42), else the kid sank 0.2 m into walls it pushed against.
 const KID_BLOCK = new Set([1, 6, 7]), MON_BLOCK = new Set([1, 6, 7, 2, 3, 4, 5]); // WALL LOW TALL (+ DUCT CRACK TABLE BED)
 export function unwall(prev, row, col, map) {
   const shut = (tx, tz) => { const d = map.doorAt[tz * map.w + tx]; return d >= 0 && row[col('door', 'open', d).c] < 0.5; };
-  for (const [kind, blocks] of [['kid', KID_BLOCK], ['monster', MON_BLOCK]]) {
+  for (const [kind, blocks, r] of [['kid', KID_BLOCK, 0.22], ['monster', MON_BLOCK, 0.38]]) {
     const cx = col(kind, 'x').c, cz = col(kind, 'z').c;
-    const bad = (x, z) => {
-      const tx = Math.floor(x * map.w), tz = Math.floor(z * map.h);
+    const at = (px, pz) => {
+      const tx = Math.floor(px), tz = Math.floor(pz);
       if (tx < 0 || tz < 0 || tx >= map.w || tz >= map.h) return true;
       return blocks.has(map.tiles[tz * map.w + tx]) || shut(tx, tz);
     };
+    const bad = (x, z) => { const px = x * map.w, pz = z * map.h; return at(px, pz) || at(px - r, pz) || at(px + r, pz) || at(px, pz - r) || at(px, pz + r); };
     if (!bad(row[cx], row[cz]) || bad(prev[cx], prev[cz])) continue; // fine, or already inside (never trap it)
     if (!bad(prev[cx], row[cz])) row[cx] = prev[cx];
     else if (!bad(row[cx], prev[cz])) row[cz] = prev[cz];
