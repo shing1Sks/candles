@@ -1,7 +1,9 @@
 // The rollout exam: does the main model hold up as a game, not just one step at a time? The same games (seed, monster
 // type, kid bot, start) are played twice: once by the rules (src/sim) and once inside the model's world (the model
 // runs every step on its own output, as in ?model=). Then what happened in each is compared.
-//   node tools/dream_exam.mjs MODEL_DIR [--games 8] [--seconds 120] [--batch exam] [--int8] [--mix 0.3] [--out file.json]
+//   node tools/dream_exam.mjs MODEL_DIR [--games 8] [--seconds 120] [--batch exam] [--int8] [--mix 0.3] [--mind 1]
+//        [--part k/P] [--threads 8] [--out file.json]       (--part: only games i with i % P == k, for parallel runs)
+//   node tools/dream_exam.mjs --merge part0.json part1.json ... [--out file.json]
 import * as ort from 'onnxruntime-web';
 import { writeFileSync } from 'node:fs';
 import { configFor, createEpisode, startEpisode, stepEpisode, episodeOver, STEP } from '../src/sim/episode.js';
@@ -18,7 +20,15 @@ const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seco
 const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8');
 // --mind 1: the monster's mind pieces drawn at this mix (decode.js mixFor)
 const MIND = opt('mind', null), MIX_FOR = MIND === null ? null : Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(MIND)]));
-ort.env.wasm.numThreads = 8;
+ort.env.wasm.numThreads = Number(opt('threads', 8));
+if (args[0] === '--merge') {  // parts of one exam, run in parallel: one report
+  const files = args.slice(1).filter((f, i, a) => f.endsWith('.json') && a[i - 1] !== '--out'), parts = files.map((f) => JSON.parse(readFileSync(f, 'utf8')));
+  const R = parts.flatMap((p) => p.games.rules), D = parts.flatMap((p) => p.games.model);
+  const report = { ...parts[0], games: undefined, parts: files.length, rules: sum(R), model_world: sum(D) };
+  console.log(JSON.stringify(report, null, 1));
+  if (opt('out')) writeFileSync(opt('out'), JSON.stringify({ ...report, games: { rules: R, model: D } }, null, 1));
+  process.exit(0);
+}
 const meta = JSON.parse(readFileSync(`${dir}/play.json`, 'utf8'));
 // packed.onnx (one row in, one out); older exports have only play.onnx (the same graph with its inputs apart)
 const packed = existsSync(`${dir}/packed.onnx`);
@@ -115,11 +125,12 @@ function sum(list) {
 }
 
 const R = [], D = [];
-for (let i = 0; i < GAMES; i++) {
+const [PART, PARTS] = (opt('part', '0/1')).split('/').map(Number);
+for (let i = PART; i < GAMES; i += PARTS) {
   const config = configFor(BATCH, i), t = performance.now();
   R.push(rules(config));
   D.push(await dream(config));
-  const r = R[i], d = D[i];
+  const r = R[R.length - 1], d = D[D.length - 1];
   console.log(`game ${i} ${config.persona.type} vs ${config.kid.style} (${config.start}): rules ${r.outcome} ${r.candlesOut} out in ${r.t.toFixed(0)} s | model ${d.outcome} ${d.candlesOut} out in ${d.t.toFixed(0)} s, kid in wall ${(100 * d.kidClip / d.steps).toFixed(1)}%  [${((performance.now() - t) / 1000).toFixed(0)} s]`);
 }
 const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
