@@ -293,3 +293,47 @@ quietly, and now and then a key held into whatever is there. That gives 2.9% blo
    - no win short of 6 candles, and none missed at 6;
    - wall clipping under 0.1% with keyboard kids.
 4. If L is too slow for the laptop, distil it into a merged-piece S.
+
+## 11. The day's runs (2026-10-11, Vast.ai)
+
+**Data v3:** 10,000 games, 35% of kids played as on a keyboard. Every number below comes from the rollout exam: the
+same 40 seeded games, 2 minutes each, played by the rules and inside each model.
+
+| | Kid wins / caught / time-outs | Candles / min | Kid m/s | Pressure | Catches / min | Chasing |
+|---|---|---|---|---|---|---|
+| **The rules** | 6 / 27 / 7 | 2.89 | 1.12 | 47% | 0.57 | 10% |
+| L, 3 epochs, rollouts from 70% | 21 / 10 / 9 | 3.66 | 1.10 | 49% | 0.22 | 7% |
+| M, same recipe, mind drawn | 11 / 23 / 6 | 3.27 | 1.15 | 43% | 0.52 | 13% |
+| **M round 3** (+2 epochs of rollouts), mind drawn | **7 / 27 / 6** | 3.36 | **1.12** | **46%** | 0.73 | 9% |
+| M round 3, the play default (kid exact, coherent catches) | 13 / 19 / 8 | 3.05 | 1.08 | 48% | 0.38 | 12% |
+| M + Fourier features, 4-step rollouts | 3 / 16 / 21 | 2.07 | 0.77 | 68% | 0.29 | 9% |
+| M + Fourier, endgame weights | 0 / 12 / 28 | 1.95 | 0.79 | 59% | 0.18 | 8% |
+
+**What worked:**
+- **Rollout training is the lever.** The monster went from never chasing (0.3%) to chasing like the rules (9–13%).
+  Two more epochs of it (round 3) brought outcomes, speed and pressure to the rules' numbers.
+- **Weighting the monster's decision steps** (mode or action changes count double).
+- **Decoding:**
+  - top-p draws, so near-certain things stay certain;
+  - snap: no change where the model is sure;
+  - drawing only the monster's mind, which keeps it decisive and varied while the world stays steady;
+  - constrained decoding: a catch, win or relit candle the model's own world contradicts is refused. About a third
+    of the catches came with the monster more than 2 m away; those were the "sudden losses" in play.
+
+**What did not:**
+- **Fourier position features.** They give better one-step decisions, but run on its own output the monster hovers
+  close and the kid creeps (stand-offs), with few catches.
+- **Endgame weights.** More weight on the last 1.5 s before catches made the stand-offs worse.
+- **L over M.** L had the better one-step scores but was the easier, more drifting world.
+
+**Playing it (user, 18:55):** "random, slow, then suddenly lost". The answers:
+- crisp decoding (above);
+- coherent catches;
+- a model at 10 steps a second (`--stride 2`): half the work per second of play, so real time on the laptop, and half
+  the compounding.
+
+**Infrastructure:**
+- Vast.ai hosts vary a lot: two of seven rentals were unusable (overloaded, or broken ssh) and one never started.
+  `vast_up.sh` destroys anything without ssh after 5 minutes.
+- Rows stay in RAM (`--data_device cpu`).
+- Exams run on the GPU machine in 8 parallel parts (`exam.sh`).
