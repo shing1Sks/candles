@@ -10,14 +10,14 @@ import { configFor, createEpisode, startEpisode, stepEpisode, episodeOver, STEP 
 import { observeKid } from '../src/sim/bots/kid.js';
 import { encode, encodeKI, STATE_SIZE, KI_SIZE } from '../src/sim/schema.js';
 import { decode } from '../src/model/decode.js';
-import { layout, patchIds, personaVec, cohere } from '../src/model/layout.js';
+import { layout, patchIds, personaVec, cohere, unwall } from '../src/model/layout.js';
 import { apply, events } from '../src/model/dream.js';
 import { readFileSync, existsSync } from 'node:fs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
 const dir = args[0], GAMES = Number(opt('games', 8)), SECONDS = Number(opt('seconds', 120)), BATCH = opt('batch', 'exam');
-const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8'), TOP_P = Number(opt('top_p', 1)), SNAP = args.includes('--snap'), PEAK = args.includes('--peak'), COHERE = args.includes('--cohere'), KEYS = Number(opt('keys', 0)); // --keys 1: every kid played as on a keyboard
+const MIX = Number(opt('mix', 0.3)), INT8 = args.includes('--int8'), TOP_P = Number(opt('top_p', 1)), SNAP = args.includes('--snap'), PEAK = args.includes('--peak'), COHERE = args.includes('--cohere'), WALLS = args.includes('--walls'), KEYS = Number(opt('keys', 0)); // --keys 1: every kid played as on a keyboard
 // --mind 1: the monster's mind pieces drawn at this mix (decode.js mixFor)
 const MIND = opt('mind', null), MIX_FOR = MIND === null ? {} : Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(MIND)]));
 // --mixfor game=1,monster=0.5: a mix for any kinds of piece
@@ -97,6 +97,7 @@ async function dream(config) {
     row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR, topP: TOP_P, snap: SNAP, peak: PEAK });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i]));
     if (COHERE) cohere(prev, row, col, MAP);
+    if (WALLS) unwall(prev, row, col, MAP);
     apply(G, row, col, 0.05 * STRIDE);
     events(G, prev, row, y.subarray(13 + meta.world), col);
     look(G, s, t0);
@@ -138,6 +139,6 @@ for (let i = PART; i < GAMES; i += PARTS) {
   const r = R[R.length - 1], d = D[D.length - 1];
   console.log(`game ${i} ${config.persona.type} vs ${config.kid.style} (${config.start}): rules ${r.outcome} ${r.candlesOut} out in ${r.t.toFixed(0)} s | model ${d.outcome} ${d.candlesOut} out in ${d.t.toFixed(0)} s, kid in wall ${(100 * d.kidClip / d.steps).toFixed(1)}%  [${((performance.now() - t) / 1000).toFixed(0)} s]`);
 }
-const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, mixfor: MIX_FOR, top_p: TOP_P, snap: SNAP, peak: PEAK, cohere: COHERE, keys: KEYS, stride: STRIDE, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
+const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, mixfor: MIX_FOR, top_p: TOP_P, snap: SNAP, peak: PEAK, cohere: COHERE, walls: WALLS, keys: KEYS, stride: STRIDE, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
 console.log(JSON.stringify(report, null, 1));
 if (opt('out')) writeFileSync(opt('out'), JSON.stringify({ ...report, games: { rules: R, model: D } }, null, 1));

@@ -65,7 +65,7 @@ if (q.has('model')) {
     // the defaults are the ones that played best (the rollout exam, .work/day.md): your kid exact (&kid=), the monster's
     // mind drawn (&mind=), the rest at &mix; &game= draws the game's state (play, won, caught) at that mix
     mixFor: { ...Object.fromEntries(['mind', 'belief', 'pending', 'sense'].map((k) => [k, Number(q.get('mind') ?? 1)])), kid: Number(q.get('kid') ?? 0),
-      ...(q.has('game') ? { game: Number(q.get('game')) } : {}) }, int8: q.has('int8'), snap: q.get('snap') !== '0', peak: q.get('peak') !== '0', lockstep: q.has('bot') || manual, onStep })
+      ...(q.has('game') ? { game: Number(q.get('game')) } : {}) }, int8: q.has('int8'), snap: q.get('snap') !== '0', peak: q.get('peak') !== '0', walls: q.get('walls') !== '0', lockstep: q.has('bot') || manual, onStep })
     .then((d) => { dream = d; $('prompt').textContent = ''; if (kidBot && !manual) d.input(dreamIn, true); }, (e) => { $('prompt').textContent = `model failed: ${e.message}`; console.error(e); });
 }
 if (q.has('rec')) { $('hints').style.display = 'none'; begin(); } // recording a clip: no title, no hints

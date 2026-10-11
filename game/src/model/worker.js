@@ -6,7 +6,7 @@
 //   out: ready { threads, isolated, stride }, step { prev, row, odds, ms }, error { message }
 import * as ort from 'onnxruntime-web/webgpu';
 import { decode } from './decode.js';
-import { layout, patchIds, cohere } from './layout.js';
+import { layout, patchIds, cohere, unwall } from './layout.js';
 import { STATE_SIZE, KI_SIZE } from '../sim/schema.js';
 
 const NG = 4 * 21 + 2 * 32; // the giant's stick and aim bins (train/model.py)
@@ -63,6 +63,7 @@ async function loop(my) {
     row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: opts.temp, mix: opts.mix, topP: opts.topP, mixFor: opts.mixFor, snap: opts.snap, peak: opts.peak });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i])); // a runaway number cannot run far
     if (opts.cohere !== false) cohere(prev, row, col, map);
+    if (opts.walls !== false) unwall(prev, row, col, map);
     postMessage({ type: 'step', prev, row, odds: y.slice(13 + meta.world), ms: performance.now() - t1 });
     const wait = 50 * (meta.stride || 1) - (performance.now() - t0); // a step is 0.05 s x the model's stride
     if (wait > 0) await sleep(wait);

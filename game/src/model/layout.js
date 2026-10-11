@@ -51,3 +51,25 @@ export function cohere(prev, row, col, map) {
   if (was === 0 && now === 1) for (let i = 0; i < 6; i++) if (row[col('candle', 'lit', i).c] > 0.5) { setPlay(); break; }
   return row;
 }
+
+// The same for walls (on unless &walls=0): a decoded position inside a tile the piece cannot be in (level.js KID_BLOCK /
+// MON_BLOCK, or a shut door) is refused one axis at a time, so it slides along the wall instead. The model still moves
+// everything; this only refuses the moves its own map patches say are impossible. Held keys pushed the kid into walls
+// 4-8% of the time even after the keyboard data: a crutch until training fixes it.
+const KID_BLOCK = new Set([1, 6, 7]), MON_BLOCK = new Set([1, 6, 7, 2, 3, 4, 5]); // WALL LOW TALL (+ DUCT CRACK TABLE BED)
+export function unwall(prev, row, col, map) {
+  const shut = (tx, tz) => { const d = map.doorAt[tz * map.w + tx]; return d >= 0 && row[col('door', 'open', d).c] < 0.5; };
+  for (const [kind, blocks] of [['kid', KID_BLOCK], ['monster', MON_BLOCK]]) {
+    const cx = col(kind, 'x').c, cz = col(kind, 'z').c;
+    const bad = (x, z) => {
+      const tx = Math.floor(x * map.w), tz = Math.floor(z * map.h);
+      if (tx < 0 || tz < 0 || tx >= map.w || tz >= map.h) return true;
+      return blocks.has(map.tiles[tz * map.w + tx]) || shut(tx, tz);
+    };
+    if (!bad(row[cx], row[cz]) || bad(prev[cx], prev[cz])) continue; // fine, or already inside (never trap it)
+    if (!bad(prev[cx], row[cz])) row[cx] = prev[cx];
+    else if (!bad(row[cx], prev[cz])) row[cz] = prev[cz];
+    else { row[cx] = prev[cx]; row[cz] = prev[cz]; }
+  }
+  return row;
+}
