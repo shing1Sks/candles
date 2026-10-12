@@ -74,6 +74,21 @@ class Packed(nn.Module):
         return torch.cat([gi, world, ev], 1)
 
 
+class PackedBrain(nn.Module):
+    """the world for a separate monster brain (src/model/brain.js): its buttons come in like your keys.
+    x = [cur | persona | ids | ki | gi (13, as recorded)] -> [world | events]"""
+    def __init__(s, m, sizes):
+        super().__init__(); s.m, s.sizes = m, sizes
+
+    def forward(s, x):
+        parts, o = [], 0
+        for n in s.sizes: parts.append(x[:, o: o + n]); o += n
+        cur, persona, ids, ki, gi = parts
+        a, _ = s.m.stage_a(cur, persona, ids)
+        heads, ev = s.m.stage_b(a, ki, gi)
+        return torch.cat([torch.cat([heads[k['kind']].flatten(1) for k in s.m.S.kinds], 1), ev], 1)
+
+
 def export_play(m, S, out):
     """the two graphs the game runs, plus play.json: the input sizes, the pieces' head layout and the bins, so the game
     decides every number, flag and choice itself (src/model/decode.js; in the graph that took WebGPU 7x longer), and a
@@ -99,6 +114,9 @@ def export_play(m, S, out):
     sizes = [S.size, len(S.traits) + len(PERSONA_TYPES), n_ids, len(S.ki), 4 * GI_STICK + 2 * GI_AIM, 1, 7]
     x = torch.cat([cur, persona, ids.flatten(1), ki, torch.zeros(1, sizes[4]), torch.zeros(1, 1), torch.full((1, 7), 0.5)], 1)
     torch.onnx.export(Packed(Play(m).eval(), sizes).eval(), (x,), os.path.join(out, 'packed.onnx'), input_names=['x'], output_names=['y'], **kw)
+    bsizes = sizes[:4] + [len(S.gi)]
+    xb = torch.cat([cur, persona, ids.flatten(1), ki, gi], 1)
+    torch.onnx.export(PackedBrain(m, bsizes).eval(), (xb,), os.path.join(out, 'packed_brain.onnx'), input_names=['x'], output_names=['y'], **kw)
     kinds, o = [], 0
     for k in S.kinds:
         w = len(k['num']) * NB + len(k['flag']) + sum(n for _, n in k['cat'])

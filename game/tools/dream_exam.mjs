@@ -14,6 +14,7 @@ import { layout, viewIds, personaVec, cohere, unwall } from '../src/model/layout
 import { apply, events } from '../src/model/dream.js';
 import { setNightmarePolicy, mlpPolicy } from '../src/sim/mind/nightmare.js';
 import { readFileSync, existsSync } from 'node:fs';
+import { createBrain } from '../src/model/brain.js';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
@@ -37,8 +38,20 @@ if (args[0] === '--merge') {  // parts of one exam, run in parallel: one report
 }
 const meta = JSON.parse(readFileSync(`${dir}/play.json`, 'utf8')), STRIDE = meta.stride || 1; // a step is 0.05 x stride s
 // packed.onnx (one row in, one out); older exports have only play.onnx (the same graph with its inputs apart)
-const packed = existsSync(`${dir}/packed.onnx`);
-const session = await ort.InferenceSession.create(`${dir}/${packed ? (INT8 ? 'packed_int8' : 'packed') : 'play'}.onnx`);
+// --brain: the monster's brain (its mind, e.g. the nightmare) is a second player: it reads the model's row and its
+// buttons go into stage B (play_a.onnx, then play_b.onnx), instead of the model's own guess of them
+const BRAIN = args.includes('--brain');
+const packed = !BRAIN && existsSync(`${dir}/packed.onnx`);
+const sessA = BRAIN && await ort.InferenceSession.create(`${dir}/play_a.onnx`), sessB = BRAIN && await ort.InferenceSession.create(`${dir}/play_b.onnx`);
+const session = !BRAIN && await ort.InferenceSession.create(`${dir}/${packed ? (INT8 ? 'packed_int8' : 'packed') : 'play'}.onnx`);
+async function runBrain(x, gi) {
+  const T = (i, dims) => new ort.Tensor('float32', x.slice(at[i], at[i] + sizes[i]), dims);
+  const a = await sessA.run({ cur: T(0, [1, sizes[0]]), persona: T(1, [1, sizes[1]]), ids: T(2, [1, sizes[2]]) });
+  const o = await sessB.run({ tokens: a.tokens, ki: T(3, [1, sizes[3]]), gi: new ort.Tensor('float32', Float32Array.from(gi), [1, gi.length]) });
+  const y = new Float32Array(13 + meta.world + meta.events);
+  y.set(gi, 0); y.set(o.world.data, 13); y.set(o.events.data, 13 + meta.world);
+  return y;
+}
 async function run(x) {
   if (packed) return (await session.run({ x: new ort.Tensor('float32', x, [1, x.length]) })).y.data;
   const T = (i, dims) => new ort.Tensor('float32', x.slice(at[i], at[i] + sizes[i]), dims);
@@ -90,18 +103,22 @@ async function dream(config) {
   const x = new Float32Array(at[6] + 7), ids = new Float32Array(meta.ids || 225), ki = new Float32Array(KI_SIZE);
   let row = new Float32Array(STATE_SIZE); encode(G, row, 0);
   x.set(personaVec(G.mind.persona, meta.persona), at[1]); x[at[5]] = 1;
+  const brain = BRAIN && createBrain(G.L, config.persona, config.seed, col);
+  if (brain) Object.assign(brain.mind, structuredClone({ ...G.mind, persona: undefined, rand: undefined, think: undefined, policy: undefined }), { persona: brain.mind.persona, rand: brain.mind.rand, think: brain.mind.think }); // a mid-game start: its mind as it was
   while (G.state === 'play' && G.t - t0 < SECONDS - 1e-9) {
     encodeKI(kidBot(observeKid(G), STEP * STRIDE), ki, 0);
     viewIds(MAP, row, col, ids);
     x.set(row, at[0]); x.set(ids, at[2]); x.set(ki, at[3]);
     for (let i = 0; i < NG; i++) x[at[4] + i] = -Math.log(-Math.log(Math.random() + 1e-12) + 1e-12);
     for (let i = 0; i < 7; i++) x[at[6] + i] = Math.random();
-    const y = await run(x);
+    const b = brain && brain.decide(row, STEP * STRIDE);
+    const y = brain ? await runBrain(x, b.gi) : await run(x);
     const prev = row;
     row = decode(meta, y.subarray(13, 13 + meta.world), prev, { temp: 1, mix: MIX, mixFor: MIX_FOR, topP: TOP_P, snap: SNAP, peak: PEAK });
     for (let i = 0; i < row.length; i++) row[i] = Math.min(2, Math.max(-2, row[i]));
     if (COHERE) cohere(prev, row, col, MAP);
     if (WALLS) unwall(prev, row, col, MAP);
+    if (brain) brain.write(row);
     apply(G, row, col, 0.05 * STRIDE);
     events(G, prev, row, y.subarray(13 + meta.world), col);
     look(G, s, t0);
@@ -143,6 +160,6 @@ for (let i = PART; i < GAMES; i += PARTS) {
   const r = R[R.length - 1], d = D[D.length - 1];
   console.log(`game ${i} ${config.persona.type} vs ${config.kid.style} (${config.start}): rules ${r.outcome} ${r.candlesOut} out in ${r.t.toFixed(0)} s | model ${d.outcome} ${d.candlesOut} out in ${d.t.toFixed(0)} s, kid in wall ${(100 * d.kidClip / d.steps).toFixed(1)}%  [${((performance.now() - t) / 1000).toFixed(0)} s]`);
 }
-const report = { model: dir, int8: INT8, mix: MIX, mind: MIND, mixfor: MIX_FOR, top_p: TOP_P, snap: SNAP, peak: PEAK, cohere: COHERE, walls: WALLS, keys: KEYS, stride: STRIDE, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
+const report = { model: dir, brain: BRAIN, int8: INT8, mix: MIX, mind: MIND, mixfor: MIX_FOR, top_p: TOP_P, snap: SNAP, peak: PEAK, cohere: COHERE, walls: WALLS, keys: KEYS, stride: STRIDE, seconds: SECONDS, rules: sum(R), model_world: sum(D) };
 console.log(JSON.stringify(report, null, 1));
 if (opt('out')) writeFileSync(opt('out'), JSON.stringify({ ...report, games: { rules: R, model: D } }, null, 1));
