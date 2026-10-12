@@ -141,8 +141,10 @@ export function toolStart(G, rand) {
   randomStart(G, rand);
   const L = G.L, k = G.kid, M = G.monster;
   const lit = G.candles.filter((c) => c.lit);
-  for (let i = 0; i < 6 - lit.length && G.candles.filter((c) => !c.lit).length < 2; i++) { const c = lit[i]; c.lit = false; c.outAt = G.t - 20; }
-  if (G.candles.every((c) => !c.lit)) G.candles[0].lit = true;
+  // blown out as a game would leave them (progress past 1: a candle out with no progress is a state no game has, and
+  // taught a world model that every candle out need not be a win)
+  for (let i = 0; i < lit.length && G.candles.filter((c) => !c.lit).length < 2; i++) Object.assign(lit[i], { lit: false, progress: 1.01, outAt: G.t - 20 });
+  if (G.candles.every((c) => !c.lit)) Object.assign(G.candles[0], { lit: true, progress: 0 });
   k.hidden = -1;
   for (let tries = 0; tries < 50; tries++) {
     const x = 1 + Math.floor(rand() * (L.w - 2)), z = 1 + Math.floor(rand() * (L.h - 2));
