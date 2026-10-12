@@ -14,7 +14,7 @@ import { setNightmarePolicy, mlpPolicy } from '../../src/sim/mind/nightmare.js';
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(`--${k}`); return i < 0 ? d : args[i + 1]; };
 const dirs = args.filter((a, i) => !a.startsWith('--') && !(args[i - 1] || '').match(/^--(runs|only|fam|part|threads|out|monster|policy)$/));
-const RUNS = Number(opt('runs', 10)), RAW = args.includes('--raw');
+const RUNS = Number(opt('runs', 10)), RAW = args.includes('--raw'), BRAIN = args.includes('--brain'); // --brain: the monster's mind plays it in the model (packed_brain.onnx)
 const ONLY = opt('only', '') ? new Set(opt('only').split(',')) : null, FAM = opt('fam', '') ? new Set(opt('fam').split(',')) : null;
 const [PART, PARTS] = opt('part', '0/1').split('/').map(Number);
 ort.env.wasm.numThreads = Number(opt('threads', 8));
@@ -29,7 +29,7 @@ const W = Math.max(4, ...cases.map((c) => c.id.length));
 const report = { runs: RUNS, raw: RAW, part: `${PART}/${PARTS}`, models: {} };
 for (const dir of dirs) {
   const meta = JSON.parse(readFileSync(`${dir}/play.json`, 'utf8'));
-  const session = await ort.InferenceSession.create(`${dir}/packed.onnx`);
+  const session = await ort.InferenceSession.create(`${dir}/${BRAIN ? 'packed_brain' : 'packed'}.onnx`);
   const run = async (x) => (await session.run({ x: new ort.Tensor('float32', x, [1, x.length]) })).y.data;
   const name = dir.replace(/\/$/, '').split(/[\\/]/).pop(), rows = [], fams = {};
   const secs = cases.reduce((s, c) => s + c.secs, 0);
@@ -39,7 +39,7 @@ for (const dir of dirs) {
     const rules = playRules(c).why;
     let pass = 0; const fails = [];
     for (let r = 0; r < RUNS; r++) {
-      const { why } = await playModel(c, meta, run, { seed: 1 + r, decodeOpt, crutches: !RAW });
+      const { why } = await playModel(c, meta, run, { seed: 1 + r, decodeOpt, crutches: !RAW, brain: BRAIN });
       if (why === null) pass++; else fails.push(why);
     }
     total += pass;

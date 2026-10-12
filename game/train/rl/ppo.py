@@ -28,6 +28,7 @@ ap.add_argument('--switch', type=float, default=None, help='reward cost of a cha
 ap.add_argument('--side', default='monster', help='who learns: monster (the nightmare) or kid (the evader)')
 ap.add_argument('--opp', default='', help='the weights of the other side: the evader in the kid league, or the nightmare the kid plays')
 ap.add_argument('--evaders', type=float, default=0.3, help='side monster with --opp: the share of games against the evader')
+ap.add_argument('--collect', default='', help='more collect.mjs arguments, e.g. "--skill_min 0.5 --time 0.003"')
 a = ap.parse_args()
 os.makedirs(a.out, exist_ok=True)
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -70,7 +71,7 @@ def collect(rnd, wpath):
         p = os.path.join(a.out, f'part{k}')
         procs.append((subprocess.Popen(['node', os.path.join(HERE, 'collect.mjs'), '--weights', wpath, '--decisions', str(per), '--seed', str(rnd * 1000 + k),
                                         '--out', p + '.bin', '--stats', p + '.json', '--gamma', str(a.gamma), '--side', a.side]
-                                        + (['--switch', str(a.switch)] if a.switch is not None else []) + (['--opp', a.opp, '--evaders', str(a.evaders)] if a.opp else []), cwd=GAME), p))
+                                        + (['--switch', str(a.switch)] if a.switch is not None else []) + (['--opp', a.opp, '--evaders', str(a.evaders)] if a.opp else []) + a.collect.split(), cwd=GAME), p))
     parts, games = [], []
     for proc, p in procs:
         if proc.wait() != 0: raise SystemExit(f'collect failed: {p}')

@@ -102,3 +102,34 @@ export function randomStart(G, rand) {
   G.sense.ping = { x: k.x + Math.cos(b) * e, z: k.z + Math.sin(b) * e };
   G.sense.wake = true;
 }
+
+// A crawl-space drill (data v5: crawl spaces are no longer safe, and kid bots seldom use them): after a random
+// mid-game start, the kid in or just outside a crawl space (the vent duct half the time) and the monster 2-7 m away by
+// its paths, having just seen it there: it comes in after you, or reaches in.
+export function crawlStart(G, rand) {
+  randomStart(G, rand);
+  const L = G.L, k = G.kid, M = G.monster;
+  const ducts = L.passages.filter((p) => L.at(p.tiles[0][0], p.tiles[0][1]) === 2), others = L.passages.filter((p) => !ducts.includes(p));
+  for (let tries = 0; tries < 50; tries++) {
+    const p = rand() < 0.5 && ducts.length ? ducts[Math.floor(rand() * ducts.length)] : others[Math.floor(rand() * others.length)];
+    const [tx, tz] = rand() < 0.75 ? p.tiles[Math.floor(rand() * p.tiles.length)] : p.exits[Math.floor(rand() * p.exits.length)];
+    const md = distField(L, tx, tz, (x, z) => L.monBlocked(x, z) && !(x === tx && z === tz));
+    const near = [];
+    for (let i = 0; i < md.length; i++) if (md[i] >= 2 && md[i] <= 7 && L.monSpot(i % L.w, Math.floor(i / L.w)) && L.doorAt(i % L.w, Math.floor(i / L.w)) < 0) near.push(i);
+    if (!near.length) continue;
+    const t = near[Math.floor(rand() * near.length)];
+    Object.assign(k, { x: tx + 0.3 + rand() * 0.4, z: tz + 0.3 + rand() * 0.4, vx: 0, vz: 0, tile: -1, hidden: -1 });
+    if (k.held >= 0) Object.assign(G.items[k.held], { x: k.x, z: k.z });
+    Object.assign(M, { x: (t % L.w) + 0.5, z: Math.floor(t / L.w) + 0.5, vx: 0, vz: 0, awake: true });
+    const dx = k.x - M.x, dz = k.z - M.z, d = Math.hypot(dx, dz) || 1;
+    M.hx = dx / d; M.hz = dz / d;
+    G.sense.lastSeen = { x: k.x, z: k.z, vx: 0, vz: 0 }; G.sense.lastSeenT = G.t - 0.3;
+    const m = G.mind;
+    if (m) {
+      m.lastSeen = { x: k.x, z: k.z, vx: 0, vz: 0, t: G.t - 0.3 };
+      m.beliefs = [{ x: k.x, z: k.z, spread: 0.5, conf: 1, w: 1, kind: 'sight', age: 0.3 }];
+      m.mode = 'hunt';
+    }
+    return;
+  }
+}

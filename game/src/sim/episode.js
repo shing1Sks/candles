@@ -7,7 +7,7 @@ import { observe } from './senses.js';
 import { createMind, think } from './mind/index.js';
 import { createKidBot, observeKid, keyboard, curious, KID_STYLES } from './bots/kid.js';
 import { createEvader } from './bots/evader.js';
-import { randomStart } from './bots/start.js';
+import { randomStart, crawlStart } from './bots/start.js';
 import { PERSONA_TYPES } from './mind/personas.js';
 import { countCases } from './coverage.js';
 import { rng, hash } from './rng.js';
@@ -32,7 +32,8 @@ function pickStyle(r) {
 // toys, squeaky toys, boards, wardrobes: bots/kid.js curious); nightmare: the share of games against the learned
 // monster (data v4); evaders: the share of kids that are the learned evader (bots/evader.js, gen.mjs --evader); vary: the share of kid bots with their style's numbers varied (bots/kid.js). Each new option draws
 // only when it is on, so earlier batches stay as they were.
-export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0, vary = 0, evaders = 0 } = {}) {
+// crawl: the share of games that start as a crawl-space drill (bots/start.js crawlStart; data v5)
+export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0, vary = 0, evaders = 0, crawl = 0 } = {}) {
   const seed = hash(batch, i), r = rng(hash(seed, 'config'));
   const persona = { type: PERSONA_TYPES[Math.floor(r() * PERSONA_TYPES.length)] };
   const chaos = r() < 0.05;
@@ -43,7 +44,7 @@ export function configFor(batch, i, { keys = 0, curious: cur = 0, nightmare = 0,
   if (nightmare && r() < nightmare) persona.type = 'nightmare';
   if (vary && r() < vary) kid.vary = true;
   if (evaders && r() < evaders) kid.style = 'evader';
-  return { id: `${batch}:${i}`, seed, persona, kid, start, maxT: 300 };
+  return { id: `${batch}:${i}`, seed, persona, kid, start: crawl && r() < crawl ? 'crawl' : start, maxT: 300 };
 }
 
 // three random streams: the world rng(seed), the mind's, and the kid bot's
@@ -55,6 +56,7 @@ export function createEpisode(config) {
   if (config.kid.keys) kidBot = keyboard(kidBot, rng(hash(config.seed, 4)));
   if (config.kid.curious) kidBot = curious(kidBot, G, rng(hash(config.seed, 5)));
   if (config.start === 'mid') randomStart(G, rng(hash(config.seed, 3)));
+  if (config.start === 'crawl') crawlStart(G, rng(hash(config.seed, 3)));
   return { G, kidBot };
 }
 

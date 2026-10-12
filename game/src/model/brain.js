@@ -67,6 +67,11 @@ export function createBrain(L, persona, seed, col) {
 
   return {
     mind: G.mind,
+    // take over a mind's state (a game already under way: a mid-game start, a mechanics moment)
+    adopt(m) {
+      const keep = { persona: G.mind.persona, rand: G.mind.rand, think: G.mind.think, policy: G.mind.policy };
+      Object.assign(G.mind, structuredClone({ ...m, persona: undefined, rand: undefined, think: undefined, policy: undefined }), keep);
+    },
     // the row now -> the giant's buttons for this step (as recorded: schema GI_FIELDS), and the brain's own events
     decide(row, dt) {
       G.events.length = 0;

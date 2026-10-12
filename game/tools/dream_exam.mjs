@@ -104,7 +104,7 @@ async function dream(config) {
   let row = new Float32Array(STATE_SIZE); encode(G, row, 0);
   x.set(personaVec(G.mind.persona, meta.persona), at[1]); x[at[5]] = 1;
   const brain = BRAIN && createBrain(G.L, config.persona, config.seed, col);
-  if (brain) Object.assign(brain.mind, structuredClone({ ...G.mind, persona: undefined, rand: undefined, think: undefined, policy: undefined }), { persona: brain.mind.persona, rand: brain.mind.rand, think: brain.mind.think }); // a mid-game start: its mind as it was
+  if (brain) brain.adopt(G.mind); // a mid-game start: its mind as it was
   while (G.state === 'play' && G.t - t0 < SECONDS - 1e-9) {
     encodeKI(kidBot(observeKid(G), STEP * STRIDE), ki, 0);
     viewIds(MAP, row, col, ids);

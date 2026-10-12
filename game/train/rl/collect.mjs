@@ -2,7 +2,8 @@
 // what it knew, what it could pick, what it picked, and the reward until its next decision. It stops at the end of a
 // game once it has `decisions`.
 //   node train/rl/collect.mjs --weights w.json|none --decisions 6000 --seed 1 --out part.bin [--stats part.json] [--temp 1]
-//        [--side monster|kid] [--opp OPP.json] [--evaders 0.3]
+//        [--side monster|kid] [--opp OPP.json] [--evaders 0.3] [--skill_min 0.3] [--time 0.002]
+// --skill_min: the weakest kid bot (skill from this to 1); --time: the monster's cost of a decision (0.25 s): its hurry
 // side monster (the nightmare learns): against the kid league - the bots, and with --opp the evader's weights, that
 //   share of the games against the learned kid. Reward (its appetite): +1 a catch, -1 the kid wins, -0.2 a candle
 //   out, -0.002 a decision (time), -SWITCH a change of mind (at 0.003 it changed plan every quarter second: indecisive
@@ -22,6 +23,7 @@ const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(`--
 const SIDE = opt('side', 'monster'), KID = SIDE === 'kid';
 const SWITCH = Number(opt('switch', KID ? 0.01 : 0.03)), N = Number(opt('decisions', 6000)), SEED = Number(opt('seed', 1)), TEMP = Number(opt('temp', 1)), GAMMA = Number(opt('gamma', 0.99));
 const wpath = opt('weights', 'none'), weights = wpath === 'none' ? null : JSON.parse(readFileSync(wpath, 'utf8'));
+const SKILL_MIN = Number(opt('skill_min', 0.3)), TIME = Number(opt('time', 0.002));
 const opp = opt('opp') ? JSON.parse(readFileSync(opt('opp'), 'utf8')) : null, EVADERS = Number(opt('evaders', opp ? 0.3 : 0));
 const [O, G_, T_] = KID ? [KID_OBS, KNG, 1] : [OBS_SIZE, NG, NT];
 const REC = O + G_ + T_ + 3 + 2; // obs, goal mask, tool mask, goal / run / tool, reward, done
@@ -35,7 +37,7 @@ const oppKid = !KID && opp ? opp : null;
 function config(i) {
   const r = rng(hash(SEED, i, 'cfg'));
   const style = r() < 0.05 ? 'chaos' : KID_STYLES[Math.floor(r() * KID_STYLES.length)];
-  const kid = { style, skill: 0.3 + 0.7 * r(), vary: r() < 0.6 };
+  const kid = { style, skill: SKILL_MIN + (1 - SKILL_MIN) * r(), vary: r() < 0.6 };
   if (r() < 0.35) kid.keys = true;
   const evader = KID || (oppKid && r() < EVADERS);
   return { id: `rl:${SEED}:${i}`, seed: hash(SEED, i), persona: { type: 'nightmare' }, kid, evader, start: r() < 0.4 ? 'mid' : 'fresh', maxT: 150 };
@@ -65,7 +67,7 @@ for (let ep = 0; out.length < N; ep++) {
       const pick = (mask) => { const ok = []; mask.forEach((v, i) => v && ok.push(i)); return ok[Math.floor(rand() * ok.length)]; };
       a = { goal: pick(gm), run: rand() < 0.5, tool: pick(tm) };
     }
-    open = { x: Float32Array.from(x), gm: Uint8Array.from(gm), tm: Uint8Array.from(tm), a: [a.goal, a.run ? 1 : 0, a.tool], r: (KID ? -0.001 : -0.002) - (lastGoal >= 0 && a.goal !== lastGoal ? SWITCH : 0), done: 0 };
+    open = { x: Float32Array.from(x), gm: Uint8Array.from(gm), tm: Uint8Array.from(tm), a: [a.goal, a.run ? 1 : 0, a.tool], r: (KID ? -0.001 : -TIME) - (lastGoal >= 0 && a.goal !== lastGoal ? SWITCH : 0), done: 0 };
     if (lastGoal >= 0 && a.goal !== lastGoal) switches++;
     lastPhi = p; lastGoal = a.goal; decisions++;
     return a;

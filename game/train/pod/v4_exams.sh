@@ -3,18 +3,20 @@
 # decode (kid exact, the monster's mind drawn, the rest at 0.3, top-p 0.9, snap, peak, coherent catches, walls):
 #   the rollout exam (tools/dream_exam.mjs: GAMES seeded games by the rules and inside the model) and the mechanics
 #   exam (tools/mechanics/exam.mjs: 383 cases, RUNS runs each), each over PARTS processes.
-# usage: v4_exams.sh NAME [GAMES=40] [RUNS=3] [PARTS=16]     NAME: onnx/NAME -> runs/exams_NAME/
+# usage: [BRAIN=1] [P=policy.json] v4_exams.sh NAME [GAMES=40] [RUNS=3] [PARTS=16]     NAME: onnx/NAME -> runs/exams_NAME/
+#   BRAIN=1: the monster's brain (the nightmare, P) plays the monster inside the model (packed_brain.onnx; v5 models)
 [ -d /venv/main/bin ] && export PATH=/venv/main/bin:$PATH
 export PATH=/opt/node-v24.19.0-linux-x64/bin:$PATH
 cd /workspace/gn/game
 NAME=$1; GAMES=${2:-40}; RUNS=${3:-3}; PARTS=${4:-16}
-M=/workspace/gn/onnx/$NAME; P=/workspace/gn/game/public/nightmare.json; O=/workspace/gn/runs/exams_$NAME; mkdir -p "$O"
+M=/workspace/gn/onnx/$NAME; P=${P:-/workspace/gn/game/public/nightmare.json}; O=/workspace/gn/runs/exams_$NAME${BRAIN:+_brain}; mkdir -p "$O"
+B=""; [ -n "$BRAIN" ] && B="--brain"
 [ -d node_modules/onnxruntime-web ] || npm install --no-save --no-audit --no-fund onnxruntime-web@1.30.0 > /dev/null 2>&1
 DECODE="--mix 0.3 --mind 1 --mixfor kid=0 --top_p 0.9 --snap --peak --cohere --walls"
 for k in $(seq 0 $((PARTS - 1))); do
-  node tools/dream_exam.mjs "$M" --games "$GAMES" --seconds 120 --part "$k/$PARTS" --threads 2 --nightmare 1 --policy "$P" --keys 0.35 $DECODE \
+  node tools/dream_exam.mjs "$M" --games "$GAMES" --seconds 120 --part "$k/$PARTS" --threads 2 --nightmare 1 --policy "$P" --keys 0.35 $DECODE $B \
     --out "$O/d$k.json" > "$O/d$k.log" 2>&1 &
-  node tools/mechanics/exam.mjs "$M" --runs "$RUNS" --part "$k/$PARTS" --threads 2 --monster nightmare --policy "$P" --out "$O/m$k.json" > "$O/m$k.log" 2>&1 &
+  node tools/mechanics/exam.mjs "$M" --runs "$RUNS" --part "$k/$PARTS" --threads 2 --monster nightmare --policy "$P" $B --out "$O/m$k.json" > "$O/m$k.log" 2>&1 &
 done
 wait
 node tools/dream_exam.mjs --merge "$O"/d*.json --out "$O/dream.json" > "$O/dream.txt"
