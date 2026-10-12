@@ -50,7 +50,7 @@ LESSONS = [
      lambda i, k, ev: ev[k][1] == 'lunge' and after(ev, k, 'caught', 40, lambda c: c[5] == 'touch') and (ev[k][0] - 120, ev[k][0] + 30), fresh),
     ('lunge-miss', 'A lunge that misses', 'B2, Z2: the lunge misses, it recovers at half speed; the miss is a setback that feeds its anger.',
      lambda i, k, ev: ev[k][1] == 'lunge' and not after(ev, k, 'caught', 60) and (ev[k][0] - 80, ev[k][0] + 80), fresh),
-    ('vent', 'Into a vent: it goes round to the exit', 'G1, K3, B5: the kid crawls into a kid-only gap; a smart monster heads for the far exit instead of following.',
+    ('vent', 'Into a gap: it goes round to the exit', 'G1, K3, B5: the kid crawls into a gap; a smart monster heads for the far exit instead of following.',
      lambda i, k, ev: ev[k][1] == 'tactic' and ev[k][5].startswith('ambushGap:'), fresh, 100, 120),
     ('found', 'Hiding in a wardrobe: found', 'W1, W3, W4, X2: the kid hides; the monster opens the wardrobe (0.7 s) and finds it.',
      lambda i, k, ev: ev[k][1] == 'found' and (max(0, ev[k][0] - 160), ev[k][0] + 20), lambda e: e['config']['kid']['style'] == 'hider'),

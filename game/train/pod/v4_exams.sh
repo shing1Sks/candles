@@ -2,7 +2,7 @@
 # The exams of a v4 model on the machine, both against the nightmare (the monster it was trained on), with the play
 # decode (kid exact, the monster's mind drawn, the rest at 0.3, top-p 0.9, snap, peak, coherent catches, walls):
 #   the rollout exam (tools/dream_exam.mjs: GAMES seeded games by the rules and inside the model) and the mechanics
-#   exam (tools/mechanics/exam.mjs: 383 cases, RUNS runs each), each over PARTS processes.
+#   exam (tools/mechanics/exam.mjs: 384 cases, RUNS runs each), each over PARTS processes.
 # usage: [BRAIN=1] [P=policy.json] v4_exams.sh NAME [GAMES=40] [RUNS=3] [PARTS=16]     NAME: onnx/NAME -> runs/exams_NAME/
 #   BRAIN=1: the monster's brain (the nightmare, P) plays the monster inside the model (packed_brain.onnx; v5 models)
 [ -d /venv/main/bin ] && export PATH=/venv/main/bin:$PATH

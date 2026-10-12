@@ -109,7 +109,7 @@ test('K5 the kid faces where it moves', () => {
   run(G, 0.3, { mz: 1 });
   assert.ok(G.kid.fz > 0.99);
 });
-test('K6 the monster can never enter a crawl space (here a table)', () => {
+test('K6 the monster never gets under a table', () => {
   const G = game(); wake(G, 18.5, 14.4, 0, 1);
   run(G, 1, {}, { mz: 1 });
   assert.ok(G.monster.z <= 15 - MON.radius + 1e-6, `${G.monster.z}`);

@@ -1,8 +1,8 @@
 # Candles: design
 
 A small grey 3D house on a board. You are a small kid. Blow out the candle in the corner of every room.
-A monster hunts you. It is a little faster than you; your one advantage is that only you fit through the
-small gaps. Across the table, a giant version of the monster is the one playing it.
+A monster hunts you. It is a little faster than you; your advantage is being small: you crawl through vents and
+cracks and under the beds, where it can only reach in or, in the vents, squeeze after you more slowly. Across the table, a giant version of the monster is the one playing it.
 
 ## Decisions (agreed 2026-10-10)
 
@@ -41,7 +41,7 @@ Numbers live in `game/src/sim/rules.js`. Starting values came from research into
 | Mechanic | Value | Borrowed from |
 |---|---|---|
 | Monster faster than the kid | chase 3.55 m/s vs run 3.2 (111%) | Dead by Daylight: killers run at 110–115% of survivor speed and still lose chases to loops |
-| Kid-only gaps (vents, cracks, under tables and beds) | the monster must go round: detours of 4–60 m | DbD windows and pallets: the runner's only tools against a faster hunter |
+| Crawl spaces (vents, cracks, under tables and beds) | the monster must go round (detours of 4–60 m) or reach 1.1 m in; since 2026-10-12 it squeezes into the vent duct at 1.35 m/s (you: 1.7), so nowhere is safe once it knows | DbD windows and pallets: the runner's only tools against a faster hunter |
 | Using the same gap 3 times in one chase | the monster stops following and waits at the other end | DbD blocks a window after 3 vaults in a chase (the anti-"infinite" rule) |
 | Lunge | 0.25 s visible crouch and growl, then 5.4 m/s for 0.4 s; a miss costs 1.5 s at half speed | DbD's lunge and miss cooldown: a dodge you can see coming pays off |
 | Chase speed-up | +0.15 / 0.30 / 0.45 m/s at 15 / 25 / 35 s of unbroken chase | DbD Bloodlust: long chases can't last forever |

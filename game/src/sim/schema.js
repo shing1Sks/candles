@@ -15,7 +15,6 @@ const HEARD = ['other', 'kid', 'door', 'creak', 'squeak', 'land'];
 const FELT = ['candleOut', 'doorInFace', 'lungeMiss', 'gapEscape', 'lostSight', 'spotted', 'checkEmpty', 'beamSpot', 'grabMiss'];
 const last = (a) => a[a.length - 1];
 const age = (G, at, max) => Math.min(1, Math.max(0, (G.t - at) / max));
-const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 const num = (name, get, scale = 1) => ({ name, type: 'num', get, scale });
 const flag = (name, get) => ({ name, type: 'flag', get });

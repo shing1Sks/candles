@@ -2,7 +2,9 @@
   stage_a.onnx: cur [1, S], persona [1, P]            -> tokens [1, n + 1, d], giant [1, G]   (the monster decides)
   stage_b.onnx: tokens, ki [1, K], gi [1, Gi]          -> world [1, W], events [1, E]          (the world moves)
 With --play: play_a.onnx takes the tile ids round the movers as an input (the game computes them), play_b.onnx is
-stage B, and play.json says how to turn `world` into the next state (src/model/decode.js).
+stage B, play.onnx both, packed.onnx both as one row in and out, and packed_brain.onnx stage B alone with the monster's
+buttons as an input (the game's brain presses them: src/model/brain.js; this is the graph the game ships, after
+tools/ship_model.mjs). play.json says how to turn `world` into the next state (src/model/decode.js).
 `world` is every piece's head output, concatenated in schema order (see heads.json written next to them).
 
 usage: python train/export.py --schema DATA/schema.json --size M [--ckpt runs/x/best.pt] --out OUTDIR
@@ -13,7 +15,7 @@ import torch.nn as nn
 
 sys.path.insert(0, os.path.dirname(__file__))
 from data import Schema, PERSONA_TYPES
-from model import WorldModel, NB, SCALE, RAY, predict_next, GI_STICK, GI_AIM, gi_targets
+from model import WorldModel, NB, SCALE, RAY, predict_next, GI_STICK, GI_AIM
 from train import SIZES
 
 

@@ -148,7 +148,7 @@ function findDoors(L, tiles) {
   return out;
 }
 
-// Kid-only passages (connected crawl tiles) and the floor tiles you leave them by.
+// Crawl passages (connected crawl tiles) and the floor tiles you leave them by.
 function findPassages(L) {
   const seen = new Int16Array(L.w * L.h).fill(-1), out = [];
   for (let z = 0; z < L.h; z++) for (let x = 0; x < L.w; x++) {

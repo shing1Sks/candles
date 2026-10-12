@@ -1,7 +1,7 @@
 """Record a game by the rules (?watch=BATCH:I, its kid bot playing) against a chosen monster as a video at real speed,
 the whole board revealed, one exact 50 ms frame at a time.
 
-usage: python tools/clips/record_watch.py BATCH:I NAME [--persona nightmare] [--seconds 60] [--port 5173]
+usage: python tools/clips/record_watch.py BATCH:I NAME [--persona nightmare] [--seconds 60] [--port 5190]
 -> public/clips/NAME.mp4 (and NAME.jpg, and NAME_sheet.jpg: 12 frames on one sheet, for a quick look)
 """
 import argparse, os, shutil, subprocess, tempfile
@@ -9,7 +9,7 @@ from playwright.sync_api import sync_playwright
 
 ap = argparse.ArgumentParser()
 ap.add_argument('episode'); ap.add_argument('name')
-ap.add_argument('--persona', default='nightmare'); ap.add_argument('--seconds', type=float, default=60); ap.add_argument('--port', default='5173')
+ap.add_argument('--persona', default='nightmare'); ap.add_argument('--seconds', type=float, default=60); ap.add_argument('--port', default='5190')
 ap.add_argument('--query', default='', help="more of the page's query, e.g. '&crawl=1&keys=0.35'")
 a = ap.parse_args()
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'public', 'clips')

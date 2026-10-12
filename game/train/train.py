@@ -6,11 +6,10 @@ best.pt (best check-set loss), summary.json (final check and exam metrics).
 """
 import argparse, json, math, os, sys, time
 import torch
-import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(__file__))
 from data import Data
-from model import WorldModel, losses, predict_next, param_count, split_head, piece, gi_targets, GI_STICK, GI_AIM, GI_BUTTONS
+from model import WorldModel, losses, predict_next, param_count, gi_targets, GI_STICK, GI_AIM, GI_BUTTONS
 
 SIZES = {  # width, stage A layers, stage B layers
     'T': (64, 1, 1), 'S': (256, 4, 4), 'M': (384, 6, 6), 'L': (512, 8, 8), 'XL': (768, 6, 6),

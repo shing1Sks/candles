@@ -23,7 +23,7 @@ export const CASES = [
   { id: 'K3', detect: st((G) => G.kid.crawl && G.kid.speed > 0.1) },
   { id: 'K4', detect: st((G, E, ki) => Math.hypot(ki.mx, ki.mz) > 0.5 && G.kid.speed < 0.5 && G.kid.blowing < 0 && G.kid.hidden < 0) },
   { id: 'K5', detect: st((G) => G.kid.speed > 0.1) },
-  { id: 'K6', detect: st((G) => G.kid.crawl && G.monster.awake && dist(G) < 3) }, // it is right there and can't follow
+  { id: 'K6', detect: st((G) => G.kid.crawl && G.monster.awake && dist(G) < 3) }, // it is right there, crawling
   { id: 'C1', detect: ev('blowStart') },
   { id: 'C2', detect: ev('blowStop') },
   { id: 'C3', detect: st((G) => G.kid.blowing >= 0) },
@@ -65,6 +65,7 @@ export const CASES = [
   { id: 'X1', detect: ev('caught', (e) => e.by === 'touch') },
   { id: 'X2', detect: ev('found') },
   { id: 'X3', detect: st((G) => inWall(G) && dist(G) < 1.2) },
+  { id: 'X4', detect: st((G) => G.L.duct(Math.floor(G.monster.x), Math.floor(G.monster.z))) }, // it is in the vent duct
   { id: 'L1', detect: ev('beam') },
   { id: 'L2', detect: st((G) => G.beam.state === 'on') },
   { id: 'L3', detect: ev('beamSpot') },

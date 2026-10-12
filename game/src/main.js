@@ -14,12 +14,12 @@ import { setNightmarePolicy, mlpPolicy } from './sim/mind/nightmare.js';
 // Two ways to play, picked on the first screen (or ?mode=classic / ?mode=gamenet):
 //   classic: the rules run the house (src/sim) and the nightmare, the learned monster (train/rl), hunts you
 //   gamenet: the main model is the house (src/model/dream.js) and the same nightmare plays the monster inside it
-// Any other query is a dev link and skips the first screen:
+// A dev link skips the first screen:
 //   ?persona= (stalker, brute, hound, warden, pathfinder, classic, nightmare) the monster; ?model=NAME a model of
 //   public/models; ?watch=batch:i a recorded episode; &seed= &at=x,z &mon=x,z &zoom= &reveal &dist= &debug
 const PLAY_MODEL = 'v5_M_s2u'; // the model GameNet plays (shipped: tools/ship_model.mjs)
 const q = new URLSearchParams(location.search);
-const devLink = [...q.keys()].some((k) => k !== 'mode');
+const devLink = ['watch', 'model', 'persona', 'rec', 'manual', 'seed', 'at', 'mon', 'zoom', 'reveal', 'dist', 'bot'].some((k) => q.has(k)); // not ?utm_ and the like
 let mode = q.get('mode') || (q.has('model') ? 'gamenet' : devLink ? 'classic' : null);
 // the nightmare for both modes; a dev link without ?persona= keeps the coded one (or the nightmare for v4/v5 models)
 const PERSONA = q.get('persona') || (q.has('mode') || /^v[45]/.test(q.get('model') || '') ? 'nightmare' : 'classic');
@@ -74,6 +74,7 @@ newGame();
 // ---------- screens: landing -> title (a mode, its loading) -> play <-> paused -> end ----------
 const SCREENS = ['landing', 'title', 'pause', 'end'];
 function show(screen) {
+  document.activeElement?.blur(); // a card or button just used keeps no focus behind the next screen
   for (const s of SCREENS) $(s).classList.toggle('hide', s !== screen);
   $('hud').classList.toggle('hide', screen === 'landing' || screen === 'title');
   $('corner').classList.toggle('quiet', !screen); // in play the corner keeps out of the way

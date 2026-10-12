@@ -59,7 +59,7 @@ export function randomSpot(G, mind, x, z, r) {
   return { x, z };
 }
 
-// The kid vanished near a kid-only passage: the end it will come out of (usually the far one).
+// The kid vanished near a crawl passage: the end it will come out of (usually the far one).
 export function ambushSpot(G, mind, self, at) {
   const L = G.L;
   const probe = [[at.x, at.z], [at.x + at.vx * 0.4, at.z + at.vz * 0.4], [at.x + at.vx * 0.8, at.z + at.vz * 0.8]];

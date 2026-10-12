@@ -1,5 +1,5 @@
-// The main model plays the game (?model=M): every step (20 a second) the state row and your input go in, the model
-// says what the monster presses and how the whole world moves, and the row it gives back is written into G for the
+// The main model plays the game (?model=M): every step (0.05 s x the model's stride) the state row, your input and
+// the monster's buttons go in (its brain's, brain.js, or the model's own guess) and the model says how the whole world moves, and the row it gives back is written into G for the
 // renderer and the audio, which do not know the difference. No rules run: walls, candles, doors and the monster are
 // all the model's. The model runs in its own thread (worker.js); this side writes its rows into the game.
 import { sigmoid } from './decode.js';

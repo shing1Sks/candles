@@ -2,12 +2,12 @@
 revealed), one exact 50 ms frame at a time (the page runs in manual mode and is screenshotted every frame), then
 encoded to mp4 at 20 fps (real speed) with ffmpeg.
 
-usage: python tools/clips/record.py [port=5173]    (the dev server must be running)
+usage: python tools/clips/record.py [port=5190]    (the dev server must be running)
 """
 import json, os, shutil, subprocess, sys, tempfile
 from playwright.sync_api import sync_playwright
 
-PORT = sys.argv[1] if len(sys.argv) > 1 else '5173'
+PORT = sys.argv[1] if len(sys.argv) > 1 else '5190'
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'public', 'clips')
 FPS, TAIL = 20, 30  # frames per second (one game step each); frames kept after the clip ends
 man = json.load(open(os.path.join(OUT, 'manifest.json')))

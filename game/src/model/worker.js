@@ -1,4 +1,4 @@
-// The main model's own thread: it holds the state row, runs the model on it 20 times a second (or as fast as it can),
+// The main model's own thread: it holds the state row, runs the model on it every 0.05 s x its stride (or as fast as it can),
 // decides every number, flag and choice, and posts each new row to the game. The game's thread only draws and reads
 // your input, so neither waits on the other.
 //   in:  init { name, ep, int8, temp, mix, topP, mixFor, snap, gtemp, map, lockstep, brain }, reset { row, persona, mind, seed }, input { ki, active } (any
@@ -92,7 +92,7 @@ async function download(base, file, ship, progress) {
   return all;
 }
 
-// a step every 1/20 s (or back to back if the model is slower); a new game starts a new loop, and the old one ends
+// a step every 0.05 s x stride (or back to back if the model is slower); a new game starts a new loop, and the old one ends
 async function loop(my) {
   const ids = new Float32Array(meta.ids || 225);
   await inflight.catch(() => {});

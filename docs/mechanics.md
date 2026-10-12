@@ -18,7 +18,7 @@ Units: 1 tile = 1 m, times in seconds. The rules run at 60 ticks a second. Posit
   |---|---|---|---|---|
   | floor | yes | yes | no | no |
   | wall | no | no | yes | — |
-  | vent duct | yes | no | yes | yes |
+  | vent duct | yes | yes, crawling (1.35 m/s) | yes | yes |
   | crack in a wall | yes | no | yes | yes |
   | table | yes | no | no | yes |
   | bed or crib | yes | no | no | yes |
@@ -27,8 +27,8 @@ Units: 1 tile = 1 m, times in seconds. The rules run at 60 ticks a second. Posit
   | door, shut | no | no | yes | — |
   | door, open | yes | yes | no | no |
 
-- **G1 Kid-only passages.** Connected crawl tiles form 10 passages; each has the floor tiles you leave it by
-  (its exits).
+- **G1 Crawl passages.** Connected crawl tiles form 10 passages; each has the floor tiles you leave it by
+  (its exits). The monster can follow you into the vent duct only (X4); the rest it reaches into (X1).
 - **G2 Things on the board.** 6 candles (pushed into their tile's corner), 11 doors (pairs of tiles form a double
   door), 3 wardrobes (with a front tile), 7 toys to throw, 5 squeaky toys, 12 creaky boards.
 - **G3 Tick order.** Each tick: the kid, then thrown toys, then the searchlight, then the hand, then the monster,
@@ -46,9 +46,10 @@ Units: 1 tile = 1 m, times in seconds. The rules run at 60 ticks a second. Posit
 - **K3 Crawl.** On a crawl tile the kid crawls at 1.7 m/s (1.0 creeping). Crawling in a vent duct without creep
   rattles: noise 3 m.
 - **K4 Collision.** The kid is a circle of radius 0.24 and slides along anything it can't pass (G0). The monster is
-  a circle of 0.42 and is blocked by everything except floor and open doors.
+  a circle of 0.42 and is blocked by everything except floor, open doors and the vent duct.
 - **K5 Facing.** The kid faces where it moves (above 0.1 m/s), or the candle it blows.
-- **K6 Nothing happens:** pushing into a wall moves you along it at most; the monster can never enter a crawl tile.
+- **K6 Nothing happens:** pushing into a wall moves you along it at most; the monster never gets under a table or
+  bed or into a crack (it reaches in instead, X1).
 
 ## 2. Candles
 
@@ -121,7 +122,7 @@ The world works these out at the end of every tick (`senses.js`). They pile up u
 (`observe`), so a mind that decides every few ticks misses nothing. The mind knows nothing else about the kid.
 
 - **S1 Sight.** It sees you when all of these hold:
-  - you are not in a wardrobe, vent or crack;
+  - you are not in a wardrobe, vent or crack (in the vent duct it sees you once it has come in after you);
   - under a table or bed, you are within 1.4 m of it;
   - you are within 13 m if you stand in light (candlelight above 0.22 or the searchlight), else 8 m;
   - you are in its 180° view ahead, or within 2.2 m in any direction;
@@ -166,8 +167,7 @@ needs the run button.
   - searches 3 spots around where you were heading.
 - **B5 Gaps.** You take the same gap 3 times in one chase → it stops following and waits at the far exit (the near
   one 25% of the time) for up to 4.5 s.
-- **B6 Under the table.** It can see you under a table or bed but can't reach you for 2 s → it goes round to wait
-  at an exit.
+- **B6 Under the table.** You are under a table or bed and it knows → it comes up to the edge and reaches in (X1).
 - **B7 Breather.** 25 s within 8 m of you while seeing or chasing → it backs off to the lit candle furthest from you
   for 9 s.
 - **B8 Hunt.** A lead → it goes there at hunt speed. On arriving (or after 12 s) it searches.
@@ -181,13 +181,15 @@ needs the run button.
 
 ## 8. Getting caught
 
-- **X1 Touch.** The monster is awake, and:
-  - you are not in a wardrobe, vent or crack;
-  - you are within 0.93 m of it (0.6 m under a table or bed);
-  - it has a clear line of sight to you.
+- **X1 Touch.** The monster is awake, you are not in a wardrobe, and:
+  - in the open (or both of you in the vent duct): you are within 0.93 m of it and in its line of sight;
+  - in a crawl space (the vent, a crack, under a table or bed): it reaches 1.1 m in, if nothing solid is between
+    its arm and you.
 - **X2 Found** in a wardrobe (W4).
-- **X3 Nothing happens:** it stands right next to your vent or crack, or touches the wardrobe you are in without
-  opening it.
+- **X3 Nothing happens:** you are more than 1.1 m inside a crack or under the middle of a big table, or it touches
+  the wardrobe you are in without opening it.
+- **X4 Into the vent.** It squeezes into the vent duct after you at 1.35 m/s (you crawl at 1.7) and can't lunge in
+  there; inside, it sees along the duct, and you see it coming.
 
 ## 9. The giant's searchlight
 

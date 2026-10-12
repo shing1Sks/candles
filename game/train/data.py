@@ -3,7 +3,7 @@
 Reads a batch written by tools/gen.mjs (data/<batch>/shard-*/), keeps it all in memory (on the GPU when there is
 one), splits by episode (5% check, 5% exam, the rest training) and hands out random batches.
 """
-import glob, json, math, os
+import glob, json, os
 import numpy as np
 import torch
 

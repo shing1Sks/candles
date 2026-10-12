@@ -1,7 +1,7 @@
 # Candles: audio credits and licences
 
 Every recorded file the game plays lives in this folder. All of it is CC0, public domain, our own synthesis,
-or CC BY 4.0 (Kevin MacLeod's music, which requires the on-screen credit shown on the title screen).
+or CC BY 4.0 (Kevin MacLeod's music, which requires the on-screen credit: the "credits" pill in the corner of the menus).
 Everything else you hear (the giant's breath, the searchlight whine, toy squeaks, clatter, the table boom,
 fallbacks for any file that fails to load) is synthesised live in `src/audio.js`.
 

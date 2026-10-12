@@ -2,7 +2,7 @@
 each frame is one model step (window.__dreamFrame), screenshotted, then encoded at 20 fps with ffmpeg.
 
 usage: python tools/clips/record_model.py MODEL NAME [--bot sneaker] [--seconds 60] [--seed 7] [--persona hound]
-                                          [--query '&mind=1'] [--port 5173]
+                                          [--query '&mind=1'] [--port 5190]
 -> public/clips/NAME.mp4 (and NAME.jpg)
 """
 import argparse, os, shutil, subprocess, tempfile
@@ -12,7 +12,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument('model'); ap.add_argument('name')
 ap.add_argument('--bot', default='sneaker'); ap.add_argument('--seconds', type=float, default=60)
 ap.add_argument('--seed', type=int, default=7); ap.add_argument('--persona', default='')
-ap.add_argument('--query', default=''); ap.add_argument('--port', default='5173')
+ap.add_argument('--query', default=''); ap.add_argument('--port', default='5190')
 a = ap.parse_args()
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'public', 'clips')
 os.makedirs(OUT, exist_ok=True)
