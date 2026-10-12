@@ -26,7 +26,8 @@ let mode = q.get('mode') || (q.has('model') ? 'gamenet' : devLink ? 'classic' : 
 let nightmare = q.has('mode') || /^v[45]/.test(q.get('model') || ''); // a mode chosen on the first screen sets it
 const persona = () => q.get('persona') || (nightmare ? 'nightmare' : 'classic');
 let policy = null; // the nightmare's weights (until they load it simply chases)
-const loadPolicy = () => (policy ||= fetch('/nightmare.json').then((r) => r.json()).then((w) => setNightmarePolicy(mlpPolicy(w))));
+// &seedpolicy=N (recording): its choices drawn from a seeded stream, so a ?watch= game replays as simulated in Node
+const loadPolicy = () => (policy ||= fetch('/nightmare.json').then((r) => r.json()).then((w) => setNightmarePolicy(mlpPolicy(w, q.has('seedpolicy') ? { rand: rng(Number(q.get('seedpolicy'))) } : undefined))));
 if (persona() === 'nightmare') loadPolicy();
 
 // &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
@@ -165,7 +166,7 @@ function begin() {
   if (!ready) return;
   audio.start();
   phase = 'play';
-  view.intro();
+  if (!q.has('nointro')) view.intro(); // &nointro (recording): straight to the kid
   show(null);
 }
 function pause() { if (phase !== 'play') return; phase = 'paused'; keys.clear(); show('pause'); }
@@ -281,15 +282,17 @@ function frame(now) {
 window.__frame = (dt) => tick(dt);
 // recording the model's world (?model=&manual=1): one model step, then one 50 ms frame drawn, so a video at 20 fps
 // plays at real speed whatever the laptop manages
-let landedFrame = null;
-window.__dreamFrame = async () => {
+let landedFrame = null, blendAt = 1;
+window.__dreamStep = async () => { // one model step, nothing drawn
   if (dream && phase === 'play' && G.state === 'play') {
     const landed = new Promise((r) => { landedFrame = r; });
     dream.input(kidBot ? kidBot(observeKid(G), STEP * dream.stride) : dreamIn, true);
     await Promise.race([landed, new Promise((r) => setTimeout(r, 5000))]);
   }
-  tick(STEP * (dream?.stride || 1));
 };
+window.__dreamFrame = async () => { await window.__dreamStep(); blendAt = 1; tick(STEP * (dream?.stride || 1)); };
+// smoother recordings: after a step, draw the glide to it at f (0..1] over dt seconds of the frame
+window.__dreamDraw = (f, dt) => { blendAt = f; tick(dt); };
 function tick(dt) {
   t += dt;
   if (phase === 'play' && ep) {
@@ -305,7 +308,7 @@ function tick(dt) {
     const w = view.toWorld(readInput());
     if (!kidBot) Object.assign(dreamIn, { mx: w.mx, mz: w.mz, creep: w.creep, blow: w.blow, use: dreamIn.use || w.use, throw: dreamIn.throw || w.throw });
     if (dream && !kidBot && !manual) { dream.input(dreamIn, true); dreamIn.use = dreamIn.throw = false; }
-    if (dream) { dream.blend(manual ? 1 : undefined); drawDream(); }
+    if (dream) { dream.blend(manual ? blendAt : undefined); drawDream(); }
   } else if (phase === 'play') {
     acc += dt;
     const inp = readInput();
