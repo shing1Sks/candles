@@ -371,9 +371,9 @@ function drawDream() {
   if (debug) b.textContent = `${modelName} · ${dream.ms.toFixed(0)} ms a step · ${dream.rate.toFixed(1)} steps/s (${20 / dream.stride} = real time) · ${fps.toFixed(0)} fps\nmonster: ${m.mode}  anger ${m.anger.toFixed(2)}  frustration ${m.frustration.toFixed(2)}${m.furyT > 0.1 ? '  FURY' : ''}`;
 }
 
-// the first screen, or (a mode or a dev link) straight to the start
+// the first screen, opening on how it works, or (a mode or a dev link) straight to the start
 if (mode) choose(mode);
-else landing();
+else { landing(); how.show(); }
 if (q.has('rec')) $('hints').style.display = 'none'; // recording a clip: no hints
 if (q.has('zoom')) view.setZoom(Number(q.get('zoom')));
 if (q.has('reveal')) view.reveal();

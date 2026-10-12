@@ -82,7 +82,11 @@
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
         </button>
         <span class="kicker">How it works</span>
-        <h2 id="howTitle">A game, learned by watching</h2>
+        <h2 id="howTitle">This house has no rules.</h2>
+        <p class="lead">
+          In GameNet no code moves you, opens a door, blows out a candle or catches you. A neural network looks at this
+          moment and your keys and imagines the next one, ten times a second. Every wall that stops you, it learned.
+        </p>
         <div class="how-grid">
           <figure class="plan">
             <canvas id="howMap"></canvas>
@@ -91,17 +95,24 @@
               <span class="legend"><i class="k"></i>kid <i class="m"></i>monster <i class="c"></i>candle</span>
             </figcaption>
           </figure>
-          <ol class="how-steps">
-            <li><b>Bots play the real game</b>Like this one, live: a kid bot against the learned monster. About forty thousand games.</li>
-            <li><b>Each moment becomes numbers</b>Every 50 ms the whole house is 311 numbers, plus the keys pressed. The strip below is this game's.</li>
-            <li><b>A network learns what comes next</b>A transformer with 25 million weights sees one moment and the keys, and predicts the next.</li>
-            <li><b>Then it is the game</b>In GameNet nothing else runs. Your keys and the monster's brain go in; the house comes out, ten times a second.</li>
-          </ol>
+          <div class="how-side">
+            <ol class="how-steps">
+              <li><b>Write the game once</b>Ordinary code, a thousand lines of rules, only so there is something to learn from.</li>
+              <li><b>Let bots play it</b>Like this game, live. About forty thousand of them; every 50 ms becomes 311 numbers (the strip below).</li>
+              <li><b>Teach a network the next moment</b>A transformer with 25 million weights: this moment and the keys in, the next moment out.</li>
+              <li><b>Delete the rules</b>GameNet runs only the network. Your keys and the monster's learned brain go in; the whole house comes out.</li>
+            </ol>
+            <div class="swap" aria-label="What runs the house">
+              <div class="row"><span class="tag">Classic</span><span class="in">keys + monster</span><i></i><span class="box">the rules, in code</span><i></i><span>the house</span></div>
+              <div class="row net"><span class="tag">GameNet</span><span class="in">keys + monster</span><i></i><span class="box">a neural network</span><i></i><span>the house</span></div>
+            </div>
+          </div>
         </div>
         <div class="strip">
           <canvas id="howStrip"></canvas>
           <span>this moment, as the network sees it · 311 numbers</span>
         </div>
+        <div class="how-foot"><button class="cta" data-act="closeHow">Choose how to play <span aria-hidden="true">→</span></button></div>
       </div>
     </div>
 
