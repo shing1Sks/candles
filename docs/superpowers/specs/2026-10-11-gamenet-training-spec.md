@@ -359,3 +359,90 @@ at 0.3, snap, peak, coherent catches, and walls refused.
 2. Stride 2 with the full round-3 recipe (2 epochs of rollouts).
 3. A real-time playtest by you on the stride-2 model.
 4. Fewer pieces per step (merge passages, squeaks, wardrobes, beliefs) for speed.
+
+## 12. The nightmare and the whole house (night of 2026-10-12)
+
+The user played `v3_M_r3`: "not bad", but the monster was the worst part, and doors and the ball did not work. They
+asked for:
+- a test of every mechanic;
+- a monster that is smarter than the coded one and as hard as possible, "as if a real evil is playing";
+- waking at 1–2 s;
+- no fairness rule that cripples it, with a memory that fades;
+- the model to see the whole house, not 5 × 5 patches.
+
+**The mechanics exam** (`npm run mechanics -- MODEL_DIR`, `tools/mechanics/`):
+- 383 cases generated from the level: every candle, door (from each side), wardrobe, toy (every free throw
+  direction), squeaky toy, creaky board, passage and room (sight, chase, catch, hearing, searchlight, hand).
+- Each case is a moment set up mid-game and warmed up by 0.3 s of the rules, so the monster's senses and mind are
+  real. Then kid input is played and the result checked.
+- Every case passes by the rules on seeds 1–10. Each check was also run with the kid's input removed, to show it fails
+  without it.
+- `v3_M_r3` passed 67% of runs. It never used doors, never picked up the ball, and its monster spotted a kid in plain
+  view 1 time in 5. The 5 × 5 patches cannot see a line of sight.
+
+**The nightmare** (`src/sim/mind/nightmare.js`, `train/rl/`):
+- A mind whose decisions come from a small network (2 × 256). Every 0.25 s, or at once on big news, it picks:
+  - one of 19 goals: the kid, cutting it off, its four fading guesses, the last noise, guarding a candle, the far end
+    of a gap, a wardrobe, staying, or a search;
+  - run or not;
+  - the giant's searchlight or hand.
+- Paths, doors, lunges, beliefs (a memory that fades, half-life 10 s) and moods are the shared parts of every mind.
+- **Training:** PPO against the kid league: every bot style, varied numbers per game, a third on keyboards, 40%
+  mid-game starts. Node workers play; Python learns. 56 workers on the Vast machine run about 120 k decisions every
+  7–10 s.
+- **Reward:**
+  - +1 for a catch, −1 if the kid wins, −0.2 for each candle out, −0.002 for each decision;
+  - −0.03 for each change of mind. At 0.003 it changed plan 114 times a minute: indecisive to watch, and a mind the
+    main model cannot learn. At 0.03 it was 12 times a minute;
+  - potential shaping by walking distance to the kid. That is used in the reward only and never seen.
+- **Held-out duel** (60 kid games it never trained on):
+
+  | Monster | Caught | Kid won | First catch | Candles out |
+  |---|---|---|---|---|
+  | Coded (hound, stalker, brute, warden, pathfinder) | 58–75% | 17–28% | 46–60 s | 3.8–4.0 |
+  | The nightmare | 95% | 3.3% | 35 s | 2.6 |
+
+- **The evader** (`src/sim/bots/evader.js`) was a learned kid for self-play. It never learned to win against the
+  nightmare. Even with a timeout scored as a loss, it settled on hiding in a vent all game. It is not in the league or
+  the data. That stalemate is open in the real game too: a kid in a crawl space is safe.
+
+**The whole-house model** (`--whole_map`):
+- Every tile of the house, with shut doors marked, passes through a 3-layer conv net into 60 map pieces in stage A.
+- The 16 tiles on the line between the kid and the monster are added to both of their pieces.
+- `layout.js viewIds` computes the same ids in the game: 676 game rows checked, 0 differ.
+- The map pieces stay in stage A: 4,013 samples/s instead of 2,976.
+
+**Data v4:**
+- 30,000 games against the nightmare: 35% keyboard kids, 50% curious kids (they go and fiddle with doors, toys,
+  squeaky toys, boards and wardrobes, making doors 6× more common), and 50% of bots with varied numbers.
+- 13.7 M rows, made in 67 s on 56 cores.
+- Rows with a rare moment are drawn 6× more often (`--oversample 6`): 3.4% of rows, about 20% of batches.
+
+**`v4_M`** (M, whole house, 2 epochs, rollouts from 70%, 233 min on a 4090):
+- One-step: kid 1.79 mm, monster 2.13 mm, candle out F1 0.99, events F1 0.89, giant stick 89%.
+- The giant's searchlight and hand are poorly learned (F1 0.13 and 0.19).
+
+| | Yesterday's `v3_M_r3` (vs a hound) | `v4_M` (vs the nightmare) |
+|---|---|---|
+| Mechanics, runs passed | 67% | 78% |
+| Cases passed every run | 226 | 269 |
+| Doors | 55% | 71% |
+| Toys | 39% | 69% |
+| Wardrobes | 77% | 87% |
+| Creaky boards | 71% | 77% |
+| Squeaky toys | 55% | 76% |
+| Searchlight | 27% | 42% |
+| Hand | 30% | 36% |
+
+| Whole games (40) | Kid won / caught / timeout | Catches / min |
+|---|---|---|
+| The nightmare, by the rules | 0 / 40 / 0 | 2.37 |
+| Inside `v4_M` | 10 / 25 / 5 | 0.70 |
+| (Yesterday: rules / `v3_M_r3`) | | (0.57 / 0.53) |
+
+- The model's monster is deadlier than yesterday's real game, but about a third of the nightmare.
+- The walls in decoding now check the body (0.22 m and 0.38 m), not only the centre: the kid no longer sinks into
+  walls.
+- One learned habit from the bots: walking into a shut door sometimes opens it without a press of use, because the
+  bots always press use there.
+- `v4_M` runs at 10.3 steps a second in the browser on the laptop (`v3_M_r3`: 17.8).

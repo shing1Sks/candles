@@ -10,8 +10,7 @@
 //   (potential-based: it does not change what is best, it only says "warmer" sooner). The kid's true place is used for
 //   the reward only; the network never sees it.
 // side kid (the evader learns, bots/evader.js): against the nightmare with --opp's weights. Reward: +1 it wins, -1
-//   caught, +0.25 a candle out, -0.001 a decision, -0.01 a change of mind, plus shaping by how far the monster has to
-//   walk to it.
+//   caught or out of time (hiding all game is no win), +0.4 a candle out, -0.001 a decision, -0.01 a change of mind.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createEpisode, stepEpisode, episodeOver } from '../../src/sim/episode.js';
 import { KID_STYLES } from '../../src/sim/bots/kid.js';
@@ -48,7 +47,7 @@ const path = (G) => { // how far the monster has to walk to the kid
   const M = G.monster, k = G.kid, W = G.L.w, md = G.L.monDist?.get(Math.floor(M.z) * W + Math.floor(M.x)), d = md?.[Math.floor(k.z) * W + Math.floor(k.x)];
   return Number.isFinite(d) ? d : Math.hypot(k.x - M.x, k.z - M.z) * 1.3;
 };
-const phi = (G) => (KID ? 0.2 * Math.min(path(G), 20) / 20 : -0.5 * Math.min(path(G), 40) / 30);
+const phi = (G) => (KID ? 0 : -0.5 * Math.min(path(G), 40) / 30); // the kid: no shaping (keeping away taught it to hide)
 const close = (r, done) => { if (open) { open.r += r; open.done = done; out.push(open); open = null; } };
 
 for (let ep = 0; out.length < N; ep++) {
@@ -74,11 +73,13 @@ for (let ep = 0; out.length < N; ep++) {
   if (KID) episode.kidBot.policy = learner; else G.mind.policy = learner;
   while (!episodeOver(episode)) {
     stepEpisode(episode);
-    for (const e of G.events) if (e.type === 'candleOut' && open) open.r += KID ? 0.25 : -0.2;
+    for (const e of G.events) if (e.type === 'candleOut' && open) open.r += KID ? 0.4 : -0.2;
     G.events.length = 0;
   }
   const out0 = G.candles.filter((c) => !c.lit).length;
-  const end = (G.state === 'caught' ? 1 : G.state === 'won' ? -1 : 0) * (KID ? -1 : 1);
+  // a kid that only hides until the time is up has not won (the game is won by the candles): as bad as caught (at
+  // -0.5 it learned to sit in a vent for the whole game)
+  const end = KID ? (G.state === 'won' ? 1 : -1) : G.state === 'caught' ? 1 : G.state === 'won' ? -1 : 0;
   if (open) { open.r += end - lastPhi; close(0, 1); } // the game over: no more warmer or colder
   stats.push({ outcome: G.state === 'play' ? 'timeout' : G.state, t: +(G.t - episode.t0).toFixed(1), out: out0, style: cfg.evader ? 'evader' : cfg.kid.style, skill: +cfg.kid.skill.toFixed(2), decisions, switches });
 }
