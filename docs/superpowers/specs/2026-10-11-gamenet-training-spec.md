@@ -446,3 +446,38 @@ asked for:
 - One learned habit from the bots: walking into a shut door sometimes opens it without a press of use, because the
   bots always press use there.
 - `v4_M` runs at 10.3 steps a second in the browser on the laptop (`v3_M_r3`: 17.8).
+
+**Round 3 on top** (rollouts K = 2, lr 2e-4). With the rows in RAM, rollout steps ran at about 1,300 samples/s, so
+70 minutes was about a third of an epoch:
+
+| | `v4_M` | `v4_M_r3` (play this) | `v4_M_r4` (+60 min) |
+|---|---|---|---|
+| Mechanics, runs passed | 78% | 79% | 78% |
+| Cases passed every run | 269 | 276 | 274 |
+| Doors | 71% | 78% | 74% |
+| Whole games: kid won / caught / timeout | 10 / 25 / 5 | 10 / 26 / 4 | 12 / 22 / 6 |
+| Catches / min | 0.70 | 0.77 | 0.56 |
+| Pressure | 28% | 34% | 39% |
+
+The nightmare by the rules: 0–1 / 39–40 / 0, 2.1–2.4 catches a minute. 40 games swing by about ±0.15 a minute, and
+drawing the game state at every step was no better (0.52).
+
+**Where it stands:**
+- The model's monster stays near you more than the old one did, and lunges more.
+- It catches about a third as often as the real nightmare: lunges do not turn into catches.
+- The giant's searchlight and hand are the weakest mechanics (about 40%). They are rare in the data, and the giant's
+  light and reach buttons have F1 0.13 and 0.19.
+- Doors are much better but not right (74–78%). The model sometimes opens a door the kid walked into without pressing
+  use, a habit learned from the bots.
+
+**Spend:** Vast $4.51 (one 4090 for 7.4 h: RL, data, three trainings, exams). Credit went from $16.92 to $12.41.
+
+**Next:**
+1. Catches inside the model: weight the steps where the rules catch (and where they do not, close by), and train
+   longer with rollouts. Measure with 100 games, not 40.
+2. The giant's tools: more data where the light and the hand are used (as the curious kids did for doors), and
+   oversample their presses.
+3. Doors: bot data in which kids walk into shut doors without pressing use.
+4. Speed: `v4_M_r3` runs at 10 steps a second on the laptop. Try stride 2 on v4, or a smaller whole-house model.
+5. The hiding stalemate: a kid in a vent is safe for good, so the game needs a rule (the giant's hand reaching into
+   vents? a smoke-out?) — the user's call.
