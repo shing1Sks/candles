@@ -540,3 +540,33 @@ candle from winning. It is `public/nightmare.json` now (last night's: `nightmare
 The real game with the relearned brain: 0 / 40 / 0, 3.81 a minute. Passages (the reach and the duct chase) 20 / 21.
 Still weak: the giant's light (4 / 11 cases) and hand (4 / 11), and catches set up already within reach (a state no
 recorded game has).
+
+**The real-time world** (stride 2: a step is 0.1 s): `v5_M_s2` (40 min teacher-forced from `v5_M_r3`), `v5_M_s2r3`
+(+50 min of rollouts). With the brain deciding, the longer step no longer halves the catches (it did on 2026-10-11).
+`v5_M_s2r4` added 45 min of rollouts with 8,000 giant's-tools drills (`gen --tools`: two or more candles out, the light
+and the hand ready, the kid in the open, the monster far off with a rough guess; 10× the tools of plain games), their
+rows and the giant's light and reach presses oversampled.
+
+| Inside the model, with the brain (40 games) | Kid won / caught / timeout | Catches / min | Kid in wall | Mechanics: runs, cases every run |
+|---|---|---|---|---|
+| `v5_M_r3` (0.05 s steps) | 2 / 37 / 1 | 2.14 | 0% | 78%, 282 |
+| **`v5_M_s2r3` (0.1 s steps: the one to play)** | 3 / 37 / 0 | 2.08 | 2% | 78%, **284** |
+| `v5_M_s2r4` (+ tools drills) | 3 / 37 / 0 | 2.31 | 0% | 79%, 281 |
+
+- `s2r4` is deadlier and keeps the kid out of walls, but it lost 2 of the 7 game-end cases (last candle, the catch
+  itself) and 3 wardrobe cases, and the light and the hand did not improve (4 / 11 each). `s2r3` stays the play model.
+- Speed on the laptop (WebGPU): about 107 ms a step = about three-quarters of real time for `s2r3`. The brain costs
+  0.35 ms and the decoding 8 ms; the rest is the network. int8 on the CPU (wasm) was slower (181 ms). Full speed needs a
+  smaller world model.
+
+**Spend:** Vast $2.70 (one 4090, 4.4 h: data v5 and the drills, five trainings, RL, exams). Credit $12.41 → $9.71.
+
+**Next:**
+1. The giant's light and hand inside the model (4 / 11 cases each, unchanged by the drills): the world rarely sets the
+   searchlight's "spotted" flag or ends the game under the hand. Look at those rows directly (is the flag predictable
+   from the row?) before more data.
+2. Speed: a smaller whole-house world (fewer layers, or the map pieces merged), now that the world no longer has to
+   think for the monster.
+3. "Horrifying" against people: the bots are beaten (97.5%, all the kid wins are one-candle mid-game starts), so the
+   next measure is the user's own games. A learned kid could be tried again now that hiding is not safe.
+4. Catches set up already within reach, and the doors a walking kid opens (73–75% of door runs).
