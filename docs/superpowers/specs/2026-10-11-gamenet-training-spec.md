@@ -559,12 +559,24 @@ rows and the giant's light and reach presses oversampled.
   0.35 ms and the decoding 8 ms; the rest is the network. int8 on the CPU (wasm) was slower (181 ms). Full speed needs a
   smaller world model.
 
-**Spend:** Vast $2.70 (one 4090, 4.4 h: data v5 and the drills, five trainings, RL, exams). Credit $12.41 → $9.71.
+**The giant's tools, a second try** (a second machine): data v5 again with 16,000 tools drills, and `v5_M_s2r3`
+fine-tuned teacher-forced for 45 min with rare rows drawn 10× more.
+- First try (`v5_M_s2t`): 292 cases every run, but the last candle stopped winning (game end 1 / 7). The drills had
+  blown candles out with no progress, a state no game has. A rollout round on top (`s2tr`) made it worse (0 / 7).
+- With the drills fixed (`v5_M_s2u`): **83% of runs, 303 / 384 cases every run** (doors 81 / 95, toys 45 / 57, creaky
+  boards 19 / 25, wardrobes 20 / 25), game end 20 / 21 runs; inside the model with the brain 5 / 35 / 0, 1.76 catches a
+  minute. The searchlight stayed at 4 / 11 and the hand fell to 1 / 11 (its shadow often never comes down).
+- **`v5_M_s2u` is the one to play** (the most mechanics); `v5_M_s2r3` is the same speed and its hand works more often.
+- Inside the model the searchlight's "spotted" flag gets 1–6% odds when it comes on over the kid: the world has not
+  learned the beam's rule from any of this data. That is the open problem.
+
+**Spend:** Vast $4.39: one 4090 for 4.4 h (data v5 and the drills, five trainings, RL, exams; $2.70) and one for 2.8 h
+(the tools tries; $1.69). Credit $12.41 → $8.02.
 
 **Next:**
-1. The giant's light and hand inside the model (4 / 11 cases each, unchanged by the drills): the world rarely sets the
-   searchlight's "spotted" flag or ends the game under the hand. Look at those rows directly (is the flag predictable
-   from the row?) before more data.
+1. The giant's light and hand inside the model (unchanged or worse with 10× the drills): the world rarely sets the
+   searchlight's "spotted" flag or ends the game under the hand. Check whether the flag is predictable from the row
+   (the beam's distance to the kid), or give the beam and the hand their own small heads, before more data.
 2. Speed: a smaller whole-house world (fewer layers, or the map pieces merged), now that the world no longer has to
    think for the monster.
 3. "Horrifying" against people: the bots are beaten (97.5%, all the kid wins are one-candle mid-game starts), so the
