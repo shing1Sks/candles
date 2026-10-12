@@ -67,6 +67,7 @@ export function createBrain(L, persona, seed, col) {
 
   return {
     mind: G.mind,
+    peek: (row) => observeRow(row), // what it would know from this row (tests)
     // take over a mind's state (a game already under way: a mid-game start, a mechanics moment)
     adopt(m) {
       const keep = { persona: G.mind.persona, rand: G.mind.rand, think: G.mind.think, policy: G.mind.policy };

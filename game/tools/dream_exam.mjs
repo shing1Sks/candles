@@ -42,9 +42,17 @@ const meta = JSON.parse(readFileSync(`${dir}/play.json`, 'utf8')), STRIDE = meta
 // buttons go into stage B (play_a.onnx, then play_b.onnx), instead of the model's own guess of them
 const BRAIN = args.includes('--brain');
 const packed = !BRAIN && existsSync(`${dir}/packed.onnx`);
-const sessA = BRAIN && await ort.InferenceSession.create(`${dir}/play_a.onnx`), sessB = BRAIN && await ort.InferenceSession.create(`${dir}/play_b.onnx`);
+const PB = BRAIN && existsSync(`${dir}/packed_brain.onnx`); // one graph, [cur | persona | ids | ki | gi] -> [world | events]
+const sessP = PB && await ort.InferenceSession.create(`${dir}/packed_brain.onnx`);
+const sessA = BRAIN && !PB && await ort.InferenceSession.create(`${dir}/play_a.onnx`), sessB = BRAIN && !PB && await ort.InferenceSession.create(`${dir}/play_b.onnx`);
 const session = !BRAIN && await ort.InferenceSession.create(`${dir}/${packed ? (INT8 ? 'packed_int8' : 'packed') : 'play'}.onnx`);
 async function runBrain(x, gi) {
+  if (PB) {
+    const xb = new Float32Array(at[4] + gi.length); xb.set(x.subarray(0, at[4])); xb.set(gi, at[4]);
+    const o = (await sessP.run({ x: new ort.Tensor('float32', xb, [1, xb.length]) })).y.data, y = new Float32Array(13 + o.length);
+    y.set(gi, 0); y.set(o, 13);
+    return y;
+  }
   const T = (i, dims) => new ort.Tensor('float32', x.slice(at[i], at[i] + sizes[i]), dims);
   const a = await sessA.run({ cur: T(0, [1, sizes[0]]), persona: T(1, [1, sizes[1]]), ids: T(2, [1, sizes[2]]) });
   const o = await sessB.run({ tokens: a.tokens, ki: T(3, [1, sizes[3]]), gi: new ort.Tensor('float32', Float32Array.from(gi), [1, gi.length]) });

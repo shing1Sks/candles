@@ -10,6 +10,7 @@ from playwright.sync_api import sync_playwright
 ap = argparse.ArgumentParser()
 ap.add_argument('episode'); ap.add_argument('name')
 ap.add_argument('--persona', default='nightmare'); ap.add_argument('--seconds', type=float, default=60); ap.add_argument('--port', default='5173')
+ap.add_argument('--query', default='', help="more of the page's query, e.g. '&crawl=1&keys=0.35'")
 a = ap.parse_args()
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'public', 'clips')
 FPS, TAIL = 20, 30
@@ -19,7 +20,7 @@ with sync_playwright() as p:
     page = b.new_page(viewport={'width': 1280, 'height': 720})
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
-    page.goto(f"http://localhost:{a.port}/?watch={a.episode}&persona={a.persona}&rec=1&manual=1&zoom=0.4&reveal=1")
+    page.goto(f"http://localhost:{a.port}/?watch={a.episode}&persona={a.persona}&rec=1&manual=1&zoom=0.4&reveal=1{a.query}")
     page.wait_for_function("window.__g && window.__g.ep && window.__g.phase !== 'title'", timeout=60000)
     page.wait_for_timeout(2000)  # the nightmare's weights load
     for _ in range(10): page.evaluate('window.__frame(0.05)')

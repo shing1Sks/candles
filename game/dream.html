@@ -28,13 +28,36 @@
 <body>
 <main>
   <h1>Candles, played inside the model</h1>
-  <p><b>Play it:</b> <a href="/?model=v4_M_r3">/?model=v4_M_r3</a> (tonight's: the nightmare, the whole house; about
-  half speed on this laptop), <a href="/?persona=nightmare">/?persona=nightmare</a> (the real game against the learned
-  monster, full speed), or yesterday's <a href="/?model=v3_M_r3">/?model=v3_M_r3</a>. WASD to move, shift to creep,
+  <p><b>Play it:</b> <a href="/?model=v5_M_s2r3">/?model=v5_M_s2r3</a> (12 October, day: the brain plays the monster
+  inside the model; real time on this laptop), <a href="/?model=v5_M_r3">/?model=v5_M_r3</a> (the same at 0.05 s steps,
+  about half speed here), <a href="/?persona=nightmare">/?persona=nightmare</a> (the real game against the learned
+  monster), or last night's <a href="/?model=v4_M_r3">/?model=v4_M_r3</a>. WASD to move, shift to creep,
   space to blow, E to use. The top right shows the monster's mind as the model has it.</p>
   <p>No rules run here. Every step (20 a second) the state of the house and the kid's input go into the main model, and
   the model says how the whole world moves: walls, candles, doors, and the monster's mind and body. The videos are
   recorded one model step per frame, so they play at real speed.</p>
+
+  <h2>12 October, day: the monster's brain plays the monster</h2>
+  <p>The main model is now the world (walls, doors, candles, both bodies, what the monster sees and hears), and the
+  monster's brain is a second player: the learned nightmare reads the model's world every step and presses the giant's
+  buttons, which go into the model like your keys. No rules run. Crawl spaces are no longer safe: it reaches 1.1 m under
+  beds and tables and into cracks, and squeezes into the vent after you (slower than you crawl), so you keep moving.
+  <b>Play it:</b> <a href="/?model=v5_M_s2r3">/?model=v5_M_s2r3</a> (real time on this laptop) or
+  <a href="/?model=v5_M_r3">/?model=v5_M_r3</a> (0.05 s steps, about half speed here).</p>
+  <div class="vids" id="day_vids"></div>
+  <h2>The same games, inside each model</h2>
+  <p>Kid bots against the nightmare, by the rules and inside the model (your kid exact, the play decode).</p>
+  <table id="day_ex"><thead><tr><th>world</th><th>kid wins</th><th>caught</th><th>time-outs</th><th>catches / min</th><th>pressure</th><th>kid m/s</th><th>kid in wall</th><th></th></tr></thead><tbody></tbody></table>
+  <h2>Crawl spaces: what was tried</h2>
+  <p>A kid sitting still in each kind of crawl space, the nightmare 8-14 m off having just seen it go in (caught / tried,
+  mean time); then 60 held-out kid-bot games against it.</p>
+  <table id="day_vent"><thead><tr><th>rule</th><th>vent</th><th>cracks</th><th>beds</th><th>tables</th><th>bot games: caught / kid won / catch at</th></tr></thead><tbody></tbody></table>
+  <h2>The nightmare, relearned under the new rules</h2>
+  <p>375 rounds of RL against stronger kid bots (skill 0.5-1) and with more hurry; 120 held-out games. The 2.5% kid
+  wins are mid-game starts one candle from winning.</p>
+  <table id="day_duel"><thead><tr><th>monster</th><th>caught</th><th>kid won</th><th>first catch at</th><th>candles out</th></tr></thead><tbody></tbody></table>
+  <h2>Every mechanic (384 cases), with the brain</h2>
+  <table id="day_mech"><thead><tr><th>family</th></tr></thead><tbody></tbody></table>
 
   <h2>The night of 12 October: the nightmare</h2>
   <p>A monster whose decisions are learned (reinforcement learning against thousands of kid bots, rewarded for catching
@@ -83,6 +106,29 @@ const nightClips = [
 document.getElementById('night_vids').innerHTML = nightClips.map(([f, t]) =>
   `<figure><video src="/clips/${f}.mp4" poster="/clips/${f}.jpg" controls preload="metadata" onerror="this.parentNode.remove()"></video>
    <figcaption><b>${t}</b></figcaption></figure>`).join('');
+const dayClips = [
+  ['v5s2_sneaker', 'v5_M_s2r3 (real time): the brain hunts a sneaking kid inside the model'],
+  ['v5s2_hider', 'v5_M_s2r3 (real time): a hiding kid'],
+  ['v5r3_sneaker', 'v5_M_r3: the brain catches a sneaking kid inside the model'],
+  ['v5r3_sprinter', 'v5_M_r3: a sprinting kid'],
+];
+document.getElementById('day_vids').innerHTML = dayClips.map(([f, t]) =>
+  `<figure><video src="/clips/${f}.mp4" poster="/clips/${f}.jpg" controls preload="metadata" onerror="this.parentNode.remove()"></video>
+   <figcaption><b>${t}</b></figcaption></figure>`).join('');
+fetch('/clips/day_results.json').then((r) => r.json()).then((n) => {
+  const f = (v, d = 2) => (v == null ? '' : Number(v).toFixed(d)), pc = (v) => (v == null ? '' : `${Math.round(v * 100)}%`);
+  document.querySelector('#day_ex tbody').innerHTML = n.exams.map((r) => `<tr><td>${r.name}<span class="note">${r.note}</span></td>
+    <td>${r.won}</td><td>${r.caught}</td><td>${r.timeout}</td><td>${f(r.catches_per_min)}</td><td>${f(r.pressure, 0)}%</td><td>${f(r.kid_speed)}</td><td>${f(r.kid_in_wall, 1)}%</td>
+    <td class="play">${r.play ? `<a href="/?model=${r.play}">play it</a>` : ''}</td></tr>`).join('');
+  const c = (a) => `${a.caught}/${a.n}${a.t != null ? ` <span class="note">${a.t} s</span>` : ''}`;
+  document.querySelector('#day_vent tbody').innerHTML = n.vents.map((r) => `<tr><td>${r.name}</td><td>${c(r.vent)}</td><td>${c(r.crack)}</td><td>${c(r.bed)}</td><td>${c(r.table)}</td>
+    <td>${pc(r.duel.caught)} / ${pc(r.duel.kid_won)} / ${f(r.duel.t_catch, 1)} s</td></tr>`).join('');
+  document.querySelector('#day_duel tbody').innerHTML = n.duel.map((r, i) => `<tr class="${i ? 'rules' : ''}"><td>${r.name}</td><td>${pc(r.caught)}</td><td>${pc(r.kid_won)}</td><td>${f(r.t_catch, 1)} s</td><td>${f(r.candles_out)}</td></tr>`).join('');
+  const models = Object.keys(n.mechanics), fams = Object.keys(n.mechanics[models[models.length - 1]]);
+  document.querySelector('#day_mech thead tr').innerHTML = '<th>family</th>' + models.map((m) => `<th>${m}</th>`).join('');
+  document.querySelector('#day_mech tbody').innerHTML = fams.map((k) => `<tr><td>${k}</td>${models.map((m) => {
+    const a = n.mechanics[m][k]; return `<td>${a ? `${Math.round(100 * a.pass_ / a.runs)}%<span class="note">${a.ok}/${a.cases} every run</span>` : ''}</td>`; }).join('')}</tr>`).join('');
+});
 fetch('/clips/night_results.json').then((r) => r.json()).then((n) => {
   const f = (v, d = 2) => (v == null ? '' : Number(v).toFixed(d)), pc = (v) => (v == null ? '' : `${Math.round(v * 100)}%`);
   document.querySelector('#duel tbody').innerHTML = n.duel.map((r) => `<tr class="${r.type === 'nightmare' ? 'rules' : ''}">

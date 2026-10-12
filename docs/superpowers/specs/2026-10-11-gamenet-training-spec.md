@@ -481,3 +481,62 @@ drawing the game state at every step was no better (0.52).
 4. Speed: `v4_M_r3` runs at 10 steps a second on the laptop. Try stride 2 on v4, or a smaller whole-house model.
 5. The hiding stalemate: a kid in a vent is safe for good, so the game needs a rule (the giant's hand reaching into
    vents? a smoke-out?) — the user's call.
+
+## 13. The monster's brain as a second player (day of 2026-10-12)
+
+The user played `/?persona=nightmare` (the real game with the learned monster: "good / decent") and `/?model=v4_M_r3`
+(the all-in-one: the mechanics "almost there", the monster not). They agreed to split the monster's brain from the
+world, asked for "horrifying levels" (an unwinnable game is fine), and for crawl spaces to stop being a safe place:
+"something like very slow in tunnels so you keep moving ... try a couple things then decide".
+
+**The split** (`src/model/brain.js`):
+- The model already had two stages: stage A guessed the giant's buttons, stage B moved the world given your input and
+  those buttons (trained on the recorded buttons). So the split needed no new architecture: the brain's buttons go into
+  stage B instead of stage A's guess.
+- The brain is the nightmare's mind. Each step it reads the model's row: its body, what it sees (`monster.sees`), what
+  it heard, was alerted to, sensed and felt (`pending`), the candles, doors and the giant's tools. A parity check on
+  9,600 rules steps: the row gives it the same observation as the rules' `observe()` (all fields equal but a few
+  cooldown edges, under 0.5%).
+- Its own mind (plans, moods, its four guesses of where you are) is written back into the row, as recorded games had it.
+- `export.py` writes `packed_brain.onnx` (`[cur | persona | ids | ki | gi] -> [world | events]`), one run a step. The
+  game uses it for `v5` models (`&brain=1` for others); `dream_exam --brain`, `mechanics/exam.mjs --brain`.
+- **Without any retraining**, `v4_M_r3` with the brain caught 9 of 10 games at 2.40 a minute (the rules 2.68; its own
+  monster 0.77).
+
+**Crawl spaces** (`rules.js` `VENT`). Variants tried with the nightmare (`.work/split/vent_trial.mjs`): a kid sitting
+still in each crawl space, the monster 8–14 m off having just seen it go in, and 60 held-out bot games.
+
+| Rule | Vent | Cracks | Beds | Tables | Bot games: caught / won / catch at |
+|---|---|---|---|---|---|
+| Old: crawl spaces safe | 0/4 | 0/20 | 0/8 | 0/8 | 95% / 3% / 36 s |
+| It reaches 1.1 m in | 0/4 | 20/20 | 8/8 | 8/8 | 97% / 3% / 16 s |
+| **Reaches in + crawls into the vent (chosen)** | 4/4 | 19/20 | 8/8 | 8/8 | 97% / 3% / 16 s |
+| The same, the kid slower in the vent | 4/4 | 18/20 | 8/8 | 8/8 | 97% / 3% / 16 s |
+
+- Chosen: it reaches 1.1 m under beds and tables and into cracks, and squeezes into the vent duct after you at
+  1.35 m/s (you crawl at 1.7), with no lunge in there; it sees along the duct, and you see it coming. Nowhere is safe
+  once it knows where you are, but you can out-crawl it, so you keep moving. Hiding still works while it does not know.
+- The navigation goes right up to a crawl space and reaches in (it used to treat a blocked goal as reached).
+- The middle of the big 3 × 2 tables is just out of its reach.
+- Tests: the passage cases now expect the reach (P2) and the duct chase (P3); 519 pass.
+
+**Data v5:** 30,000 games under the new rules (80% the nightmare, the rest the coded types: more kinds of buttons for
+the world to carry out), plus 8,000 crawl-space drills (`gen --crawl`: the kid in or by a crawl space, the monster 2–7 m
+off having just seen it), because kid bots barely use the vent (0 duct chases in 400 ordinary games).
+
+**The world, fine-tuned from `v4_M_r3`:** `v5_M` (50 min teacher-forced): check loss 0.925 (v4 about 0.98), kid 1.7 mm,
+monster 1.9 mm, candles F1 0.99. `v5_M_r3` (+70 min of rollouts).
+
+**The nightmare relearned** (RL run e, 375 rounds from last night's weights, under the new rules, against kids of skill
+0.5–1, a decision costing 0.003): on 120 held-out games, 97.5% caught both before and after; the first catch at 15.1 s
+(was 15.9 s). The bots cannot tell "very strong" from "horrifying" any more: the only kid wins are mid-game starts one
+candle from winning. It is `public/nightmare.json` now (last night's: `nightmare_v4.json`).
+
+| Inside the model, against the nightmare | Kid won / caught / timeout | Catches / min | Mechanics (runs, cases every run) |
+|---|---|---|---|
+| `v4_M_r3`, its own monster (last night) | 10 / 26 / 4 | 0.77 | 79%, 276 / 383 |
+| `v5_M_r3` + the brain | 2 / 37 / 1 | 2.14 | 78%, 282 / 384 |
+
+The real game with the relearned brain: 0 / 40 / 0, 3.81 a minute. Passages (the reach and the duct chase) 20 / 21.
+Still weak: the giant's light (4 / 11 cases) and hand (4 / 11), and catches set up already within reach (a state no
+recorded game has).
