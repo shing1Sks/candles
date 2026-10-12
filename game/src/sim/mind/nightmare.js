@@ -93,7 +93,7 @@ export function nightmareFeatures(G, m, obs) {
   // walking distances from its tile (doors count as open, as its paths do): the house never changes, so kept
   const cache = (G.L.monDist ||= new Map()), key = tileOf(self.z) * W + tileOf(self.x);
   let dist = cache.get(key);
-  if (!dist) cache.set(key, (dist = distField(G.L, tileOf(self.x), tileOf(self.z), G.L.monBlocked)));
+  if (!dist) cache.set(key, (dist = distField(G.L, tileOf(self.x), tileOf(self.z), G.L.monBlocked, G.L.monCost)));
   const pd = (p) => { const d = dist[tileOf(p.z) * W + tileOf(p.x)]; return Number.isFinite(d) ? Math.min(d, 60) / 30 : Math.hypot(p.x - self.x, p.z - self.z) / 30; };
   let o = 0;
   const put = (...v) => { for (const a of v) x[o++] = a; };

@@ -3,7 +3,7 @@
 // Where an instance can't be staged (no floor to stand on, no free run to throw along) it is left out, not faked.
 // Ids are `<doc id>:<thing>[:<side or way>]`, e.g. C2:candle3, D1:door7:west, N4c:toy2:south.
 // Unless a case is about the monster, it is parked awake in the corridor corner furthest away (kit.far).
-import { KID, MON, BEAM, REACH } from '../../src/sim/rules.js';
+import { KID, MON, BEAM, REACH, VENT } from '../../src/sim/rules.js';
 import { T } from '../../src/sim/level.js';
 import { distField } from '../../src/sim/grid.js';
 import {
@@ -288,7 +288,8 @@ L.squeaks.forEach((q, i) => {
     check: (G, s) => fail(s.on && !s.ev.creak, `on the board ${!!s.on}, ${s.ev.creak || 0} creaks`) });
 });
 
-// ---------------- passages: the kid crawls through from one way out to another; the monster can't get in
+// ---------------- passages: the kid crawls through from one way out to another; the monster reaches in at a kid just
+// inside any of them (rules VENT.reachIn), and squeezes into the vent duct after a kid deeper in (VENT.monsterIn)
 const KINDS = { [T.DUCT]: 'vent', [T.CRACK]: 'crack', [T.TABLE]: 'table', [T.BED]: 'bed' };
 for (const p of L.passages) {
   const ends = [];
@@ -305,12 +306,20 @@ for (const p of L.passages) {
     setup: (G) => { place(G, 'kid', A.x, A.z); far(G, (A.x + B.x) / 2, (A.z + B.z) / 2); }, ki: (t, G) => toward(G, B.x, B.z),
     each: (G, s) => { if (G.kid.crawl) s.crawl = 1; wallCheck(G, s); },
     check: (G, s) => fail(s.crawl && dist(G.kid, B) < 0.6 && walls(s), `crawled ${!!s.crawl}, ends ${r2(dist(G.kid, B))} m from the way out, ${r2(s.clear)} m from a wall at the closest`) });
-  // the kid just inside, the monster at the way in, facing it: it never gets in (nor catches the kid)
+  // the kid just inside, the monster at the way in, facing it: it reaches in and has the kid
   const ux = Math.sign(B.x - A.x), uz = Math.sign(B.z - A.z), kx = A.x + ux, kz = A.z + uz;
-  add('passages', { id: `P2:${nm}`, what: `the monster at the ${kind} (passage ${p.id}) cannot get in at the kid`, secs: 2,
+  add('passages', { id: `P2:${nm}`, what: `the monster at the ${kind} (passage ${p.id}) reaches in at the kid just inside`, secs: 1,
     setup: (G) => { place(G, 'kid', kx, kz); wake(G, A.x, A.z, ux, uz); }, ki: hold({}),
-    each: (G, s) => minOf(s, 'in', clearance(G.monster.x, G.monster.z, (x, z) => G.L.crawl(x, z))),
-    check: (G, s) => fail(s.in > MR - 0.1 && G.state === 'play', `its centre came within ${r2(s.in)} m of the ${kind}, game ${G.state}`) });
+    check: (G) => fail(G.state === 'caught', `game ${G.state}, ${r2(dist(G.kid, G.monster))} m apart`) });
+  // the vent duct: a kid deeper in; the monster squeezes in after it, slowly, and has it
+  const deep = p.tiles.map(([x, z]) => ({ x: x + 0.5, z: z + 0.5 })).filter((q) => Math.hypot(q.x - A.x, q.z - A.z) >= 2.9 && Math.hypot(q.x - A.x, q.z - A.z) <= 4.1 && (q.x === A.x || q.z === A.z));
+  if (p.kind === T.DUCT && deep.length) {
+    const K = deep[0];
+    add('passages', { id: `P3:${nm}`, what: `the monster squeezes into the vent (passage ${p.id}) after a kid ${r2(dist(K, A))} m in, slowly, and has it`, secs: 6,
+      setup: (G) => { place(G, 'kid', K.x, K.z); wake(G, A.x, A.z, ux, uz); }, ki: hold({}),
+      each: (G, s) => { if (G.L.duct(tf(G.monster.x), tf(G.monster.z))) { s.inside = (s.inside || 0) + 1; if (s.inside > 2) maxOf(s, 'v', G.monster.speed); } }, // its speed once it is in
+      check: (G, s) => fail(s.inside && (s.v ?? 0) <= VENT.monCrawl + 0.05 && G.state === 'caught', `got in ${!!s.inside}, fastest in the duct ${r2(s.v)} m/s, game ${G.state}`) });
+  }
 }
 
 // ---------------- moving, in every room and the corridor: run, creep, stop, face, slide along a wall

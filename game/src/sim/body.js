@@ -3,7 +3,7 @@
 //   stick: move, full tilt = hunt speed; run held: up to chase speed (+ bloodlust + rage)
 //   lunge: crouch 0.25 s, lunge 0.4 s, recover 1.5 s      use: open a shut door (0.6 s) or look in a wardrobe (0.7 s)
 //   bash: smash through a shut door (0.9 s, loud)         yell: stop and roar for 0.8 s, at most every 6 s
-import { MON, GIANT } from './rules.js';
+import { MON, GIANT, VENT } from './rules.js';
 import { resolve } from './grid.js';
 import { setDoor, caught } from './game.js';
 
@@ -55,7 +55,7 @@ export function stepBody(G, gi, dt) {
     if (gi.yell && M.yellCool <= 0) {
       start(M, 'yell', GIANT.yell); M.yellCool = GIANT.yellEvery;
       G.events.push({ type: 'yell', why: gi.why || '' });
-    } else if (gi.lunge && M.cool <= 0) {
+    } else if (gi.lunge && M.cool <= 0 && !G.L.duct(Math.floor(M.x), Math.floor(M.z))) {
       start(M, 'windup', MON.windup); G.events.push({ type: 'windup' });
     } else if (gi.bash || gi.use) {
       const d = doorAhead(G, M, dirX, dirZ), w = gi.use ? wardrobeAt(G, M) : null;
@@ -79,6 +79,11 @@ export function stepBody(G, gi, dt) {
     case 'lunge': break;
     case 'none': break;
     default: wantX = wantZ = 0; M.vx *= 0.5; M.vz *= 0.5; // opening, smashing, looking inside, yelling: stands
+  }
+  if (G.L.duct(Math.floor(M.x), Math.floor(M.z))) { // squeezed into the vent duct: it slows at once
+    cap = Math.min(cap, VENT.monCrawl);
+    const v = Math.hypot(M.vx, M.vz);
+    if (v > cap) { M.vx *= cap / v; M.vz *= cap / v; }
   }
   const wm = Math.hypot(wantX, wantZ);
   if (wm > cap) { wantX *= cap / wm; wantZ *= cap / wm; }

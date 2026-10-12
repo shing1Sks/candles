@@ -80,7 +80,7 @@ export function cohere(prev, row, col, map) {
 // 4-8% of the time even after the keyboard data: a crutch until training fixes it.
 // The body counts, not only its centre: the points a radius away along each axis must be clear too (a little under
 // the rules' 0.24 and 0.42), else the kid sank 0.2 m into walls it pushed against.
-const KID_BLOCK = new Set([1, 6, 7]), MON_BLOCK = new Set([1, 6, 7, 2, 3, 4, 5]); // WALL LOW TALL (+ DUCT CRACK TABLE BED)
+const KID_BLOCK = new Set([1, 6, 7]), MON_BLOCK = new Set([1, 6, 7, 3, 4, 5]); // WALL LOW TALL (+ CRACK TABLE BED; it squeezes into the DUCT: rules VENT)
 export function unwall(prev, row, col, map) {
   const shut = (tx, tz) => { const d = map.doorAt[tz * map.w + tx]; return d >= 0 && row[col('door', 'open', d).c] < 0.5; };
   for (const [kind, blocks, r] of [['kid', KID_BLOCK, 0.22], ['monster', MON_BLOCK, 0.38]]) {

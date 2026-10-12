@@ -228,10 +228,12 @@ export function createView(canvas, L) {
       const awake = M.mode !== 'sleep';
       k.fear = awake ? Math.max(0, 1 - d / HEART.radius) : 0;
       kid.update(k, dt, t, M);
+      M.duct = L.duct(Math.floor(M.x), Math.floor(M.z));
       monster.update(M, k, dt, t);
       // you only see it if the kid could
       // behind walls you still see its eye on the stalk poking up over them
-      const seen = maps.reveal || (!inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && G.los(k.x, k.z, M.x, M.z));
+      const bothIn = M.duct && L.duct(Math.floor(k.x), Math.floor(k.z)); // it came into the vent after you
+      const seen = maps.reveal || (bothIn && d < 16 && G.monLos(k.x, k.z)) || (!inWall && !L.sightBlocked(Math.floor(M.x), Math.floor(M.z)) && d < 16 && G.los(k.x, k.z, M.x, M.z));
       monster.setSeen(seen, WALL_H + 0.02);
       const lit = intensities.reduce((s, v) => s + v, 0) / intensities.length;
       // from inside the house the giant is a dark mass overhead; at the table you see it lit by the board

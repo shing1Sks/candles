@@ -58,6 +58,21 @@ export const MON = {
   checkOpen: 0.7, // opening a wardrobe door takes this long
 };
 
+// Crawl spaces (the vent duct, cracks in walls, under tables and beds). The user (2026-10-12): nowhere should be
+// truly safe, but hiding is fine: you keep moving.
+//   monsterIn: it squeezes into the vent duct after you, slowly (it can't lunge in there); cracks stay too narrow
+//   reachIn:   from outside it reaches this far under a table or bed, into a crack or the mouth of the vent (a touch
+//              is MON.reach); 0: the old rule (under furniture only 0.6 m, never into a vent or crack)
+//   dust:      after this long in a crawl space you cough (a noise) every `coughEvery` s; 0: never
+export const VENT = {
+  monsterIn: true,
+  monCrawl: 1.35, // its speed in the duct (yours: KID.crawl 1.7)
+  reachIn: 1.1,
+  dust: 0,
+  coughEvery: 2.5,
+  noiseCough: 8,
+};
+
 // The giant's eye: every so often it hangs a searchlight over part of the house. Out in it, you are seen.
 export const BEAM = {
   first: 45,

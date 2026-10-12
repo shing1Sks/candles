@@ -2,7 +2,7 @@
 // creaky boards, squeaky toys, toys to throw, and the giant's searchlight and hand.
 // The world takes two controllers: the kid's and the giant's (who plays the monster). It runs the same in the
 // browser and in Node, so bots can play it and every game can be recorded.
-import { KID, MON } from './rules.js';
+import { KID, MON, VENT } from './rules.js';
 import { T } from './level.js';
 import { resolve, los } from './grid.js';
 import { rng } from './rng.js';
@@ -38,6 +38,11 @@ export function createGame(L, seed = 1) {
   G.monBlocked = (x, z) => L.monBlocked(x, z) || shut(x, z);
   G.sightBlocked = (x, z) => L.sightBlocked(x, z) || shut(x, z);
   G.los = (x0, z0, x1, z1) => los(L, x0, z0, x1, z1, G.sightBlocked);
+  // the monster's eyes from inside the vent duct see along it (from outside, a duct is dark tin)
+  const ductSight = (x, z) => (L.duct(x, z) ? false : G.sightBlocked(x, z));
+  G.monLos = (x1, z1) => (L.duct(Math.floor(G.monster.x), Math.floor(G.monster.z)) ? los(L, G.monster.x, G.monster.z, x1, z1, ductSight) : G.los(G.monster.x, G.monster.z, x1, z1));
+  // an arm reaching into a crawl space: through anything but walls, tall furniture and shut doors
+  G.armLos = (x0, z0, x1, z1) => los(L, x0, z0, x1, z1, (x, z) => L.armBlocked(x, z) || shut(x, z));
   G.monster = createBody(L);
   return G;
 }
@@ -244,11 +249,15 @@ function checkCatch(G) {
   const k = G.kid, M = G.monster, L = G.L;
   if (k.hidden >= 0 || !M.awake) return; // in a wardrobe only a look inside finds you
   const d = Math.hypot(k.x - M.x, k.z - M.z);
-  if (d > MON.reach + MON.radius * 0.5) return;
-  const under = L.at(Math.floor(k.x), Math.floor(k.z));
-  if (under === T.DUCT || under === T.CRACK) return; // it can't reach into the walls
-  if ((under === T.TABLE || under === T.BED) && d > 0.6) return;
-  if (!G.los(M.x, M.z, k.x, k.z)) return;
+  if (d > Math.max(MON.reach + MON.radius * 0.5, VENT.reachIn)) return;
+  const under = L.at(Math.floor(k.x), Math.floor(k.z)), inDuct = L.duct(Math.floor(M.x), Math.floor(M.z));
+  if (under === T.DUCT && inDuct) { if (d <= MON.reach + MON.radius * 0.5 && G.monLos(k.x, k.z)) caught(G, 'touch'); return; } // it came in after you
+  if (under === T.DUCT || under === T.CRACK || under === T.TABLE || under === T.BED) {
+    // a crawl space: it reaches in this far (VENT.reachIn; 0: the old rule, under furniture only, never into the walls)
+    if (VENT.reachIn > 0) { if (d <= VENT.reachIn && G.armLos(M.x, M.z, k.x, k.z)) caught(G, 'touch'); return; }
+    if (under === T.DUCT || under === T.CRACK || d > 0.6) return;
+  }
+  if (d > MON.reach + MON.radius * 0.5 || !G.monLos(k.x, k.z)) return;
   caught(G, 'touch');
 }
 

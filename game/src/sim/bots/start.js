@@ -38,7 +38,7 @@ export function randomStart(G, rand) {
   const kidTiles = [], floor = [];
   for (let z = 0; z < L.h; z++) for (let x = 0; x < L.w; x++) {
     if (!L.kidBlocked(x, z) && L.doorAt(x, z) < 0) kidTiles.push([x, z]);
-    if (!L.monBlocked(x, z) && L.doorAt(x, z) < 0) floor.push([x, z]);
+    if (L.monSpot(x, z) && L.doorAt(x, z) < 0) floor.push([x, z]);
   }
   // where the kid starts, by variant
   const spot = () => {

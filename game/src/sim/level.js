@@ -6,6 +6,8 @@
 //   w  wardrobe (tall; the kid can hide inside)
 //   d  door, open         D  door, shut  (two tiles side by side make one double door)
 //   C  candle             K  kid start         M  monster start
+import { VENT } from './rules.js';
+
 export const MAP = [
   '#####################################',
   '#.............=========............M#',
@@ -59,6 +61,8 @@ const CODE = { '#': T.WALL, '=': T.DUCT, c: T.CRACK, t: T.TABLE, b: T.BED, x: T.
 
 const KID_BLOCK = new Set([T.WALL, T.LOW, T.TALL]);
 const MON_BLOCK = new Set([T.WALL, T.LOW, T.TALL, T.DUCT, T.CRACK, T.TABLE, T.BED]);
+// what an arm reaching into a crawl space goes through (it can't reach through a wall)
+const ARM_BLOCK = new Set([T.WALL, T.LOW, T.TALL]);
 const SIGHT_BLOCK = new Set([T.WALL, T.TALL, T.DUCT, T.CRACK]);
 const CRAWL = new Set([T.DUCT, T.CRACK, T.TABLE, T.BED]);
 
@@ -85,7 +89,15 @@ export function parseLevel(rows = MAP) {
   const L = { w, h, tiles, room, kid, monster, candles: [] };
   L.at = (x, z) => (x < 0 || z < 0 || x >= w || z >= h ? T.WALL : tiles[z * w + x]);
   L.kidBlocked = (x, z) => KID_BLOCK.has(L.at(x, z));
-  L.monBlocked = (x, z) => MON_BLOCK.has(L.at(x, z));
+  // the monster squeezes into the vent duct (VENT.monsterIn: read when the house is parsed)
+  const monIn = VENT.monsterIn;
+  L.monBlocked = (x, z) => { const t = L.at(x, z); return MON_BLOCK.has(t) && !(monIn && t === T.DUCT); };
+  L.duct = (x, z) => L.at(x, z) === T.DUCT;
+  // walking cost for its paths: the duct is slow going
+  L.monCost = monIn ? (x, z) => (L.at(x, z) === T.DUCT ? 3.0 / VENT.monCrawl : 1) : null;
+  // a spot to stand, patrol or start on: not inside the duct
+  L.monSpot = (x, z) => !L.monBlocked(x, z) && L.at(x, z) !== T.DUCT;
+  L.armBlocked = (x, z) => ARM_BLOCK.has(L.at(x, z));
   L.sightBlocked = (x, z) => SIGHT_BLOCK.has(L.at(x, z));
   L.crawl = (x, z) => CRAWL.has(L.at(x, z));
   // A candle sits in the corner of its tile, pushed toward the walls around it.

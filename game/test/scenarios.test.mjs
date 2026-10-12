@@ -8,7 +8,7 @@ import { createGame, stepWorld, step, makeNoise, IDLE_GI } from '../src/sim/game
 import { canSee, observe } from '../src/sim/senses.js';
 import { stepBody } from '../src/sim/body.js';
 import { createMind, think } from '../src/sim/mind/index.js';
-import { KID, MON, BEAM, REACH } from '../src/sim/rules.js';
+import { KID, MON, BEAM, REACH, VENT } from '../src/sim/rules.js';
 
 const L = parseLevel(), DT = 1 / 60, tf = Math.floor;
 const PRESS_K = ['use', 'throw'], PRESS_G = ['lunge', 'use', 'bash', 'yell', 'light', 'reach'];
@@ -36,7 +36,7 @@ const beside0 = { x: 12.28, z: 4.72 }; // the nursery candle (id 0) is at 12.78,
 
 // ---------------- 0. the board and the tick
 test('G0 every tile type passes and blocks as the table says', () => {
-  const want = { [T.FLOOR]: [1, 1, 0, 0], [T.WALL]: [0, 0, 1], [T.DUCT]: [1, 0, 1, 1], [T.CRACK]: [1, 0, 1, 1], [T.TABLE]: [1, 0, 0, 1], [T.BED]: [1, 0, 0, 1], [T.LOW]: [0, 0, 0], [T.TALL]: [0, 0, 1] };
+  const want = { [T.FLOOR]: [1, 1, 0, 0], [T.WALL]: [0, 0, 1], [T.DUCT]: [1, 1, 1, 1], [T.CRACK]: [1, 0, 1, 1], [T.TABLE]: [1, 0, 0, 1], [T.BED]: [1, 0, 0, 1], [T.LOW]: [0, 0, 0], [T.TALL]: [0, 0, 1] };
   for (const [type, [kid, mon, sight, crawl]] of Object.entries(want)) {
     const i = L.tiles.findIndex((t) => t === Number(type)), x = i % L.w, z = Math.floor(i / L.w);
     assert.equal(!L.kidBlocked(x, z), !!kid, `type ${type} kid`); assert.equal(!L.monBlocked(x, z), !!mon, `type ${type} monster`);
@@ -338,10 +338,10 @@ test('B5 the same gap three times in a chase: it waits at the far exit', () => {
   }
   assert.equal(m.mode, 'ambush');
 });
-test('B6 you under a table it cannot reach for 2 s: it goes round to wait', () => {
-  const G = game(); place(G, 'kid', 18.5, 15.5); wake(G, 18.5, 14.2, 0, 1); const m = classic(G);
-  for (let t = 0; t < 2.6 && m.mode !== 'ambush'; t += DT) step(G, { mx: 0, mz: 0 }, DT);
-  assert.equal(m.mode, 'ambush'); assert.equal(G.state, 'play');
+test('B6 you under the edge of a table: it comes up to it and reaches in', () => {
+  const G = game(); place(G, 'kid', 18.5, 15.5); wake(G, 18.5, 14.2, 0, 1); classic(G);
+  for (let t = 0; t < 2.6 && G.state === 'play'; t += DT) step(G, { mx: 0, mz: 0 }, DT);
+  assert.equal(G.state, 'caught'); assert.ok(G.monster.z < 15 - MON.radius + 0.01);
 });
 test('B7 after 25 s of close pressure it backs off for a breather', () => {
   const G = game(); place(G, 'kid', 12.5, 20.5); wake(G, 9.5, 20.5); const m = classic(G);
@@ -378,20 +378,32 @@ test('B12 rage adds 0.25 m/s to its run', () => {
 });
 
 // ---------------- 8. getting caught
-test('X1 a touch within 0.93 m in sight catches; under a table only within 0.6 m', () => {
+test('X1 a touch within 0.93 m in sight catches; under a table it reaches 1.1 m in', () => {
   let G = game(); place(G, 'kid', 10.5, 20.5); wake(G, 9.6, 20.5); run(G, DT); assert.equal(G.state, 'caught');
   G = game(); place(G, 'kid', 10.5, 20.5); wake(G, 9.5, 20.5); run(G, DT); assert.equal(G.state, 'play');
-  G = game(); place(G, 'kid', 18.5, 15.5); wake(G, 18.5, 14.6, 0, 1); run(G, 1, {}, { mz: 1 }); assert.equal(G.state, 'play');
+  G = game(); place(G, 'kid', 18.5, 15.5); wake(G, 18.5, 14.6, 0, 1); run(G, 1, {}, { mz: 1 }); assert.equal(G.state, 'caught');
+  G = game(); place(G, 'kid', 18.5, 16.0); wake(G, 18.5, 14.6, 0, 1); run(G, 1, {}, { mz: 1 }); assert.equal(G.state, 'play'); // the middle of a big table is out of its reach
 });
 test('X2 found in a wardrobe', () => {
   const G = game(); place(G, 'kid', 32.5, 9.5, { hidden: 1 }); wake(G, 32.5, 8.9, 0, 1);
   run(G, MON.checkOpen + 0.05, {}, { use: true });
   assert.equal(G.state, 'caught');
 });
-test('X3 nothing happens with it right beside your crack', () => {
+test("X3 it can't get into your crack, but it reaches in", () => {
   const G = game(); place(G, 'kid', 13.5, 5.5); wake(G, 12.3, 5.5);
   run(G, 2, {}, { mx: 1 });
-  assert.equal(G.state, 'play'); assert.ok(Math.hypot(G.monster.x - 13.5, G.monster.z - 5.5) < 0.95);
+  assert.equal(G.state, 'caught'); assert.ok(G.monster.x < 13 - MON.radius + 0.01);
+});
+test('X4 it squeezes into the vent duct after you: slowly, no lunge, it sees along the duct and catches you there', () => {
+  let G = game(); place(G, 'kid', 17.5, 1.5); wake(G, 12.5, 1.5);
+  let top = 0; run(G, 3, {}, { mx: 1, run: true }); // into the duct at (14, 1)
+  for (let i = 0; i < 20; i++) { run(G, 0.05, {}, { mx: 1, run: true }); top = Math.max(top, G.monster.speed); }
+  assert.ok(L.duct(Math.floor(G.monster.x), Math.floor(G.monster.z)), `it got in (${G.monster.x.toFixed(2)})`);
+  assert.ok(top <= VENT.monCrawl + 1e-6, `crawls at ${top.toFixed(2)}`);
+  assert.ok(G.monster.sees, 'it sees you along the duct');
+  G = game(); place(G, 'kid', 17.5, 1.5); wake(G, 15.5, 1.5); run(G, 0.2, {}, { lunge: true }); assert.equal(G.monster.act, 'none'); // no room to lunge
+  run(G, 2, {}, { mx: 1 }); assert.equal(G.state, 'caught');
+  G = game(); place(G, 'kid', 17.5, 1.5); wake(G, 12.5, 1.5); run(G, 0.1); assert.ok(!G.monster.sees, 'from outside a duct is dark');
 });
 
 // ---------------- 9. the searchlight

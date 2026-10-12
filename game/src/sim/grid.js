@@ -101,7 +101,7 @@ export function distField(L, sx, sz, blocked, extraCost) {
 }
 
 // A* between tiles; returns tile centres (excluding the start) or null.
-export function findPath(L, sx, sz, gx, gz, blocked) {
+export function findPath(L, sx, sz, gx, gz, blocked, extraCost) {
   if (blocked(gx, gz)) return null;
   const W = L.w, start = sz * W + sx, goal = gz * W + gx;
   const g = new Float32Array(L.w * L.h).fill(Infinity), from = new Int32Array(L.w * L.h).fill(-1), H = new Heap();
@@ -112,7 +112,7 @@ export function findPath(L, sx, sz, gx, gz, blocked) {
     if (k === goal) break;
     const x = k % W, z = (k / W) | 0;
     neighbours(L, x, z, blocked, (nx, nz, c) => {
-      const nk = nz * W + nx, ng = g[k] + c;
+      const nk = nz * W + nx, ng = g[k] + c * (extraCost ? extraCost(nx, nz) : 1);
       if (ng < g[nk]) { g[nk] = ng; from[nk] = k; H.push(ng + hfn(nx, nz), nk); }
     });
   }

@@ -1,6 +1,6 @@
 // Getting around, for any mind: plan a path (through doors: it opens them when it gets there), pick spots, find the
 // far end of the gap the kid went into. Every random choice comes from the mind's own stream (mind.rand).
-import { MON } from '../rules.js';
+import { MON, VENT } from '../rules.js';
 import { clearLine, findPath, nearestOpen } from '../grid.js';
 
 const R = MON.radius;
@@ -8,22 +8,28 @@ export const tileOf = Math.floor;
 
 // Head for (x, z) at `speed`: plan a path when the goal moves, then aim at the furthest point we can slide to.
 // Writes mind.wantX / wantZ (m/s); returns the distance left.
+// A goal inside a crawl space (under a bed, in a crack): it goes right up to it and reaches in (rules VENT.reachIn);
+// the distance it returns counts as arrived (< 0.6) once you would be within its arm.
 export function steer(G, mind, self, x, z, speed, dt) {
   const L = G.L, blocked = L.monBlocked;
+  const crawlGoal = VENT.reachIn > 0 && blocked(tileOf(x), tileOf(z)) && L.crawl(tileOf(x), tileOf(z));
+  const arm = (d) => (crawlGoal ? Math.max(0, d - VENT.reachIn + 0.55) : d);
   if (clearLine(L, self.x, self.z, x, z, R, blocked)) { mind.path = null; return aim(mind, self, x, z, speed); }
   mind.pathT -= dt;
   const moved = !mind.goal || Math.hypot(mind.goal.x - x, mind.goal.z - z) > 0.8;
   if (!mind.path || moved || mind.pathT <= 0) {
     const g = nearestOpen(L, tileOf(x), tileOf(z), blocked), s = nearestOpen(L, tileOf(self.x), tileOf(self.z), blocked);
-    mind.path = g && s ? findPath(L, s[0], s[1], g[0], g[1], blocked) : null;
+    mind.path = g && s ? findPath(L, s[0], s[1], g[0], g[1], blocked, L.monCost) : null;
     mind.goal = { x, z }; mind.pathT = MON.repath;
     if (mind.path && mind.path.length) mind.path[mind.path.length - 1] = blocked(tileOf(x), tileOf(z)) ? mind.path[mind.path.length - 1] : { x, z };
+    if (crawlGoal && mind.path) mind.path.push({ x, z }); // then into the wall's mouth, as far as its body goes
   }
+  if (crawlGoal && (!mind.path || mind.path.length <= 1)) return arm(aim(mind, self, x, z, speed));
   if (!mind.path || !mind.path.length) return blocked(tileOf(x), tileOf(z)) ? 0 : aim(mind, self, x, z, speed * 0.3);
   while (mind.path.length > 1 && clearLine(L, self.x, self.z, mind.path[1].x, mind.path[1].z, R, blocked)) mind.path.shift();
   const p = mind.path[0];
   if (mind.path.length > 1 && Math.hypot(p.x - self.x, p.z - self.z) < 0.25) mind.path.shift();
-  return aim(mind, self, mind.path[0].x, mind.path[0].z, speed);
+  return arm(aim(mind, self, mind.path[0].x, mind.path[0].z, speed)) + (crawlGoal ? mind.path.length - 1 : 0);
 }
 
 export function aim(mind, self, x, z, speed) {
@@ -48,7 +54,7 @@ export function randomSpot(G, mind, x, z, r) {
   ({ x, z } = snap(G, { x, z }));
   for (let i = 0; i < 20; i++) {
     const tx = tileOf(x + (mind.rand() * 2 - 1) * r), tz = tileOf(z + (mind.rand() * 2 - 1) * r);
-    if (!L.monBlocked(tx, tz) && G.los(x, z, tx + 0.5, tz + 0.5)) return { x: tx + 0.5, z: tz + 0.5 };
+    if (L.monSpot(tx, tz) && G.los(x, z, tx + 0.5, tz + 0.5)) return { x: tx + 0.5, z: tz + 0.5 };
   }
   return { x, z };
 }
@@ -87,7 +93,7 @@ export function pickGuard(G, mind, guardBias = 0) {
   if (!lit.length) return null;
   if (mind.rand() > 0.3 + 0.08 * lit.length + guardBias) {
     const spots = (G.L.roomSpots ||= []);
-    if (!spots.length) for (let z = 1; z < G.L.h; z += 3) for (let x = 1; x < G.L.w; x += 3) if (!G.L.monBlocked(x, z)) spots.push({ x: x + 0.5, z: z + 0.5 });
+    if (!spots.length) for (let z = 1; z < G.L.h; z += 3) for (let x = 1; x < G.L.w; x += 3) if (G.L.monSpot(x, z)) spots.push({ x: x + 0.5, z: z + 0.5 });
     const h = mind.lastHint;
     let best = null, bs = -Infinity;
     for (let i = 0; i < 6; i++) {

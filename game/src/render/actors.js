@@ -213,13 +213,16 @@ export function createMonster() {
 
   const nodes = Array.from({ length: NS + 1 }, () => new THREE.Vector3()), dirs = Array.from({ length: NS }, () => new THREE.Vector3());
   const v1 = new THREE.Vector3(), v2 = new THREE.Vector3(), v3 = new THREE.Vector3(), look = new THREE.Vector3(), sa = new THREE.Vector3(), sbb = new THREE.Vector3();
-  let phase = 0, yaw = 0, crouch = 0, reach = 0, jaw = 0, run = 0, scan = 0;
+  let phase = 0, yaw = 0, crouch = 0, reach = 0, jaw = 0, run = 0, scan = 0, squeeze = 0;
 
   return {
     root, eye,
     materials,
     update(M, kid, dt, t) {
       root.position.set(M.x, 0, M.z);
+      // squeezed flat into the vent duct (0.72 m high) after you
+      squeeze = damp(squeeze, M.duct ? 1 : 0, 8, dt);
+      root.scale.set(1 + 0.15 * squeeze, 1 - 0.5 * squeeze, 1 + 0.1 * squeeze);
       yaw += wrap(Math.atan2(M.hx, M.hz) - yaw) * Math.min(1, dt * 10);
       body.rotation.y = yaw;
       const mode = M.mode, sp = M.speed;

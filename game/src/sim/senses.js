@@ -24,14 +24,15 @@ export function alert(G, x, z, kind) {
 export function canSee(G) {
   const k = G.kid, M = G.monster, L = G.L, d = Math.hypot(k.x - M.x, k.z - M.z);
   if (k.hidden >= 0) return false; // in a wardrobe
-  if (L.sightBlocked(tileOf(k.x), tileOf(k.z))) return false; // in a vent or a crack
+  const kidDuct = L.duct(tileOf(k.x), tileOf(k.z)), monDuct = L.duct(tileOf(M.x), tileOf(M.z));
+  if (L.sightBlocked(tileOf(k.x), tileOf(k.z)) && !(kidDuct && monDuct)) return false; // in a vent or a crack (unless it came in after you)
   const under = L.at(tileOf(k.x), tileOf(k.z));
   if ((under === T.TABLE || under === T.BED) && d > MON.hiddenSeen) return false;
   const range = lightAt(G, k.x, k.z) > CANDLE.litAt ? MON.sightLit : MON.sightDark;
   if (d > range) return false;
   const dot = ((k.x - M.x) * M.hx + (k.z - M.z) * M.hz) / (d || 1);
   if (dot < MON.fov && d > MON.sightClose) return false;
-  return G.los(M.x, M.z, k.x, k.z);
+  return G.monLos(k.x, k.z);
 }
 
 // End of a tick: what it saw, heard and sensed this tick. It piles up until its mind next looks (observe), so a
