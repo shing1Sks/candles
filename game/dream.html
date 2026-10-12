@@ -29,7 +29,7 @@
 <main>
   <h1>Candles, played inside the model</h1>
   <p><b>Play it:</b> <a href="/?model=v5_M_s2r3">/?model=v5_M_s2r3</a> (12 October, day: the brain plays the monster
-  inside the model; real time on this laptop), <a href="/?model=v5_M_r3">/?model=v5_M_r3</a> (the same at 0.05 s steps,
+  inside the model; 0.1 s steps, about three-quarters of real time on this laptop), <a href="/?model=v5_M_r3">/?model=v5_M_r3</a> (the same at 0.05 s steps,
   about half speed here), <a href="/?persona=nightmare">/?persona=nightmare</a> (the real game against the learned
   monster), or last night's <a href="/?model=v4_M_r3">/?model=v4_M_r3</a>. WASD to move, shift to creep,
   space to blow, E to use. The top right shows the monster's mind as the model has it.</p>
@@ -42,7 +42,7 @@
   monster's brain is a second player: the learned nightmare reads the model's world every step and presses the giant's
   buttons, which go into the model like your keys. No rules run. Crawl spaces are no longer safe: it reaches 1.1 m under
   beds and tables and into cracks, and squeezes into the vent after you (slower than you crawl), so you keep moving.
-  <b>Play it:</b> <a href="/?model=v5_M_s2r3">/?model=v5_M_s2r3</a> (real time on this laptop) or
+  <b>Play it:</b> <a href="/?model=v5_M_s2r3">/?model=v5_M_s2r3</a> (0.1 s steps: about three-quarters of real time on this laptop) or
   <a href="/?model=v5_M_r3">/?model=v5_M_r3</a> (0.05 s steps, about half speed here).</p>
   <div class="vids" id="day_vids"></div>
   <h2>The same games, inside each model</h2>
@@ -107,8 +107,8 @@ document.getElementById('night_vids').innerHTML = nightClips.map(([f, t]) =>
   `<figure><video src="/clips/${f}.mp4" poster="/clips/${f}.jpg" controls preload="metadata" onerror="this.parentNode.remove()"></video>
    <figcaption><b>${t}</b></figcaption></figure>`).join('');
 const dayClips = [
-  ['v5s2_sneaker', 'v5_M_s2r3 (real time): the brain hunts a sneaking kid inside the model'],
-  ['v5s2_hider', 'v5_M_s2r3 (real time): a hiding kid'],
+  ['v5s2_sneaker', 'v5_M_s2r3 (0.1 s steps): the brain hunts a sneaking kid inside the model'],
+  ['v5s2_hider', 'v5_M_s2r3 (0.1 s steps): a hiding kid'],
   ['v5r3_sneaker', 'v5_M_r3: the brain catches a sneaking kid inside the model'],
   ['v5r3_sprinter', 'v5_M_r3: a sprinting kid'],
 ];

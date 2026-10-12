@@ -34,7 +34,7 @@ onmessage = async ({ data: m }) => {
         house = parseLevel();
         setNightmarePolicy(mlpPolicy(await (await fetch('/nightmare.json')).json()));
       }
-      session = await ort.InferenceSession.create(`/models/${m.name}/${m.brain ? 'packed_brain' : m.int8 ? 'packed_int8' : 'packed'}.onnx`,
+      session = await ort.InferenceSession.create(`/models/${m.name}/${m.brain ? 'packed_brain' : 'packed'}${m.int8 ? '_int8' : ''}.onnx`,
         { executionProviders: [m.ep, 'wasm'], graphOptimizationLevel: 'all' });
       const sizes = m.brain ? [STATE_SIZE, meta.persona, meta.ids || 225, KI_SIZE, GI_SIZE] : [STATE_SIZE, meta.persona, meta.ids || 225, KI_SIZE, NG, 1, 7]; // ids: 225 patches, or (a whole-map model) the house too
       at = sizes.map((_, i) => sizes.slice(0, i).reduce((a, b) => a + b, 0));
