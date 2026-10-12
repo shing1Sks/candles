@@ -7,5 +7,10 @@ Thumbs.db
 data/
 game/public/clips/
 .work/
-game/public/models/
+# research models stay local; the one the game plays ships as play.json + parts (game/tools/ship_model.mjs)
+game/public/models/*
+!game/public/models/v5_M_s2u/
+game/public/models/v5_M_s2u/*
+!game/public/models/v5_M_s2u/play.json
+!game/public/models/v5_M_s2u/packed_brain.onnx.*
 game/train/rl/runs/

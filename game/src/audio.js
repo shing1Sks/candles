@@ -33,7 +33,7 @@ const pickOf = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 export function createAudio() {
   let R = { x: 1, z: 0 }, ctx = null;
-  let master, world, worldLP, music, kidBus, noise;
+  let master, world, worldLP, music, kidBus, noise, muted = false;
   const buf = {}, ready = {}, st = {};
   let voices = 0, nextBeat = 0, beatI = 0, curG = null, ended = false, nextHaunt = 0, lastHaunt = '', lastSting = -99, lastScream = -99;
   let giantPhase = 0, roomsFor = null, roomC = [];
@@ -563,6 +563,8 @@ export function createAudio() {
 
   return {
     get on() { return !!ctx; },
+    get muted() { return muted; },
+    setMuted(m) { muted = m; if (master) master.gain.setTargetAtTime(m ? 0 : 0.9, ctx.currentTime, 0.05); },
     setRight(r) { if (r) R = r; },
     start() {
       if (ctx) {
@@ -581,7 +583,7 @@ export function createAudio() {
         noise = noiseBuffer();
         const comp = ctx.createDynamicsCompressor();
         comp.threshold.value = -14; comp.ratio.value = 4;
-        master = ctx.createGain(); master.gain.value = 0.9;
+        master = ctx.createGain(); master.gain.value = muted ? 0 : 0.9;
         master.connect(comp).connect(ctx.destination);
         world = ctx.createGain(); worldLP = ctx.createBiquadFilter(); worldLP.type = 'lowpass'; worldLP.frequency.value = 20000; worldLP.Q.value = 0.5;
         world.connect(worldLP).connect(master);

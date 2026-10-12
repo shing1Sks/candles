@@ -3,31 +3,176 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Candles</title>
-    <link rel="icon" href="data:," />
+    <title>Candles · a horror game, and a neural network that dreams it</title>
+    <meta name="description" content="Blow out every candle in the dark house before it touches you. Play the game, or play GameNet: the same game run entirely by a neural network in your browser." />
+    <meta name="theme-color" content="#000000" />
+    <meta property="og:title" content="Candles · GameNet" />
+    <meta property="og:description" content="A small horror game, and a neural network that learned to be it. Play either one in your browser." />
+    <meta property="og:image" content="https://candles.shing.in/og.jpg" />
+    <meta property="og:url" content="https://candles.shing.in/" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content="@ShreyashAtX" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
     <canvas id="c"></canvas>
-    <div id="candles"></div>
-    <div id="prompt"></div>
-    <div id="hints">
-      <b>WASD</b> run &nbsp;·&nbsp; <b>Shift</b> creep (quiet)<br />
-      hold <b>E</b> / <b>Space</b> at a candle to blow it out &nbsp;·&nbsp; tap it for doors and wardrobes<br />
-      walk over a toy to pick it up, <b>Q</b> to throw it (it makes a noise where it lands)<br />
-      only you fit through vents, cracks and under beds<br />
-      mouse wheel: closer / further
+
+    <!-- in play -->
+    <div id="hud" class="hide">
+      <div id="candles"></div>
+      <div id="prompt"></div>
+      <div id="hints">
+        <b>WASD</b> run · <b>Shift</b> creep, quietly<br />
+        hold <b>E</b> at a candle to blow it out · tap <b>E</b> for doors and wardrobes<br />
+        walk over a toy to pick it up · <b>Q</b> throws it, and it makes a noise where it lands<br />
+        vents, cracks, under beds: it can reach in, and it squeezes into the vents, slower than you<br />
+        <span class="dim"><b>Esc</b> pause · <b>H</b> hide these · wheel: closer / further</span>
+      </div>
+      <div id="badge" class="hide"></div>
     </div>
-    <div id="title">
+
+    <!-- the first screen -->
+    <main id="landing" class="screen scroll hide">
+      <header class="bar">
+        <span class="mark">GameNet <span class="dim">· an experiment</span></span>
+        <nav>
+          <a href="https://shing.in" target="_blank" rel="noopener">shing.in</a>
+          <a href="https://x.com/ShreyashAtX" target="_blank" rel="noopener" aria-label="X">
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.7 7.66L22 21h-6.17l-4.83-6.32L5.47 21H2.4l7.17-8.2L2 3h6.33l4.37 5.77L17.75 3Zm-1.08 16.17h1.7L7.4 4.74H5.58l11.09 14.43Z"/></svg>
+          </a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <div class="flame" aria-hidden="true"><i></i></div>
+        <h1>Candles</h1>
+        <p class="lede">The house is dark but for its candles. Blow every one out. Something lives here, it is faster than you, and across the table a giant is playing it.</p>
+        <p class="about">
+          A small horror game, and an experiment: I wrote the game, let bots play it about forty thousand times, and
+          trained a neural network on those games until it could run the house by itself.
+        </p>
+      </section>
+
+      <section class="loop" id="loop" data-mode="gamenet" aria-label="What runs while you play">
+        <div class="inputs">
+          <div class="node"><small>you</small>your keys</div>
+          <div class="node"><small>the monster</small>a learned brain, its buttons</div>
+        </div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node core">
+          <small>the house</small>
+          <span class="as-gamenet">a neural network<em>predicts everything</em></span>
+          <span class="as-classic">the rules<em>written in code</em></span>
+        </div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node"><small>out</small>the next tenth of a second</div>
+        <div class="arrow" aria-hidden="true"></div>
+        <div class="node"><small>you see</small>the house, drawn</div>
+        <div class="back" aria-hidden="true"><span>again, ten times a second</span></div>
+      </section>
+
+      <section class="modes">
+        <button class="mode" data-mode="classic">
+          <span class="kicker">Classic</span>
+          <span class="name">The game</span>
+          <span class="body">Hand-written rules run the house. The monster is a small brain that learned to hunt by playing thousands of games against bots.</span>
+          <span class="foot">starts at once · any computer with a keyboard</span>
+          <span class="go">Play classic <span aria-hidden="true">→</span></span>
+        </button>
+        <button class="mode" data-mode="gamenet">
+          <span class="kicker">GameNet</span>
+          <span class="name">The game, dreamed</span>
+          <span class="body">No rules run. A neural network is the house: every wall, door, candle and catch is its guess at what comes next. It slips now and then. That is part of it.</span>
+          <span class="foot" id="gamenetFoot">a 99 MB download, once · needs WebGPU (Chrome or Edge)</span>
+          <span class="go">Play GameNet <span aria-hidden="true">→</span></span>
+        </button>
+      </section>
+      <p id="touchNote" class="note hide">Candles needs a keyboard or a gamepad.</p>
+      <a class="more" href="#how">how it was made <span aria-hidden="true">↓</span></a>
+
+      <section class="how" id="how">
+        <h2>How it was made</h2>
+        <ol class="steps">
+          <li><b>Write the game</b><span>Rules in code: walls, doors, candles, the giant's searchlight and hand.</span></li>
+          <li><b>Let bots play</b><span>About 40,000 games of kid bots against the monster. Every 50 ms is saved as 311 numbers and the keys pressed.</span></li>
+          <li><b>Train the world</b><span>A transformer of 25 million weights learns one thing: this moment and the keys give the next moment.</span></li>
+          <li><b>Train the monster</b><span>A second, small network learns to hunt by reinforcement learning. It catches 97% of the bots.</span></li>
+        </ol>
+        <p class="caption">
+          In <b>Classic</b> the house is code. In <b>GameNet</b> it is the network, running on your graphics card, and
+          nothing else decides what happens: if it says the door is open, it is open. The monster's brain is the same in
+          both, so the two houses are hunted by the same thing.
+        </p>
+      </section>
+
+      <footer class="foot-bar">
+        made by <a href="https://shing.in" target="_blank" rel="noopener">Shreyash</a> ·
+        <a href="https://x.com/ShreyashAtX" target="_blank" rel="noopener">@ShreyashAtX</a>
+      </footer>
+    </main>
+
+    <!-- before a game: the mode, the controls, the model loading -->
+    <section id="title" class="screen hide">
+      <span class="kicker" id="titleKicker"></span>
       <h1>Candles</h1>
       <p>Blow out every candle in the house.<br />Don't let it touch you.</p>
-      <p class="small">press any key</p>
-      <p class="small" style="font-size: 11px !important; letter-spacing: 0.04em">Music by Kevin MacLeod (incompetech.com), CC BY 4.0 · sounds from BigSoundBank, OpenGameArt and the Edison collection (CC0 / public domain)</p>
-    </div>
-    <div id="end" class="hide">
+      <p class="sub" id="titleSub"></p>
+      <ul class="keys">
+        <li><kbd>WASD</kbd> run</li>
+        <li><kbd>Shift</kbd> creep</li>
+        <li><kbd>E</kbd> hold: blow out · tap: doors, hide</li>
+        <li><kbd>Q</kbd> throw a toy</li>
+      </ul>
+      <div id="load" class="hide">
+        <div class="track"><i id="loadBar"></i></div>
+        <span id="loadText"></span>
+        <div class="acts" id="loadFail" hidden>
+          <button data-act="retryLoad">Try again</button>
+          <button data-act="classic">Play classic instead</button>
+        </div>
+      </div>
+      <p class="small" id="titleGo"></p>
+      <button class="link" data-act="menu">← menu</button>
+    </section>
+
+    <section id="pause" class="screen hide">
+      <h1>Paused</h1>
+      <div class="acts">
+        <button data-act="resume">Go on <kbd>Esc</kbd></button>
+        <button data-act="menu">Menu</button>
+      </div>
+    </section>
+
+    <section id="end" class="screen hide">
       <h1 id="endTitle"></h1>
       <p id="endSub"></p>
-      <p class="small">R to try again</p>
+      <div class="acts">
+        <button data-act="retry">Try again <kbd>R</kbd></button>
+        <button data-act="menu">Menu <kbd>Esc</kbd></button>
+      </div>
+    </section>
+
+    <!-- always: sound, and the credits on hover -->
+    <div id="corner">
+      <button id="sound" title="Sound (M)" aria-label="Sound on (M)">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/><path class="on" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M16 9.2a4 4 0 0 1 0 5.6M18.6 6.6a7.6 7.6 0 0 1 0 10.8"/><path class="off" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="m16.5 9.5 5 5m0-5-5 5"/></svg>
+      </button>
+      <div class="credits" tabindex="0">
+        <span class="pill">
+          <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M9 17.5a2.5 2.5 0 1 1-2-2.45V5l11-2v11.5a2.5 2.5 0 1 1-2-2.45V7.1l-7 1.3z"/></svg>
+          credits
+        </span>
+        <div class="pop">
+          <b>Music</b> by Kevin MacLeod (incompetech.com), licensed under
+          <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>:
+          "Ossuary 6 - Air", "Spider Eyes", "SCP-x4x (Mind Leech)".<br />
+          <b>Sounds</b> from BigSoundBank (Joseph Sardin and others), OpenGameArt (Nocturnal_Vanguard, Kresiek The Furry)
+          and an 1890 Edison talking doll: CC0 and public domain. The rest is synthesised.
+        </div>
+      </div>
     </div>
+
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

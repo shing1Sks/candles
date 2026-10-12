@@ -10,14 +10,18 @@ import { MODES } from '../sim/mind/index.js';
 const ACTS = ['none', 'door', 'bash', 'check', 'windup', 'lunge', 'recover', 'yell'];
 const STATES = ['play', 'won', 'caught'], BEAMS = ['idle', 'warn', 'on'], HANDS = ['idle', 'shadow', 'down', 'hold', 'up'];
 
-// onStep(G): called after each row lands (a kid bot answers here)
-export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, topP = 0.9, mixFor = null, snap = true, peak = true, walls = true, gtemp = 1, int8 = false, lockstep = false, brain = false, onStep = null } = {}) {
+// onStep(G): called after each row lands (a kid bot answers here); onProgress(m): the loading (worker.js 'progress')
+export async function createDream(name, G0, { ep = 'webgpu', temp = 1, mix = 0.3, topP = 0.9, mixFor = null, snap = true, peak = true, walls = true, gtemp = 1, int8 = false, lockstep = false, brain = false, onStep = null, onProgress = null } = {}) {
   const worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
   const L = G0.L, map = { w: L.w, h: L.h, tiles: Array.from(L.tiles), doorAt: Array.from({ length: L.w * L.h }, (_, i) => L.doorAt(i % L.w, Math.floor(i / L.w))) };
   const col = layout(), ki = new Float32Array(KI_SIZE);
   let G, from = null, to = null, ms = 0, landed = 0, rate = 0, n = 0, since = performance.now(), stride = 1;
   await new Promise((ok, fail) => {
-    worker.onmessage = ({ data: m }) => (m.type === 'ready' ? (stride = m.stride, console.log(`model worker: ${m.threads} threads, isolated ${m.isolated}, stride ${m.stride}`), ok()) : m.type === 'error' ? fail(new Error(m.message)) : null);
+    worker.onmessage = ({ data: m }) => {
+      if (m.type === 'progress') onProgress?.(m);
+      if (m.type === 'ready') { stride = m.stride; console.log(`model worker: ${m.threads} threads, isolated ${m.isolated}, stride ${m.stride}, ready in ${(m.ms / 1000).toFixed(1)} s`); ok(); }
+      if (m.type === 'error') fail(new Error(m.message));
+    };
     worker.onerror = (e) => fail(new Error(e.message || 'the model worker failed'));
     worker.postMessage({ type: 'init', name, ep, int8, temp, mix, topP, mixFor, snap, peak, walls, gtemp, map, lockstep, brain });
   });
