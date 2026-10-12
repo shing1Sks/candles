@@ -3,6 +3,7 @@
 ![Candles](game/public/og.jpg)
 
 **A small horror game, and a neural network that learned to be it.** Play at **[candles.shing.in](https://candles.shing.in)**.
+Source: [github.com/shing1Sks/candles](https://github.com/shing1Sks/candles).
 
 You are a small kid in a dark house. Blow out the candle in every room. Something lives here: it is faster than you,
 it hears you run, and across the table a giant is playing it with a controller, a searchlight and, when it gets
