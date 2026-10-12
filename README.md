@@ -1,59 +1,88 @@
-# Candles · GameNet
+<div align="center">
+
+# Candles
+
+**A small horror game, and a neural network that learned to be it.**
+
+**[Play at candles.shing.in](https://candles.shing.in)** · made by [Shreyash](https://shing.in) · [@ShreyashAtX](https://x.com/ShreyashAtX)
 
 ![Candles](game/public/og.jpg)
 
-**A small horror game, and a neural network that learned to be it.** Play at **[candles.shing.in](https://candles.shing.in)**.
-Source: [github.com/shing1Sks/candles](https://github.com/shing1Sks/candles).
+</div>
 
-You are a small kid in a dark house. Blow out the candle in every room. Something lives here: it is faster than you,
-it hears you run, and across the table a giant is playing it with a controller, a searchlight and, when it gets
-impatient, its hand.
+## The idea
 
-The game was written as ordinary code. Bots then played it about forty thousand times, and a transformer was trained
-on those games until it could run the house by itself. The site offers both:
+You are a small kid in a dark house. Blow out the candle in every room. Something lives here: it is faster than you, it
+hears you run, and across the table a giant is playing it with a controller, a searchlight and, when it gets impatient,
+its hand.
 
-| Mode | What runs the house | Needs |
+That is the game. The experiment, **GameNet**, asks whether a neural network can *be* that game.
+
+**In GameNet there are no rules.** No code moves you, stops you at a wall, opens a door, blows out a candle or decides
+that you were caught. A transformer looks at this moment of the house and the keys you press, and imagines the next tenth
+of a second, ten times a second, in your browser. Every wall that stops you is a wall it learned. When it slips, the house
+slips with it.
+
+The game was written once, as ordinary code, only to have something to learn from. Bots played it about forty thousand
+times. The network learned from those games, and then the rules were deleted.
+
+| | What runs the house | Needs |
 |---|---|---|
-| **Classic** | The rules in `game/src/sim`: walls, doors, candles, the giant's tools | any computer with a keyboard |
-| **GameNet** | A 25 M-weight transformer, every 0.1 s, from your keys. No game rules run: if it says the door is open, it is open | WebGPU (Chrome or Edge on a computer), a 99 MB download once |
+| **Classic** | The rules, about a thousand lines of code | any computer with a keyboard |
+| **GameNet** | A neural network with 25 million weights, and nothing else | WebGPU (Chrome or Edge on a computer), a 99 MB download once |
 
-In both, the monster is the **nightmare**: a small network trained by reinforcement learning to hunt. It catches 97.5%
-of held-out bot kids. It reaches under beds and into cracks and squeezes into the vents after you, slower than you
-crawl. Winning is rare. That is intended.
+In both, the monster is the **nightmare**:
+- a small network that learned to hunt by playing bots;
+- it catches 97.5% of them;
+- it reaches under beds and into cracks, and squeezes into the vents after you, slower than you crawl.
+
+Winning is rare. That is intended.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/media/classic.jpg" alt="Classic: the giant over the board, the monster's eye over the wall"><br><sub><b>Classic.</b> The giant leans over the board; the monster's eye shows over the wall.</sub></td>
+<td width="50%"><img src="docs/media/gamenet.jpg" alt="GameNet: the same house, run by the network"><br><sub><b>GameNet.</b> The same house, but every frame is the network's guess.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/media/landing.jpg" alt="The first screen: two ways to play"><br><sub>The first screen: two ways to play.</sub></td>
+<td width="50%"><img src="docs/media/how.jpg" alt="How it works, on the site"><br><sub>"How it works" on the site: a live bot game and the numbers the network sees.</sub></td>
+</tr>
+</table>
 
 ## How GameNet works
 
-```
- your keys ───────────┐
-                      ├──▶  the world model  ──▶  the next 0.1 s  ──▶  drawn (three.js)
- the nightmare's ─────┘     (the house)              │
- buttons (its brain                                  │
- reads the model's row) ◀────────────────────────────┘   10 times a second, in a Web Worker
-```
+<img src="docs/media/bots.gif" width="420" align="right" alt="A kid bot against the monster, the kind of game GameNet learned from">
 
-1. **The game** (`game/src/sim`) runs headless in Node. Every 50 ms of a game is a row of 311 numbers (the kid, the
-   monster and its mind, candles, doors, toys, the searchlight, the hand) plus the inputs of both players.
-2. **Bots play it.** Kid bots of five styles with varied skill play the monster minds; 30,000 games plus 8,000
-   crawl-space and giant's-tools drills make the latest dataset.
-3. **The world model** (`game/train`): a transformer (384 wide, 12 layers) over the row cut into pieces and the house's
-   tiles. It predicts the next row from this one and both players' inputs. It is trained teacher-forced, then on its
-   own rollouts so it stays stable when it runs on its own output, at 0.1 s a step.
-4. **The nightmare** (`game/src/sim/mind/nightmare.js`, `game/train/rl`): a 2 × 256 policy picking goals (the kid,
-   cutting it off, its fading guesses, a noise, a candle to guard, a wardrobe, a search) every 0.25 s, trained with PPO
-   against a league of kid bots.
-5. **The split** (`game/src/model/brain.js`): in GameNet the nightmare reads what the monster sees, hears and feels from
-   the model's own row and presses its buttons, which go into the model like your keys do. The model is only the world.
-6. **In the browser** (`game/src/model`): ONNX Runtime Web on WebGPU in a worker, with constrained decoding (no catch,
-   win or relit candle the model's own world contradicts; bodies kept out of walls).
+1. **Write the game once.** The rules (`game/src/sim`) run headless in Node. Every 50 ms of a game becomes a row of 311
+   numbers: the kid, the monster and its mind, candles, doors, toys, the searchlight, the hand. Both players' inputs
+   are saved with it.
+2. **Let bots play it.** Kid bots of five styles and varied skill play the monster: 30,000 games, plus 8,000 drills
+   for the rare moments (crawl spaces, the giant's tools). *Right: one of those games.*
+3. **Teach a network the next moment.** A transformer (384 wide, 12 layers, `game/train`) reads the row in pieces and
+   the house's tiles, and predicts the next row from the two players' inputs. It is trained first on the recorded
+   games, then on its own output, so it stays stable when it is left to run alone.
+4. **Teach a monster to hunt.** The nightmare (`game/src/sim/mind/nightmare.js`, `game/train/rl`) is a 2 × 256 policy
+   trained with PPO against a league of kid bots. Every 0.25 s it picks a goal: the kid, a cut-off, a guess, a noise,
+   a candle to guard, a wardrobe.
+5. **Delete the rules.** In GameNet the world model is the house. The nightmare reads what its monster sees, hears and
+   feels from the model's own output, and presses the monster's buttons. Those buttons go into the model just as your
+   keys do. It runs with ONNX Runtime Web on WebGPU in a worker (`game/src/model`). A light decoding layer refuses
+   only what the model's own world contradicts, such as a catch with nobody near or a candle relighting.
 
-**Where it stands** (bot exams inside the model; full write-up in
-[the training spec](docs/superpowers/specs/2026-10-11-gamenet-training-spec.md), section 13):
-- The mechanics exam: 384 generated moments (every candle, door, wardrobe, toy, crawl space, the searchlight and the
-  hand), each checked 3 times. The play model, `v5_M_s2u`, passes 303 of them every time.
-- Inside the model the nightmare catches 35 of 40 bot kids.
-- On an Intel Iris Xe laptop it runs at about three-quarters of real time.
-- Weak spots: the searchlight and the hand inside the model often miss what the rules would do, and now and then the
-  house slips. All the training took about $17 of rented RTX 4090 time.
+<br clear="right">
+
+### Where it stands
+
+Measured with bot exams inside the model. The full log, run by run, is in
+[the training spec](docs/superpowers/specs/2026-10-11-gamenet-training-spec.md).
+
+- **The mechanics exam:** 384 generated moments (every candle, door, wardrobe, toy, crawl space, the searchlight
+  and the hand), each run 3 times. The play model, `v5_M_s2u`, passes 303 of them every time.
+- **The hunt:** inside the model, the nightmare catches 35 of 40 bot kids.
+- **Speed:** on an Intel Iris Xe laptop it runs at about three-quarters of real time.
+- **Weak spots:** inside the model the searchlight and the hand often miss what the rules would do, and now and then
+  the house slips.
+- **Cost:** all the training took about $17 of rented RTX 4090 time.
 
 ## Controls
 
@@ -68,7 +97,9 @@ crawl. Winning is rare. That is intended.
 | Esc | pause, and the menu |
 | M / H | sound / hints |
 
-## Run it
+## For developers
+
+### Run it
 
 ```
 cd game
@@ -78,7 +109,7 @@ npm run dev        # http://localhost:5190
 
 `npm run build` writes `game/dist` (about 134 MB): the game, the audio, the play model and the runtime's files.
 
-## Deploy
+### Deploy
 
 `game/dist` is static. The host must send two headers so the runtime can use threads:
 
@@ -97,7 +128,7 @@ Cross-Origin-Embedder-Policy: require-corp
   their md5, so a return visit skips the download.
 - **Models hosted elsewhere:** build with `VITE_MODEL_BASE=https://…/models/`. That host must allow CORS.
 
-## Repository
+### Repository
 
 ```
 game/
@@ -122,13 +153,13 @@ docs/
 
 The earlier prototypes (forest, school, The Long Way Home) are kept under the git tag `archive/before-maze`.
 
-## Tests and tools
+### Tests and tools
 
 ```
 cd game
 npm test                         # 519 tests, about 10 s
 SLOW=1 npm test                  # also plays 20 games per kid style (about 3 minutes)
-npm run check                    # the house: every candle reachable, starts far apart, gaps cost the monster a detour
+npm run check                    # the house: every candle reachable, starts far apart, what each crawl passage saves
 node tools/sim.mjs 60 1          # balance probe; env PERSONA=nightmare KID=sneaker SKILL=0.6 START=fresh
 ```
 
@@ -138,7 +169,7 @@ Dev links (they skip the first screen):
 - `?watch=v5:12` replays game 12 of batch v5 exactly, as the generator played it, with no data needed (`[` `]` change
   the speed).
 
-## Making data and training
+### Making data and training
 
 ```
 cd game
