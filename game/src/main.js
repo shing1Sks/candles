@@ -10,6 +10,7 @@ import { createDream } from './model/dream.js';
 import { createKidBot, observeKid } from './sim/bots/kid.js';
 import { rng } from './sim/rng.js';
 import { setNightmarePolicy, mlpPolicy } from './sim/mind/nightmare.js';
+import { createHow } from './how.js';
 
 // Two ways to play, picked on the first screen (or ?mode=classic / ?mode=gamenet):
 //   classic: the rules run the house (src/sim) and the nightmare, the learned monster (train/rl), hunts you
@@ -22,10 +23,11 @@ const q = new URLSearchParams(location.search);
 const devLink = ['watch', 'model', 'persona', 'rec', 'manual', 'seed', 'at', 'mon', 'zoom', 'reveal', 'dist', 'bot'].some((k) => q.has(k)); // not ?utm_ and the like
 let mode = q.get('mode') || (q.has('model') ? 'gamenet' : devLink ? 'classic' : null);
 // the nightmare for both modes; a dev link without ?persona= keeps the coded one (or the nightmare for v4/v5 models)
-const PERSONA = q.get('persona') || (q.has('mode') || /^v[45]/.test(q.get('model') || '') ? 'nightmare' : 'classic');
+let nightmare = q.has('mode') || /^v[45]/.test(q.get('model') || ''); // a mode chosen on the first screen sets it
+const persona = () => q.get('persona') || (nightmare ? 'nightmare' : 'classic');
 let policy = null; // the nightmare's weights (until they load it simply chases)
 const loadPolicy = () => (policy ||= fetch('/nightmare.json').then((r) => r.json()).then((w) => setNightmarePolicy(mlpPolicy(w))));
-if (PERSONA === 'nightmare') loadPolicy();
+if (persona() === 'nightmare') loadPolicy();
 
 // &manual=1 (recording clips): the page only moves when the recorder calls window.__frame(dt), one exact frame at a time
 const manual = q.has('manual');
@@ -56,7 +58,7 @@ function newGame() {
     watchLog.length = 0;
   } else {
     G = createGame(L, seed++);
-    G.mind = createMind(G, { type: PERSONA });
+    G.mind = createMind(G, { type: persona() });
   }
   if (q.has('at')) { const [x, z] = q.get('at').split(',').map(Number); G.kid.x = x; G.kid.z = z; }
   if (q.has('mon')) { const [x, z] = q.get('mon').split(',').map(Number); G.monster.x = x; G.monster.z = z; }
@@ -91,6 +93,7 @@ function landing() {
 // a mode chosen: its start screen, and what it needs loaded before you can start
 function choose(m) {
   mode = m;
+  if (!devLink) nightmare = true;
   if (!devLink) history.replaceState(null, '', `?mode=${m}`);
   modelName = m === 'gamenet' ? q.get('model') || PLAY_MODEL : null; // a loaded model stays loaded for a way back
   phase = 'title';
@@ -103,7 +106,7 @@ function choose(m) {
   ready = false; drawReady();
   $('load').classList.toggle('hide', m !== 'gamenet');
   if (m === 'gamenet') loadModel();
-  else (PERSONA === 'nightmare' ? loadPolicy() : Promise.resolve()).then(() => { if (mode === 'classic') isReady(); });
+  else (persona() === 'nightmare' ? loadPolicy() : Promise.resolve()).then(() => { if (mode === 'classic') isReady(); });
 }
 function isReady() {
   ready = true; drawReady();
@@ -171,10 +174,11 @@ function retry() { newGame(); begin(); }
 
 for (const b of document.querySelectorAll('.mode')) {
   b.addEventListener('click', () => choose(b.dataset.mode));
-  b.addEventListener('mouseenter', () => { $('loop').dataset.mode = b.dataset.mode; });
 }
+const how = createHow(L, loadPolicy); // the how-it-works popup
+$('howModal').addEventListener('pointerdown', (e) => { if (e.target === e.currentTarget) how.hide(); });
 for (const b of document.querySelectorAll('[data-act]')) {
-  b.addEventListener('click', (e) => { e.stopPropagation(); ({ menu: landing, resume, retry, retryLoad: loadModel, classic: () => choose('classic') })[b.dataset.act](); });
+  b.addEventListener('click', (e) => { e.stopPropagation(); ({ menu: landing, resume, retry, retryLoad: loadModel, classic: () => choose('classic'), openHow: how.show, closeHow: how.hide })[b.dataset.act](); });
 }
 $('title').addEventListener('pointerdown', (e) => { if (!e.target.closest('button')) begin(); });
 if (matchMedia('(pointer: coarse)').matches) $('touchNote').classList.remove('hide');
@@ -199,6 +203,7 @@ let pressUse = false, pressThrow = false;
 const padWas = [];
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyM' && !e.repeat) { setMuted(!audio.muted); return; }
+  if (e.code === 'Escape' && how.open) { how.hide(); return; }
   if (e.code === 'Escape') {
     if (phase === 'play' && !watch) pause();
     else if (phase === 'paused') resume();

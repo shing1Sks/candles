@@ -5,7 +5,7 @@ The decisions behind the project, newest first. Each run's numbers are in
 
 ## 2026-10-13: ready to ship (candles.shing.in)
 
-- **The site has a first screen:** what the game is and why, a diagram of what runs the house, links to shing.in and X, and two modes:
+- **The site has a first screen:** one screen with the two modes and links to shing.in and X; "how it works" opens a popup with a live bot game on the plan of the house and the 311 numbers the network sees each moment. The modes:
   - **Classic:** the rules with the nightmare;
   - **GameNet:** the world model with the nightmare inside it.
   - Music credits moved into a hover pill in a corner, apart from a sound toggle.
