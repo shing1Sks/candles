@@ -30,11 +30,11 @@ const NL = String.fromCharCode(10);
 
 if (!isMainThread) {
   // a worker: run each episode it is sent, send back its rows
-  const { batch, maxT, keys, curious, nightmare, policy, vary, evaders, evader, crawl } = workerData;
+  const { batch, maxT, keys, curious, nightmare, policy, vary, evaders, evader, crawl, tools } = workerData;
   if (evader) setEvaderWeights(JSON.parse(fs.readFileSync(evader, 'utf8')));
   if (policy) setNightmarePolicy(mlpPolicy(JSON.parse(fs.readFileSync(policy, 'utf8'))));
   parentPort.on('message', (i) => {
-    const config = configFor(batch, i, { keys, curious, nightmare, vary, evaders, crawl });
+    const config = configFor(batch, i, { keys, curious, nightmare, vary, evaders, crawl, tools });
     if (maxT) config.maxT = maxT;
     try {
       if (process.env.GEN_FAIL !== undefined && Number(process.env.GEN_FAIL) === i) throw new Error('GEN_FAIL: a forced failure');
@@ -52,7 +52,7 @@ if (!isMainThread) {
   const outRoot = flag('--out') || path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
   const maxT = Number(flag('--maxT')) || 0, keys = Number(flag('--keys')) || 0, curious = Number(flag('--curious')) || 0;
   const nightmare = Number(flag('--nightmare')) || 0, policy = flag('--policy'), vary = Number(flag('--vary')) || 0;
-  const evaders = Number(flag('--evaders')) || 0, evader = flag('--evader'), crawl = Number(flag('--crawl')) || 0; // --crawl: that share start as a crawl-space drill
+  const evaders = Number(flag('--evaders')) || 0, evader = flag('--evader'), crawl = Number(flag('--crawl')) || 0, tools = Number(flag('--tools')) || 0; // --crawl, --tools: those shares start as a crawl-space or a giant's-tools drill
   if (evaders && !evader) { console.error('--evaders needs --evader'); process.exit(2); }
   if (nightmare && !policy) { console.error('--nightmare needs --policy'); process.exit(2); }
   const [batch, countArg, workersArg] = args;
@@ -87,11 +87,11 @@ if (!isMainThread) {
   await new Promise((resolve) => {
     const finish = () => { done++; if (done % 50 === 0 || done === count) report(); if (done === count) resolve(); };
     const spawn = () => {
-      const worker = new Worker(new URL(import.meta.url), { workerData: { batch, maxT, keys, curious, nightmare, policy, vary, evaders, evader, crawl } });
+      const worker = new Worker(new URL(import.meta.url), { workerData: { batch, maxT, keys, curious, nightmare, policy, vary, evaders, evader, crawl, tools } });
       const feed = () => { if (next < count) { worker.job = next; worker.postMessage(next++); } else worker.terminate(); };
       // a worker that dies outright: log its episode as failed, carry on with a fresh worker
       worker.on('error', (e) => {
-        line(errFd, { i: worker.job, config: configFor(batch, worker.job, { keys, curious, nightmare, vary, evaders, crawl }), message: e.message, stack: e.stack });
+        line(errFd, { i: worker.job, config: configFor(batch, worker.job, { keys, curious, nightmare, vary, evaders, crawl, tools }), message: e.message, stack: e.stack });
         failed++; finish(); spawn();
       });
       worker.on('message', (m) => {

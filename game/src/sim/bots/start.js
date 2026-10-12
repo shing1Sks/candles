@@ -133,3 +133,30 @@ export function crawlStart(G, rand) {
     return;
   }
 }
+
+// A giant's-tools drill (data v5: the searchlight and the hand are rare): a mid-game start with two or more candles
+// out, both tools ready, the kid somewhere open and the monster far off with only a rough guess of where it is (the
+// tools are for a kid it cannot see).
+export function toolStart(G, rand) {
+  randomStart(G, rand);
+  const L = G.L, k = G.kid, M = G.monster;
+  const lit = G.candles.filter((c) => c.lit);
+  for (let i = 0; i < 6 - lit.length && G.candles.filter((c) => !c.lit).length < 2; i++) { const c = lit[i]; c.lit = false; c.outAt = G.t - 20; }
+  if (G.candles.every((c) => !c.lit)) G.candles[0].lit = true;
+  k.hidden = -1;
+  for (let tries = 0; tries < 50; tries++) {
+    const x = 1 + Math.floor(rand() * (L.w - 2)), z = 1 + Math.floor(rand() * (L.h - 2));
+    if (L.at(x, z) !== 0 || L.doorAt(x, z) >= 0) continue;
+    if (Math.hypot(x + 0.5 - M.x, z + 0.5 - M.z) < 10) continue;
+    Object.assign(k, { x: x + 0.5, z: z + 0.5, vx: 0, vz: 0, tile: -1 });
+    if (k.held >= 0) Object.assign(G.items[k.held], { x: k.x, z: k.z });
+    break;
+  }
+  G.beam.cool = 0; G.reach.cool = 0;
+  const m = G.mind;
+  if (m) {
+    const e = 1 + rand() * 2, a = rand() * Math.PI * 2;
+    m.beliefs = [{ x: k.x + Math.cos(a) * e, z: k.z + Math.sin(a) * e, spread: 2, conf: 1, w: 1, kind: 'ping', age: 1 }];
+    m.frustration = 0.5 + rand() * 0.4;
+  }
+}
