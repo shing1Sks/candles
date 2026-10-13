@@ -36,10 +36,14 @@ def counter(n, label):  # the count, as the drawn grid shows it
             f"drawtext=fontfile='{SANSB}':textfile={tl}:fontsize=18:fontcolor=0x9a9a9a:x=(w-text_w)/2:y={H - 76}-ascent")
 
 parts = []
-# A: the game
-A = [('a1_intro', 0.3, 4.0), ('a2_candle', 0.2, 2.2), ('a3_beam', 0.2, 2.0), ('a4_hand', 0.7, 2.5), ('a5_roar', 0.2, 2.0), ('a6_found', 0.0, 1.9), ('a7_lunge', 0.0, 1.8)]
-for i, (n, s, l) in enumerate(A):
-    parts.append(part(n, f'shots/{n}.mp4', s, l, GRADE, fin=0.8 if i == 0 else 0))
+# the title card: GameNet, a 100% neural network game, 0 coded mechanics
+parts.append(part('h_head', 'shots/head.mp4', 0, dur('shots/head.mp4')))
+# A: the game, five seconds: the board under the giant's eye (with the name), the searchlight, a roar, a lunge
+tc = textfile('tc', 'Candles')
+name = f"drawtext=fontfile='{GEORGIA}':textfile={tc}:fontsize=110:fontcolor=0xf0f0f0:x=(w-text_w)/2:y={H - 150}-ascent:alpha='min(1,max(0,(t-0.15)/0.4))*min(1,max(0,(1.4-t)/0.25))'"
+A = [('a1_intro', 0.7, 1.45, GRADE + ',' + name), ('a3_beam', 0.3, 1.1, GRADE), ('a5_roar', 0.3, 1.1, GRADE), ('a7_lunge', 0.0, 1.5, GRADE)]
+for i, (n, s, l, vf) in enumerate(A):
+    parts.append(part(n, f'shots/{n}.mp4', s, l, vf, fin=0.35 if i == 0 else 0))
 a_end = sum(p[1] for p in parts)
 # B: it multiplies: 4, 16 (the 3D games), then the drawn grid
 tiles = [f'shots/b_{k:02d}.mp4' for k in range(16)]
@@ -72,10 +76,9 @@ open('parts/list.txt', 'w').write(''.join(f"file '{os.path.basename(p)}'\n" for 
 run(['-f', 'concat', '-safe', '0', '-i', 'parts/list.txt', '-c', 'copy', 'parts/video.mp4'])
 
 # sound: the house's drone all through; the chase music while it multiplies; hits on the moments
-at = {n: sum(p[1] for p in parts[:i]) for i, (n, _, _) in enumerate(A)}
+at = {os.path.basename(p)[:-4]: sum(q[1] for q in parts[:i]) for i, (p, _) in enumerate(parts)}
 hits = [  # (file, time, volume, filter)
-    ('cat_growl.ogg', at['a5_roar'] + 0.62, 1.0, 'asetrate=44100*0.5,aresample=44100'),
-    ('door_creak.ogg', at['a6_found'] + 0.55, 0.8, ''),
+    ('cat_growl.ogg', at['a5_roar'] + 0.52, 1.0, 'asetrate=44100*0.5,aresample=44100'),
     ('stinger_rush.ogg', at['a7_lunge'] + 1.15, 1.0, ''),
     ('sfx_stinger_dark.ogg', c_end - c_len + 1.0 + 6 * 2.0 + 0.2, 0.9, ''),
 ]
@@ -87,4 +90,4 @@ for k, (f, t, v, extra) in enumerate(hits):
 fc += '[drone][chase]' + ''.join(f'[h{k}]' for k in range(len(hits))) + f'amix=inputs={2 + len(hits)}:normalize=0,alimiter=limit=0.9,atrim=0:{total}[a]'
 run([*ins, '-filter_complex', fc, '-map', '[a]', '-c:a', 'aac', '-b:a', '192k', 'parts/audio.m4a'])
 run(['-i', 'parts/video.mp4', '-i', 'parts/audio.m4a', '-c:v', 'copy', '-c:a', 'copy', '-shortest', '-movflags', '+faststart', 'out/candles.mp4'])
-print(json.dumps({'total': round(total, 2), 'a_end': round(a_end, 2), 'b_end': round(b_end, 2), 'c_end': round(c_end, 2), 'd_end': round(d_end, 2)}))
+print(json.dumps({'head': round(parts[0][1], 2), 'total': round(total, 2), 'a_end': round(a_end, 2), 'b_end': round(b_end, 2), 'c_end': round(c_end, 2), 'd_end': round(d_end, 2)}))

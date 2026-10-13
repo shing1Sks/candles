@@ -2,6 +2,7 @@
 //   grid:  bot games multiplying (8 across, 16, 32, 64) with a count running up to forty thousand
 //   rules: the house's plan with the real code of each mechanic; one by one the code dissolves into weights and the
 //          plan's part is drawn as the network's guess
+//   head:  the title card
 //   card:  the end card
 // window.__film.start(name) then window.__film.frame(dt) per frame.
 import { parseLevel, T } from '../../src/sim/level.js';
@@ -242,6 +243,24 @@ function discCells(cx, cy, r, f) {
   for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) { if (i * i + j * j > 10) continue; g.fillStyle = shade(90 + 150 * hash(i + 9, j + 9, f)); g.fillRect(cx + (i * r) / 3 - r / 7, cy + (j * r) / 3 - r / 7, (r / 3.5) * 1.6, (r / 3.5) * 1.6); }
 }
 
+// ---------- the head card ----------
+const HEAD_T = 3.0;
+function headSeg() {
+  let t = 0;
+  return (dt) => {
+    t += dt;
+    const out = 1 - ease((t - HEAD_T + 0.5) / 0.5), at = (s) => ease((t - s) / 0.7) * out;
+    g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    g.textAlign = 'center';
+    g.globalAlpha = at(0); g.fillStyle = '#f0f0f0'; g.font = `150px ${SERIF}`; g.fillText('GameNet', W / 2, H / 2 - 30);
+    g.globalAlpha = at(0.4); g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(W / 2 - 40, H / 2 + 18, 80, 1);
+    g.globalAlpha = at(0.5); g.fillStyle = '#c8c8c8'; g.font = `38px ${SERIF}`; g.fillText('a 100% neural network game', W / 2, H / 2 + 90);
+    g.globalAlpha = at(0.9); g.fillStyle = '#8a8a8a'; g.font = `600 21px ${SANS}`; g.fillText(spaced('0 coded mechanics'), W / 2, H / 2 + 150);
+    g.globalAlpha = 1;
+    return t < HEAD_T;
+  };
+}
+
 // ---------- the end card ----------
 const CARD_T = 4.6;
 function cardSeg() {
@@ -266,6 +285,6 @@ function cardSeg() {
 let seg = null;
 window.__film = {
   ready: loadPolicy(),
-  start(name) { seg = { grid: gridSeg, rules: rulesSeg, card: cardSeg }[name](); },
+  start(name) { seg = { head: headSeg, grid: gridSeg, rules: rulesSeg, card: cardSeg }[name](); },
   frame(dt) { return seg(dt); },
 };

@@ -1,4 +1,4 @@
-# Render a drawn segment of film.html (grid | rules | card) frame by frame -> shots/SEG.mp4
+# Render a drawn segment of film.html (head | grid | rules | card) frame by frame -> shots/SEG.mp4
 #   python rec_film.py SEG [fps=30] [--preview N]: preview keeps every Nth frame as probe/SEG_kkk.jpg instead
 import sys, os, shutil, subprocess, time
 from playwright.sync_api import sync_playwright
