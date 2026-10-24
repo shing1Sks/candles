@@ -1,4 +1,5 @@
 import './style.css';
+import { inject } from '@vercel/analytics';
 import { parseLevel } from './sim/level.js';
 import { createGame, step, actionHint } from './sim/game.js';
 import { createMind } from './sim/mind/index.js';
@@ -11,6 +12,8 @@ import { createKidBot, observeKid } from './sim/bots/kid.js';
 import { rng } from './sim/rng.js';
 import { setNightmarePolicy, mlpPolicy } from './sim/mind/nightmare.js';
 import { createHow } from './how.js';
+
+inject();
 
 // Two ways to play, picked on the first screen (or ?mode=classic / ?mode=gamenet):
 //   classic: the rules run the house (src/sim) and the nightmare, the learned monster (train/rl), hunts you
